@@ -22,7 +22,15 @@ class TransporteEscolarServiceProvider extends ServiceProvider
             $this->loadMigrationsFrom(__DIR__ . '/../../database/migrations');
         }
 
-        Route::middleware(['web'])->get('/transporte-escolar/aviso/{token}', [\iEducar\Packages\BuritiTransporteEscolar\Http\Controllers\AvisoController::class, 'publico']);
+        Route::middleware(['web'])->group(function () {
+            Route::get('/transporte-escolar/aviso/{token}', [\iEducar\Packages\BuritiTransporteEscolar\Http\Controllers\AvisoController::class, 'publico']);
+            Route::get('/transporte-escolar/familia', [\iEducar\Packages\BuritiTransporteEscolar\Http\Controllers\FamiliaPortalController::class, 'inicio']);
+            Route::get('/transporte-escolar/familia/pedir', [\iEducar\Packages\BuritiTransporteEscolar\Http\Controllers\FamiliaPortalController::class, 'pedir']);
+            Route::post('/transporte-escolar/familia/pedir', [\iEducar\Packages\BuritiTransporteEscolar\Http\Controllers\FamiliaPortalController::class, 'gravar']);
+            Route::get('/transporte-escolar/familia/protocolo', [\iEducar\Packages\BuritiTransporteEscolar\Http\Controllers\FamiliaPortalController::class, 'protocolo']);
+            Route::post('/transporte-escolar/familia/protocolo', [\iEducar\Packages\BuritiTransporteEscolar\Http\Controllers\FamiliaPortalController::class, 'consultar']);
+            Route::post('/transporte-escolar/familia/cancelar', [\iEducar\Packages\BuritiTransporteEscolar\Http\Controllers\FamiliaPortalController::class, 'cancelar']);
+        });
 
         Route::middleware([
             'web',
@@ -52,6 +60,7 @@ class TransporteEscolarServiceProvider extends ServiceProvider
                 'relatorios' => Acesso::permite(Processos::RELATORIOS, 'ver'),
                 'cacs' => Acesso::permite(Processos::CACS, 'ver'),
                 'avisos' => Acesso::permite(Processos::AVISOS, 'ver'),
+                'solicitacoes' => Acesso::permite(Processos::SOLICITACOES, 'ver'),
             ]);
         });
     }

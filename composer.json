@@ -1,7 +1,7 @@
 {
     "name": "buriti/i-educar-transporte-escolar-v2",
     "description": "Transporte Escolar v2 para o i-Educar 2.12, sem depender do pacote de transporte da Portábilis.",
-    "version": "1.0.0",
+    "version": "1.2.0",
     "type": "library",
     "license": "GPL-2.0-or-later",
     "keywords": [

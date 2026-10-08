@@ -48,6 +48,8 @@ final class Processos
 
     public const AVISOS = 880160;
 
+    public const SOLICITACOES = 880161;
+
     /**
      * @return array<int, string>
      */
@@ -74,6 +76,7 @@ final class Processos
             self::RELATORIOS => 'Relatórios',
             self::CACS => 'Painel do CACS',
             self::AVISOS => 'Aviso à família',
+            self::SOLICITACOES => 'Pedidos da família',
         ];
     }
 }

@@ -26,4 +26,6 @@ A migration `2026_10_08_130000_operacao_custo_relatorio` acrescenta `configuraca
 
 A migration `2026_10_08_140000_medicao_aviso_geocerca` acrescenta `encargo_percent` em motorista e monitor, `raio_metros` no ponto, `fora_da_cerca` no embarque e a tabela `aviso_familia`.
 
+A migration `2026_10_08_170000_processo_vaga` cria `processo_vaga` e `processo_vaga_oferta`. O processo guarda o ano letivo e o período. A oferta liga uma rota e uma escola, com o número de vagas. O pedido da família aponta para essa oferta.
+
 Nenhuma dessas tabelas é lida em `modules.rota_transporte_escolar` nem nas outras tabelas do pacote da Portábilis. Ambiente sem aquele pacote sobe do mesmo jeito.

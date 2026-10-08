@@ -2,7 +2,7 @@
 
 Pacote Buriti para o i-Educar 2.12. Funciona quando o pacote `portabilis/i-educar-transport-package` não está instalado: as tabelas ficam no schema `transporte_escolar`, não em `modules`.
 
-Esta versão é a 1.0. Cobre as fases 0 a 5 e as ondas 1 a 8. SMS, envio ao SiGPC e folha de pagamento continuam de fora.
+Esta versão é a 1.2. Cobre as fases 0 a 5, as ondas 1 a 8, o portal da família e o processo de vagas por ano, escola e rota. SMS, envio ao SiGPC e folha de pagamento continuam de fora.
 
 ## O que o núcleo já guarda
 
@@ -10,10 +10,10 @@ O pacote não cria de novo nome, CPF, matrícula, turma, série, zona, coordenad
 
 ## Menu e perfis
 
-O menu **Transporte escolar** nasce com processos `880100`–`880160`, fora da faixa do pacote da Portábilis. A migration grava `menu_tipo_usuario` conforme o nível do tipo de usuário:
+O menu **Transporte escolar** nasce com processos `880100`–`880161`, fora da faixa do pacote da Portábilis. A migration grava `menu_tipo_usuario` conforme o nível do tipo de usuário:
 
-- institucional (níveis 1 e 2) grava a rede e lê o painel do CACS;
-- escola (nível 4) consulta a frota e a rota, grava o aluno da própria matrícula e o embarque das suas rotas, e sobe a fila offline;
+- institucional (níveis 1 e 2) grava a rede, aceita ou recusa o pedido da família e lê o painel do CACS;
+- escola (nível 4) consulta a frota e a rota, grava o aluno da própria matrícula e o embarque das suas rotas, encaminha o pedido da própria escola e sobe a fila offline;
 - biblioteca (nível 8) não recebe o menu.
 
 O detalhe de cada tela está em `docs/PERMISSOES.md`. O poli-institucional continua vendo todos os menus pelo núcleo, como já acontece no i-Educar. Gastos, SETE, cópia do ano e o painel do CACS não abrem para a escola.
@@ -44,3 +44,8 @@ Os testes de regra, sem banco, rodam com `php tests/run.php`.
 - `docs/NUCLEO.md` — tabelas do 2.12 reaproveitadas
 - `docs/PERMISSOES.md` — institucional e escolar, por fase e onda
 - `docs/GUIA-EVOLUCAO.md` — guia completo, inclusive a fase 5
+- `docs/FLUXOS.md` — fluxogramas do processo de vagas, do pedido e da análise
+
+## Portal da família
+
+A família não usa o menu do i-Educar. O endereço `/transporte-escolar/familia` é uma página própria do transporte, no mesmo espírito da pré-matrícula: pedir o transporte e acompanhar o protocolo. A consulta pede o protocolo e a data de nascimento. A escola e a secretaria tratam o pedido em `/transporte-escolar/solicitacoes`. Nesse mesmo lugar, o perfil institucional grava o endereço do setor, os documentos e as coordenadas do mapa. A família vê o mapa quando o pedido é aceito.

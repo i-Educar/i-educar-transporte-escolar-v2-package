@@ -16,6 +16,7 @@
             @if($menuTransporte['relatorios']) · <a href="{{ url('/transporte-escolar/relatorios') }}">Relatórios</a> @endif
             @if($menuTransporte['cacs']) · <a href="{{ url('/transporte-escolar/cacs') }}">CACS</a> @endif
             @if($menuTransporte['avisos']) · <a href="{{ url('/transporte-escolar/avisos') }}">Família</a> @endif
+            @if($menuTransporte['solicitacoes']) · <a href="{{ url('/transporte-escolar/solicitacoes') }}">Pedidos</a> @endif
             @if($menuTransporte['normas']) · <a href="{{ url('/transporte-escolar/normas') }}">Normas</a> @endif
         </p>
         @if(session('ok')) <p style="background:#e7f6e7; padding:8px 12px;">{{ session('ok') }}</p> @endif

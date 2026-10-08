@@ -29,6 +29,7 @@ final class PermissaoMatriz
             $ver[Processos::VIAGENS] = ['visualiza' => true, 'cadastra' => true, 'exclui' => false];
             $ver[Processos::OFFLINE] = ['visualiza' => true, 'cadastra' => true, 'exclui' => false];
             $ver[Processos::AVISOS] = ['visualiza' => true, 'cadastra' => false, 'exclui' => false];
+            $ver[Processos::SOLICITACOES] = ['visualiza' => true, 'cadastra' => true, 'exclui' => false];
             $ver[Processos::COPIA] = ['visualiza' => false, 'cadastra' => false, 'exclui' => false];
             $ver[Processos::SETE] = ['visualiza' => false, 'cadastra' => false, 'exclui' => false];
             $ver[Processos::GASTOS] = ['visualiza' => false, 'cadastra' => false, 'exclui' => false];

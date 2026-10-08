@@ -13,6 +13,7 @@ use iEducar\Packages\BuritiTransporteEscolar\Http\Controllers\NormaController;
 use iEducar\Packages\BuritiTransporteEscolar\Http\Controllers\PainelController;
 use iEducar\Packages\BuritiTransporteEscolar\Http\Controllers\RotaController;
 use iEducar\Packages\BuritiTransporteEscolar\Http\Controllers\SeteController;
+use iEducar\Packages\BuritiTransporteEscolar\Http\Controllers\SolicitacaoController;
 use iEducar\Packages\BuritiTransporteEscolar\Support\Processos;
 use Illuminate\Support\Facades\Route;
 
@@ -69,6 +70,11 @@ Route::prefix('transporte-escolar')->group(function () {
     Route::get('/relatorios/csv', [RelatorioController::class, 'csv'])->middleware('transporte.processo:' . Processos::RELATORIOS . ',ver');
     Route::get('/relatorios/dossie', [RelatorioController::class, 'dossie'])->middleware('transporte.processo:' . Processos::GASTOS . ',ver');
     Route::get('/avisos', [AvisoController::class, 'index'])->middleware('transporte.processo:' . Processos::AVISOS . ',ver');
+    Route::get('/solicitacoes', [SolicitacaoController::class, 'index'])->middleware('transporte.processo:' . Processos::SOLICITACOES . ',ver');
+    Route::post('/solicitacoes/atendimento', [SolicitacaoController::class, 'atendimento'])->middleware('transporte.processo:' . Processos::SOLICITACOES . ',gravar');
+    Route::post('/solicitacoes/processo', [SolicitacaoController::class, 'processo'])->middleware('transporte.processo:' . Processos::SOLICITACOES . ',gravar');
+    Route::post('/solicitacoes/oferta', [SolicitacaoController::class, 'oferta'])->middleware('transporte.processo:' . Processos::SOLICITACOES . ',gravar');
+    Route::post('/solicitacoes/{solicitacao}', [SolicitacaoController::class, 'situacao'])->middleware('transporte.processo:' . Processos::SOLICITACOES . ',gravar');
     Route::get('/cacs', [CacsController::class, 'index'])->middleware('transporte.processo:' . Processos::CACS . ',ver');
 
     foreach (['empresas' => Processos::EMPRESAS, 'motoristas' => Processos::MOTORISTAS, 'monitores' => Processos::MONITORES, 'veiculos' => Processos::VEICULOS, 'fornecedores' => Processos::FORNECEDORES, 'pontos' => Processos::PONTOS] as $caminho => $processo) {

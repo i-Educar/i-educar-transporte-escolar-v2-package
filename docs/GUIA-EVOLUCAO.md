@@ -287,6 +287,14 @@ Cobre a onda 8. O aviso é um link. A cerca é opção do município.
 
 Não fazer nesta linha: rastreador obrigatório em todo veículo, reconhecimento facial, pagamento dentro do i-Educar, folha de pagamento, envio automático da prestação ao FNDE sem API oficial.
 
+### Portal da família
+
+A família usa uma página própria, no mesmo espírito da pré-matrícula digital: não entra no menu do i-Educar. O endereço é `/transporte-escolar/familia`. Ali ela pede o transporte. O andamento fica em `/transporte-escolar/familia/protocolo`. A escola e a secretaria usam `/transporte-escolar/solicitacoes`, processo `880161`.
+
+O protocolo leva ano, sequência e um dígito de conferência. A consulta pede também a data de nascimento do aluno. A escola só encaminha o pedido da própria escola. Aceitar ou recusar é da rede. A família cancela antes da decisão. O pedido não cria pessoa nem matrícula. A página avisa que a prefeitura não pede senha nem dados por rede social.
+
+No mesmo processo, o institucional grava o setor de atendimento: endereço, horário, documentos e coordenadas. A família vê esse bloco, com mapa, só depois que o pedido é aceito. O institucional também abre o processo de vagas do ano letivo e publica escola, rota e quantidade de vagas.
+
 
 ## O que o código ainda não faz
 
