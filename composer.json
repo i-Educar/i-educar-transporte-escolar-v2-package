@@ -1,0 +1,41 @@
+{
+    "name": "buriti/i-educar-transporte-escolar-v2",
+    "description": "Transporte Escolar v2 para o i-Educar 2.12, sem depender do pacote de transporte da Portábilis.",
+    "version": "1.0.0",
+    "type": "library",
+    "license": "GPL-2.0-or-later",
+    "keywords": [
+        "ieducar",
+        "transporte-escolar",
+        "buriti"
+    ],
+    "authors": [
+        {
+            "name": "Buriti"
+        }
+    ],
+    "require": {
+        "php": ">=8.3",
+        "illuminate/support": "^11.0|^12.0|^13.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "iEducar\\Packages\\BuritiTransporteEscolar\\": "src/"
+        }
+    },
+    "extra": {
+        "laravel": {
+            "providers": [
+                "iEducar\\Packages\\BuritiTransporteEscolar\\Providers\\TransporteEscolarServiceProvider"
+            ]
+        },
+        "ieducar": {
+            "compatible": [
+                "2.12"
+            ]
+        }
+    },
+    "config": {
+        "sort-packages": true
+    }
+}
