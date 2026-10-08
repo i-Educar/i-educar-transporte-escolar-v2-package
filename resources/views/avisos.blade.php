@@ -1,16 +1,29 @@
 @extends('transporte-escolar::layout')
 
 @section('transporte')
-    <h1>Aviso à família</h1>
-    <p>O link abre sem login e sem aplicativo. Não há envio de SMS nem de notificação do celular.</p>
-    <ul>
-        @foreach($avisos as $aviso)
-            <li>
-                {{ \Illuminate\Support\Carbon::parse($aviso->data)->format('d/m/Y') }} · {{ $aviso->texto }}
-                @if($aviso->fora_da_cerca) · fora da cerca @endif
-                · <a href="{{ url('/transporte-escolar/aviso/'.$aviso->token) }}">abrir o link</a>
-                @if($aviso->lido_em) · lido @endif
-            </li>
-        @endforeach
-    </ul>
+    <h1><i class="fa fa-comments" aria-hidden="true"></i> Aviso à família</h1>
+    <p class="lead">O link abre sem login e sem aplicativo. Não há envio de SMS nem de notificação do celular.</p>
+    <div data-painel>
+        <div class="barra-dados">
+            <label class="filtro"><i class="fa fa-search" aria-hidden="true"></i><input type="search" data-filtro-tabela placeholder="Buscar data ou texto do aviso"></label>
+        </div>
+        <div class="tabela-wrap">
+            <table>
+                <thead><tr><th>Data</th><th>Texto</th><th>Cerca</th><th>Leitura</th><th></th></tr></thead>
+                <tbody>
+                    @forelse($avisos as $aviso)
+                        <tr data-busca="{{ \Illuminate\Support\Carbon::parse($aviso->data)->format('d/m/Y') }} {{ $aviso->texto }}">
+                            <td>{{ \Illuminate\Support\Carbon::parse($aviso->data)->format('d/m/Y') }}</td>
+                            <td>{{ $aviso->texto }}</td>
+                            <td>{{ $aviso->fora_da_cerca ? 'Fora' : '—' }}</td>
+                            <td>{{ $aviso->lido_em ? 'Lido' : 'Não lido' }}</td>
+                            <td><a href="{{ url('/transporte-escolar/aviso/'.$aviso->token) }}">Abrir</a></td>
+                        </tr>
+                    @empty
+                        <tr data-vazio><td colspan="5" class="vazio">Nenhum aviso.</td></tr>
+                    @endforelse
+                </tbody>
+            </table>
+        </div>
+    </div>
 @endsection

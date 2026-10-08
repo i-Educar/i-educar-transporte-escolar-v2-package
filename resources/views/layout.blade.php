@@ -1,26 +1,321 @@
-@extends('layout.default')
-
-@section('content')
-    <div style="padding:16px 24px 40px; max-width:1100px;">
-        <p style="margin:0 0 8px;"><a href="{{ url('/transporte-escolar') }}">Transporte escolar</a></p>
-        <p style="margin:0 0 16px; color:#444;">{{ $visaoRotulo }}</p>
-        <p style="margin:0 0 20px;">
-            @if($menuTransporte['rotas']) <a href="{{ url('/transporte-escolar/rotas') }}">Rotas</a> @endif
-            @if($menuTransporte['alunos']) · <a href="{{ url('/transporte-escolar/alunos') }}">Alunos</a> @endif
-            @if($menuTransporte['frota']) · <a href="{{ url('/transporte-escolar/veiculos') }}">Veículos</a> · <a href="{{ url('/transporte-escolar/motoristas') }}">Motoristas</a> · <a href="{{ url('/transporte-escolar/monitores') }}">Monitores</a> · <a href="{{ url('/transporte-escolar/empresas') }}">Empresas</a> · <a href="{{ url('/transporte-escolar/pontos') }}">Pontos</a> @endif
-            @if($menuTransporte['copia']) · <a href="{{ url('/transporte-escolar/copia-ano') }}">Cópia do ano</a> @endif
-            @if($menuTransporte['sete']) · <a href="{{ url('/transporte-escolar/sete') }}">SETE</a> @endif
-            @if($menuTransporte['viagens']) · <a href="{{ url('/transporte-escolar/viagens') }}">Viagens</a> @endif
-            @if($menuTransporte['offline']) · <a href="{{ url('/transporte-escolar/offline') }}">Offline</a> @endif
-            @if($menuTransporte['gastos']) · <a href="{{ url('/transporte-escolar/gastos') }}">Gastos</a> @endif
-            @if($menuTransporte['relatorios']) · <a href="{{ url('/transporte-escolar/relatorios') }}">Relatórios</a> @endif
-            @if($menuTransporte['cacs']) · <a href="{{ url('/transporte-escolar/cacs') }}">CACS</a> @endif
-            @if($menuTransporte['avisos']) · <a href="{{ url('/transporte-escolar/avisos') }}">Família</a> @endif
-            @if($menuTransporte['solicitacoes']) · <a href="{{ url('/transporte-escolar/solicitacoes') }}">Pedidos</a> @endif
-            @if($menuTransporte['normas']) · <a href="{{ url('/transporte-escolar/normas') }}">Normas</a> @endif
-        </p>
-        @if(session('ok')) <p style="background:#e7f6e7; padding:8px 12px;">{{ session('ok') }}</p> @endif
-        @if(session('erro')) <p style="background:#fde8e8; padding:8px 12px;">{{ session('erro') }}</p> @endif
-        @yield('transporte')
-    </div>
-@endsection
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+    <title>@yield('titulo', 'Transporte escolar')</title>
+    <link rel="stylesheet" href="{{ url('/intranet/styles/font-awesome.css') }}">
+    <style>
+        :root {
+            --azul: #47728f;
+            --azul-escuro: #35586e;
+            --azul-claro: #e7f1f6;
+            --destaque: #188ad1;
+            --fundo: #f4f7f9;
+            --tinta: #24323c;
+            --suave: #5c6b76;
+            --linha: #d5e0e8;
+            --erro: #9b2c2c;
+            --erro-fundo: #fdeceb;
+            --ok: #17663f;
+            --ok-fundo: #e5f6ec;
+            --verde: var(--azul);
+            --verde-escuro: var(--azul-escuro);
+            --verde-claro: var(--azul-claro);
+        }
+        * { box-sizing: border-box; }
+        html, body { height: 100%; }
+        body { margin: 0; font-family: "Segoe UI", sans-serif; background: var(--fundo); color: var(--tinta); line-height: 1.5; }
+        .casca-topo { position: sticky; top: 0; z-index: 30; background: var(--azul); color: #fff; box-shadow: 0 2px 10px rgba(53, 88, 110, .22); }
+        .faixa { height: 4px; background: var(--destaque); }
+        .barra { display: flex; justify-content: space-between; gap: 16px; align-items: center; max-width: 1680px; margin: 0 auto; padding: 12px 20px; }
+        .barra-acoes { display: flex; align-items: center; gap: 10px; }
+        .hamburguer { display: inline-flex; align-items: center; gap: 8px; background: transparent; color: #fff; border: 1px solid rgba(255,255,255,.45); border-radius: 999px; padding: 8px 14px; font: inherit; cursor: pointer; }
+        .hamburguer:hover, .hamburguer[aria-expanded="true"] { background: rgba(255,255,255,.14); }
+        .menu-painel { display: none; position: absolute; left: 0; right: 0; z-index: 40; background: #fff; color: var(--tinta); border-bottom: 1px solid var(--linha); box-shadow: 0 16px 32px rgba(36, 50, 60, .16); max-height: calc(100vh - 92px); overflow: auto; }
+        .menu-painel.aberto { display: block; }
+        .menu-miolo { max-width: 1680px; margin: 0 auto; padding: 8px 20px 16px; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
+        .tema { border: 1px solid var(--linha); border-radius: 12px; background: #fff; overflow: hidden; }
+        .tema-botao { width: 100%; display: flex; justify-content: space-between; align-items: center; gap: 12px; background: var(--azul-claro); color: var(--azul-escuro); border: 0; padding: 12px 14px; font: inherit; cursor: pointer; text-align: left; }
+        .tema-rotulo { display: flex; align-items: center; gap: 10px; }
+        .tema-rotulo strong { display: block; }
+        .tema-rotulo small { display: block; font-weight: 400; opacity: .85; }
+        .passo { width: 28px; height: 28px; border-radius: 50%; display: inline-grid; place-items: center; background: var(--azul); color: #fff; font-weight: 700; flex: 0 0 auto; }
+        .tema.aberto .passo { background: #fff; color: var(--azul); }
+        .tema.aberto .tema-botao { background: var(--azul); color: #fff; }
+        .tema-botao i { transition: transform .15s ease; }
+        .tema.aberto .tema-botao i { transform: rotate(180deg); }
+        .submenu { display: none; padding: 6px; }
+        .tema.aberto .submenu { display: grid; }
+        .submenu a { display: flex; align-items: center; gap: 8px; color: var(--tinta); text-decoration: none; border-radius: 8px; padding: 9px 10px; }
+        .submenu a:hover { background: var(--azul-claro); }
+        .submenu a.ativo { background: var(--azul); color: #fff; font-weight: 700; }
+        .marca { display: flex; gap: 12px; align-items: center; color: #fff; text-decoration: none; }
+        .marca strong { display: block; font-size: 1.05rem; }
+        .marca small { display: block; font-weight: 400; opacity: .85; }
+        .icone { width: 42px; height: 42px; background: var(--destaque); color: #fff; border-radius: 12px; display: inline-flex; align-items: center; justify-content: center; flex: 0 0 auto; }
+        .icone svg { width: 26px; height: 26px; }
+        .voltar { display: inline-flex; align-items: center; gap: 8px; color: #fff; text-decoration: none; border: 1px solid rgba(255,255,255,.4); border-radius: 999px; padding: 8px 14px; white-space: nowrap; }
+        .voltar:hover { background: rgba(255,255,255,.12); }
+        .brasao { width: 48px; height: 48px; object-fit: contain; background: #fff; border-radius: 8px; padding: 3px; }
+        main { max-width: 1680px; margin: 0 auto; padding: 24px 20px 88px; }
+        .flash { border-radius: 12px; padding: 12px 14px; margin: 0 0 16px; }
+        .flash.ok { background: var(--ok-fundo); color: var(--ok); }
+        .flash.erro { background: var(--erro-fundo); color: var(--erro); }
+        .conteudo h1 { margin: 0 0 6px; font-size: 1.7rem; display: flex; align-items: center; gap: 10px; }
+        .conteudo h1 i { color: var(--azul); }
+        .conteudo .lead { margin: 0 0 16px; color: var(--suave); }
+        .conteudo h2 { margin: 28px 0 10px; font-size: 1.15rem; }
+        .conteudo a { color: var(--azul); }
+        .barra-dados { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: space-between; margin: 0 0 12px; }
+        .filtro { display: flex; align-items: center; gap: 8px; background: #fff; border: 1px solid var(--linha); border-radius: 10px; padding: 0 12px; min-width: min(100%, 320px); flex: 1 1 240px; }
+        .filtro i { color: var(--suave); }
+        .filtro input { border: 0; padding: 10px 0; width: 100%; font: inherit; color: var(--tinta); background: transparent; outline: none; }
+        .botao { display: inline-flex; align-items: center; gap: 8px; background: var(--azul); color: #fff; border: 0; border-radius: 10px; padding: 10px 14px; font: inherit; text-decoration: none; cursor: pointer; }
+        .botao.claro { background: #fff; color: var(--azul); border: 1px solid var(--linha); }
+        .tabela-wrap { overflow-x: auto; background: #fff; border: 1px solid var(--linha); border-radius: 12px; }
+        .conteudo table { width: 100%; border-collapse: collapse; background: #fff; margin: 0; }
+        .conteudo th, .conteudo td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--linha); vertical-align: middle; }
+        .conteudo th { background: var(--azul-claro); font-size: .86rem; color: var(--azul-escuro); white-space: nowrap; }
+        .conteudo tr:last-child td { border-bottom: 0; }
+        .conteudo tr[hidden] { display: none; }
+        .acao { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+        .acao button, .conteudo button, .conteudo input[type="submit"] { background: var(--azul); color: #fff; border: 0; border-radius: 8px; padding: 8px 12px; font: inherit; cursor: pointer; }
+        .conteudo input:not([type="checkbox"]):not([type="radio"]):not([type="search"]), .conteudo select, .conteudo textarea { padding: 8px 10px; border: 1px solid var(--linha); border-radius: 8px; font: inherit; color: var(--tinta); background: #fff; }
+        .vazio { color: var(--suave); padding: 16px; }
+        .conteudo > form:not(.acao) { background: #fff; border: 1px solid var(--linha); border-radius: 16px; padding: 16px 18px; margin: 12px 0 20px; }
+        .cartao-rota { background: #fff; border: 1px solid var(--linha); border-radius: 16px; padding: 16px 18px; margin: 12px 0 20px; }
+        .cartao-rota h2 { margin: 0 0 8px; }
+        .cartao-rota form { display: flex; flex-wrap: wrap; gap: 10px; align-items: end; margin: 12px 0; }
+        .cartao-rota label { display: grid; gap: 4px; font-weight: 600; }
+        .numeros { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin: 0 0 16px; }
+        .numeros article { background: #fff; border: 1px solid var(--linha); border-radius: 16px; padding: 14px 16px; }
+        .numeros strong { display: block; font-size: 1.35rem; color: var(--azul-escuro); }
+        .numeros span { color: var(--suave); font-size: .86rem; }
+        .conteudo ul { background: #fff; border: 1px solid var(--linha); border-radius: 12px; margin: 8px 0 16px; padding: 12px 12px 12px 32px; }
+        .fluxograma { list-style: none; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 18px; margin: 0 0 16px; padding: 0; align-items: stretch; }
+        .etapa { --etapa: var(--azul); position: relative; background: #fff; border: 1px solid var(--linha); border-top: 4px solid var(--etapa); border-radius: 16px; padding: 12px; display: flex; flex-direction: column; min-width: 0; }
+        .etapa[data-passo="1"] { --etapa: #47728f; }
+        .etapa[data-passo="2"] { --etapa: #188ad1; }
+        .etapa[data-passo="3"] { --etapa: #0f6b4c; }
+        .etapa[data-passo="4"] { --etapa: #b86e00; }
+        .etapa[data-passo="5"] { --etapa: #5c4d7a; }
+        .etapa header { display: flex; gap: 8px; align-items: flex-start; }
+        .etapa strong { display: block; color: var(--etapa); font-size: .95rem; }
+        .etapa small { display: block; color: var(--suave); font-size: .78rem; }
+        .etapa .passo { background: var(--etapa); }
+        .etapa:not(:last-child)::after { content: ""; position: absolute; right: -18px; top: 28px; border-top: 7px solid transparent; border-bottom: 7px solid transparent; border-left: 10px solid var(--etapa); }
+        .icones-fluxo { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+        .icones-fluxo a { position: relative; width: 46px; height: 46px; border-radius: 14px; background: color-mix(in srgb, var(--etapa) 16%, #fff); color: var(--etapa); display: grid; place-items: center; text-decoration: none; }
+        .icones-fluxo a:hover, .icones-fluxo a:focus-visible { background: var(--etapa); color: #fff; outline: none; }
+        .icones-fluxo i { font-size: 18px; }
+        .icones-fluxo .dica { position: absolute; left: 50%; bottom: calc(100% + 8px); transform: translateX(-50%); background: #24323c; color: #fff; font-size: .75rem; font-weight: 600; line-height: 1.2; padding: 5px 8px; border-radius: 8px; white-space: nowrap; opacity: 0; pointer-events: none; z-index: 6; }
+        .icones-fluxo a:hover .dica, .icones-fluxo a:focus-visible .dica { opacity: 1; }
+        .indicadores { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 16px; }
+        .indicadores span { display: inline-flex; align-items: center; gap: 8px; background: #fff; border: 1px solid var(--linha); border-radius: 999px; padding: 6px 12px; font-weight: 600; }
+        .indicadores i { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+        .indicadores .pedido i { background: #188ad1; }
+        .indicadores .prazo i { background: #b86e00; }
+        .indicadores .lotacao i { background: #9b2c2c; }
+        .indicadores .servico i { background: #0f6b4c; }
+        .card-avisos { background: #fff; border: 1px solid var(--linha); border-radius: 16px; padding: 16px 18px; }
+        .card-avisos h2 { margin: 0 0 8px; display: flex; align-items: center; gap: 8px; }
+        .card-avisos h2 i { color: var(--destaque); }
+        .card-avisos ul { list-style: none; margin: 0; padding: 0; background: transparent; border: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+        .card-avisos li { display: flex; align-items: flex-start; gap: 10px; padding: 10px 12px; border: 1px solid var(--linha); border-left-width: 4px; border-radius: 12px; background: #f8fbfc; }
+        .card-avisos li.pedido { border-left-color: #188ad1; background: #eef6fb; }
+        .card-avisos li.prazo { border-left-color: #b86e00; background: #fff8ee; }
+        .card-avisos li.lotacao { border-left-color: #9b2c2c; background: #fdeceb; }
+        .card-avisos li.servico { border-left-color: #0f6b4c; background: #e8f6ee; }
+        .card-avisos li i { margin-top: 3px; }
+        .card-avisos li.pedido i { color: #188ad1; }
+        .card-avisos li.prazo i { color: #b86e00; }
+        .card-avisos li.lotacao i { color: #9b2c2c; }
+        .card-avisos li.servico i { color: #0f6b4c; }
+        .card-avisos li span { flex: 1; }
+        .card-avisos .vazio { margin: 0; }
+        dialog.modal { border: 0; border-radius: 16px; padding: 0; width: min(760px, calc(100% - 32px)); max-height: calc(100vh - 48px); overflow: auto; box-shadow: 0 16px 48px rgba(36, 50, 60, .28); }
+        dialog.modal::backdrop { background: rgba(36, 50, 60, .45); }
+        .modal-cabeca { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 16px 18px; border-bottom: 1px solid var(--linha); }
+        .modal-cabeca h2 { margin: 0; font-size: 1.15rem; }
+        .modal-cabeca button { background: transparent; color: var(--suave); border: 0; font-size: 1.2rem; cursor: pointer; }
+        .modal form, .modal-corpo { padding: 16px 18px 18px; display: grid; gap: 10px; }
+        .ficha { display: grid; grid-template-columns: 1fr 1fr; gap: 12px 16px; margin: 0; }
+        .ficha > div { display: grid; gap: 2px; }
+        .ficha .largo { grid-column: 1 / -1; }
+        .ficha dt { margin: 0; font-size: .78rem; color: var(--suave); font-weight: 700; }
+        .ficha dd { margin: 0; }
+        .modal label { display: grid; gap: 4px; font-weight: 600; }
+        .modal .linha { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        footer.rodape-fixo { position: fixed; left: 0; right: 0; bottom: 0; z-index: 25; background: #fff; border-top: 1px solid var(--linha); }
+        .rodape { max-width: 1680px; margin: 0 auto; padding: 12px 20px; color: var(--suave); display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; font-size: .92rem; }
+        @media (max-width: 1100px) {
+            .menu-miolo, .card-avisos ul, .numeros { grid-template-columns: 1fr; }
+            .fluxograma { grid-template-columns: 1fr; gap: 22px; }
+            .etapa:not(:last-child)::after { right: auto; left: 18px; top: auto; bottom: -16px; border-left: 7px solid transparent; border-right: 7px solid transparent; border-top: 10px solid var(--destaque); border-bottom: 0; }
+        }
+        @media (max-width: 720px) {
+            .barra { align-items: flex-start; flex-direction: column; }
+            .barra-acoes { width: 100%; justify-content: space-between; }
+            .modal .linha, .ficha { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    @php
+        $grupos = \iEducar\Packages\BuritiTransporteEscolar\Support\MenuFluxo::grupos($menuTransporte);
+        $paginaAtual = 'Transporte escolar';
+        foreach ($grupos as $grupoMenu) {
+            foreach ($grupoMenu['itens'] as $itemMenu) {
+                if ($itemMenu['ativo']) {
+                    $paginaAtual = $itemMenu['rotulo'];
+                }
+            }
+        }
+    @endphp
+    <header class="casca-topo">
+        <div class="faixa"></div>
+        <div class="barra">
+            <a class="marca" href="{{ url('/transporte-escolar') }}">
+                @if(!empty($logoMunicipio))
+                    <img class="brasao" src="{{ $logoMunicipio }}" alt="Logomarca de {{ $municipio }}">
+                @endif
+                <span class="icone" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="6" width="14" height="9" rx="2"/><path d="M17 9h3l1 3v3h-4"/><circle cx="7.5" cy="17.5" r="1.5"/><circle cx="16.5" cy="17.5" r="1.5"/></svg>
+                </span>
+                <span>
+                    <strong>{{ $municipio }}</strong>
+                    <small>Transporte escolar · {{ $visaoRotulo }}</small>
+                </span>
+            </a>
+            <div class="barra-acoes">
+                <button type="button" class="hamburguer" aria-expanded="false" aria-controls="menu-transporte">
+                    <i class="fa fa-bars" aria-hidden="true"></i> Menu · {{ $paginaAtual }}
+                </button>
+                <a class="voltar" href="{{ route('home') }}"><i class="fa fa-arrow-left" aria-hidden="true"></i> Voltar ao i-Educar</a>
+            </div>
+        </div>
+        <nav class="menu-painel" id="menu-transporte" aria-label="Transporte escolar">
+            <div class="menu-miolo">
+                @foreach($grupos as $grupoMenu)
+                    @php
+                        $temaAberto = false;
+                        foreach ($grupoMenu['itens'] as $itemMenu) {
+                            if ($itemMenu['ativo']) {
+                                $temaAberto = true;
+                            }
+                        }
+                    @endphp
+                    <section class="tema @if($temaAberto) aberto @endif">
+                        <button type="button" class="tema-botao" aria-expanded="{{ $temaAberto ? 'true' : 'false' }}">
+                            <span class="tema-rotulo">
+                                @if($grupoMenu['numero'])
+                                    <span class="passo">{{ $grupoMenu['numero'] }}</span>
+                                @endif
+                                <span>
+                                    <strong>{{ $grupoMenu['nome'] }}</strong>
+                                    <small>{{ $grupoMenu['frase'] }}</small>
+                                </span>
+                            </span>
+                            <i class="fa fa-chevron-down" aria-hidden="true"></i>
+                        </button>
+                        <div class="submenu">
+                            @foreach($grupoMenu['itens'] as $item)
+                                <a class="@if($item['ativo']) ativo @endif" href="{{ $item['url'] }}"><i class="fa {{ $item['icone'] }}" aria-hidden="true"></i>{{ $item['rotulo'] }}</a>
+                            @endforeach
+                        </div>
+                    </section>
+                @endforeach
+            </div>
+        </nav>
+    </header>
+    <main>
+        @if(session('ok')) <p class="flash ok">{{ session('ok') }}</p> @endif
+        @if(session('erro')) <p class="flash erro">{{ session('erro') }}</p> @endif
+        <div class="conteudo">
+            @yield('transporte')
+        </div>
+    </main>
+    <footer class="rodape-fixo">
+        <div class="rodape">
+            <span>© {{ date('Y') }} {{ $municipio }}. Todos os direitos reservados.</span>
+            <span>Transporte escolar · i-Educar</span>
+        </div>
+    </footer>
+    <script>
+        (function () {
+            var botao = document.querySelector('.hamburguer');
+            var painel = document.getElementById('menu-transporte');
+            if (!botao || !painel) {
+                return;
+            }
+            botao.addEventListener('click', function () {
+                var aberto = painel.classList.toggle('aberto');
+                botao.setAttribute('aria-expanded', aberto ? 'true' : 'false');
+                botao.querySelector('i').className = aberto ? 'fa fa-times' : 'fa fa-bars';
+            });
+            painel.querySelectorAll('.tema-botao').forEach(function (tema) {
+                tema.addEventListener('click', function () {
+                    var secao = tema.closest('.tema');
+                    var aberto = secao.classList.toggle('aberto');
+                    tema.setAttribute('aria-expanded', aberto ? 'true' : 'false');
+                });
+            });
+        })();
+        document.querySelectorAll('[data-filtro-tabela]').forEach(function (campo) {
+            campo.addEventListener('input', function () {
+                var painel = campo.closest('[data-painel]') || document;
+                var termo = campo.value.trim().toLowerCase();
+                painel.querySelectorAll('tbody tr').forEach(function (linha) {
+                    if (linha.hasAttribute('data-vazio')) {
+                        return;
+                    }
+                    var texto = (linha.getAttribute('data-busca') || linha.textContent || '').toLowerCase();
+                    linha.hidden = termo !== '' && texto.indexOf(termo) === -1;
+                });
+            });
+        });
+        document.querySelectorAll('[data-abre-modal]').forEach(function (botao) {
+            botao.addEventListener('click', function () {
+                var modal = document.getElementById(botao.getAttribute('data-abre-modal'));
+                if (modal && modal.showModal) {
+                    modal.showModal();
+                }
+                var bloco = modal ? modal.querySelector('[data-proximos]') : null;
+                if (bloco && !bloco.dataset.consultado) {
+                    bloco.dataset.consultado = '1';
+                    var destino = bloco.querySelector('[data-lista-pontos]');
+                    fetch(bloco.getAttribute('data-proximos'), { headers: { 'Accept': 'application/json' } })
+                        .then(function (resposta) { return resposta.json(); })
+                        .then(function (dados) {
+                            if (!dados.ok) {
+                                destino.textContent = dados.aviso || 'Não foi possível calcular a distância.';
+                                return;
+                            }
+                            if (!dados.pontos.length) {
+                                destino.textContent = 'Nenhum ponto com coordenada cadastrada.';
+                                return;
+                            }
+                            destino.textContent = dados.pontos.map(function (ponto) {
+                                var texto = ponto.nome + ': ' + (ponto.metros >= 1000 ? (ponto.metros / 1000).toFixed(1).replace('.', ',') + ' km' : ponto.metros + ' m');
+                                return ponto.dentro ? texto + ' (dentro do raio de ' + ponto.raio + ' m)' : texto;
+                            }).join(' · ');
+                        })
+                        .catch(function () {
+                            destino.textContent = 'Não foi possível calcular a distância agora.';
+                        });
+                }
+            });
+        });
+        document.querySelectorAll('[data-fecha-modal]').forEach(function (botao) {
+            botao.addEventListener('click', function () {
+                var modal = botao.closest('dialog');
+                if (modal) {
+                    modal.close();
+                }
+            });
+        });
+    </script>
+</body>
+</html>

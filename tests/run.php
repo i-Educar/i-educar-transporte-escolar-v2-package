@@ -1,6 +1,16 @@
 <?php
 
 use iEducar\Packages\BuritiTransporteEscolar\Support\AtendimentoSetor;
+use iEducar\Packages\BuritiTransporteEscolar\Support\Coordenada;
+use iEducar\Packages\BuritiTransporteEscolar\Support\FaixaEtaria;
+use iEducar\Packages\BuritiTransporteEscolar\Support\GradeCalor;
+use iEducar\Packages\BuritiTransporteEscolar\Support\PontosProximos;
+use iEducar\Packages\BuritiTransporteEscolar\Support\RegraOferta;
+use iEducar\Packages\BuritiTransporteEscolar\Support\UsoPonto;
+use iEducar\Packages\BuritiTransporteEscolar\Support\DocumentoTexto;
+use iEducar\Packages\BuritiTransporteEscolar\Support\PdfSimples;
+use iEducar\Packages\BuritiTransporteEscolar\Support\ProtocoloDocumento;
+use iEducar\Packages\BuritiTransporteEscolar\Support\SituacaoDocumento;
 use iEducar\Packages\BuritiTransporteEscolar\Support\AvisoTexto;
 use iEducar\Packages\BuritiTransporteEscolar\Support\ConsumoReal;
 use iEducar\Packages\BuritiTransporteEscolar\Support\CopiaAnoPlanejador;
@@ -23,6 +33,7 @@ use iEducar\Packages\BuritiTransporteEscolar\Support\RateioSalario;
 use iEducar\Packages\BuritiTransporteEscolar\Support\ResumoNumerico;
 use iEducar\Packages\BuritiTransporteEscolar\Support\SincroniaCenso;
 use iEducar\Packages\BuritiTransporteEscolar\Support\PedidoFamilia;
+use iEducar\Packages\BuritiTransporteEscolar\Support\PortalAberto;
 use iEducar\Packages\BuritiTransporteEscolar\Support\ProcessoVaga;
 use iEducar\Packages\BuritiTransporteEscolar\Support\ProtocoloSolicitacao;
 use iEducar\Packages\BuritiTransporteEscolar\Support\SituacaoPedido;
@@ -53,7 +64,18 @@ require __DIR__ . '/../src/Support/ProtocoloSolicitacao.php';
 require __DIR__ . '/../src/Support/PedidoFamilia.php';
 require __DIR__ . '/../src/Support/SituacaoPedido.php';
 require __DIR__ . '/../src/Support/ProcessoVaga.php';
+require __DIR__ . '/../src/Support/PortalAberto.php';
 require __DIR__ . '/../src/Support/AtendimentoSetor.php';
+require __DIR__ . '/../src/Support/Coordenada.php';
+require __DIR__ . '/../src/Support/FaixaEtaria.php';
+require __DIR__ . '/../src/Support/GradeCalor.php';
+require __DIR__ . '/../src/Support/PontosProximos.php';
+require __DIR__ . '/../src/Support/RegraOferta.php';
+require __DIR__ . '/../src/Support/UsoPonto.php';
+require __DIR__ . '/../src/Support/SituacaoDocumento.php';
+require __DIR__ . '/../src/Support/ProtocoloDocumento.php';
+require __DIR__ . '/../src/Support/DocumentoTexto.php';
+require __DIR__ . '/../src/Support/PdfSimples.php';
 
 $falhas = 0;
 
@@ -274,5 +296,103 @@ ok(ProcessoVaga::noPeriodo(false, '2026-10-01', '2026-12-31', new DateTimeImmuta
 ok(ProcessoVaga::cabe(2, 1) === true, 'ainda há vaga na rota');
 ok(ProcessoVaga::cabe(2, 2) === false, 'rota lotada não recebe outro pedido');
 ok(ProcessoVaga::ocupa('deferida') === true && ProcessoVaga::ocupa('cancelada') === false, 'pedido aceito ocupa vaga e o cancelado devolve');
+ok(PortalAberto::mostrar(true, true) === true, 'botão do login aparece com pacote e tabela');
+ok(PortalAberto::mostrar(false, true) === false, 'outro município não mostra o botão');
+ok(PortalAberto::mostrar(true, false) === false, 'sem a tabela do processo o botão fica oculto');
+
+$protocoloOs = ProtocoloDocumento::montar('OS', 2026, 1);
+ok(ProtocoloDocumento::conferir($protocoloOs), 'protocolo da ordem confere o dígito');
+ok(ProtocoloDocumento::conferir('AB-2026-000001-0') === false, 'dígito trocado não passa');
+ok(SituacaoDocumento::pode(SituacaoDocumento::ORDEM, 'solicitada', 'autorizada'), 'ordem solicitada pode ser autorizada');
+ok(SituacaoDocumento::pode(SituacaoDocumento::ORDEM, 'concluida', 'cancelada') === false, 'ordem concluída não volta');
+ok(SituacaoDocumento::pode(SituacaoDocumento::BILHETE, 'autorizado', 'abastecido'), 'bilhete autorizado pode ser confirmado');
+ok(SituacaoDocumento::contaNoCusto('bilhete', 'solicitado') === false, 'bilhete ainda não abastecido fica fora do custo');
+ok(SituacaoDocumento::contaNoCusto('ordem', 'concluida') === true, 'ordem concluída entra no custo');
+$pdf = PdfSimples::montar(DocumentoTexto::bilhete([
+    'municipio' => 'Prefeitura de Aurópolis',
+    'protocolo' => 'AB-2026-000001-4',
+    'situacao' => 'Autorizado',
+    'veiculo' => 'ABC1D23',
+    'data' => '08/10/2026',
+    'litros_autorizados' => '40,00',
+    'motorista' => 'João',
+    'posto' => 'Posto Central',
+    'fonte' => 'PNATE',
+    'solicitante' => 'Escola Centro',
+]));
+ok(str_starts_with($pdf, '%PDF'), 'bilhete sai em PDF');
+ok(str_contains($pdf, 'CANHOTO DE CONTROLE'), 'PDF do bilhete traz o canhoto');
+ok(str_contains($pdf, 'AB-2026-000001-4'), 'PDF do bilhete traz o protocolo');
+$impresso = PdfSimples::impresso([
+    'municipio' => 'Prefeitura de Aurópolis',
+    'titulo' => 'ORDEM DE SERVICO - TRANSPORTE ESCOLAR',
+    'protocolo' => 'OS-2026-000001-1',
+    'campos' => [['Servico a realizar', 'Troca de pastilha']],
+    'assinaturas' => ['Solicitante'],
+    'observacao' => 'Controle da execucao.',
+    'logo' => null,
+], 2, false);
+ok(substr_count($impresso, '/Type /Page /Parent') === 1, 'as duas vias da ordem saem na mesma folha');
+ok(str_contains($impresso, 'Via 1') && str_contains($impresso, 'Via 2'), 'cada via se identifica');
+ok(str_contains($impresso, 'Destaque'), 'a linha de corte marca o destaque');
+ok(str_contains($impresso, 'OS-2026-000001-1'), 'a ordem identifica o protocolo');
+$bilhete = PdfSimples::impresso([
+    'municipio' => 'Prefeitura de Aurópolis',
+    'titulo' => 'BILHETE DE ABASTECIMENTO',
+    'protocolo' => 'AB-2026-000001-4',
+    'campos' => [['Veiculo', 'ABC1D23']],
+    'assinaturas' => [],
+    'observacao' => '',
+    'logo' => null,
+], 2, true);
+ok(substr_count($bilhete, '/Type /Page /Parent') === 1, 'as duas vias do bilhete cabem na mesma folha');
+ok(str_contains($bilhete, 'Canhoto') && str_contains($bilhete, 'Destaque'), 'a segunda via e o canhoto, com linha de corte');
+ok(ProcessoVaga::proxima('aberto', 'pausar') === 'pausado', 'pausa interrompe um processo aberto');
+ok(ProcessoVaga::proxima('pausado', 'retomar') === 'aberto', 'processo pausado pode ser retomado');
+ok(ProcessoVaga::proxima('pausado', 'bloquear') === 'bloqueado', 'bloqueio fecha mesmo um processo pausado');
+ok(ProcessoVaga::proxima('bloqueado', 'pausar') === null, 'processo bloqueado não pausa sem desbloquear');
+ok(ProcessoVaga::proxima('bloqueado', 'desbloquear') === 'aberto', 'desbloqueio reabre o processo');
+ok(Coordenada::motivo('', '') === null, 'ponto sem coordenada ainda pode existir');
+ok(Coordenada::motivo('-30.03', '') !== null, 'latitude sozinha não grava');
+ok(Coordenada::motivo('91', '-51') !== null, 'latitude fora do mapa é recusada');
+ok(Coordenada::motivo('-30.03', '-51.22') === null, 'coordenada válida passa');
+ok(Coordenada::noTerritorio('72', '-24') !== null, 'coordenada fora do Brasil não entra na escola');
+ok(UsoPonto::motivoBloqueio(1, 0) !== null, 'ponto no itinerário não pode ser apagado');
+ok(UsoPonto::motivoBloqueio(0, 1) !== null, 'ponto com aluno não pode ser apagado');
+ok(UsoPonto::motivoBloqueio(0, 0) === null, 'ponto sem uso pode ser apagado');
+ok(RegraOferta::idade('2016-04-02', 2026) === 9, 'idade conta em 31 de março do ano letivo');
+ok(RegraOferta::cabeIdade(9, 6, 14) === true && RegraOferta::cabeIdade(5, 6, 14) === false, 'idade fora da faixa não entra na vaga');
+ok(RegraOferta::cabeIdade(9, null, null) === true, 'vaga sem faixa de idade aceita o aluno');
+ok(RegraOferta::cabeLista(3, [1, 3]) === true && RegraOferta::cabeLista(2, [1, 3]) === false, 'série ou turma precisa estar na regra');
+ok(RegraOferta::cabeLista(null, []) === true, 'regra vazia não restringe série nem turma');
+ok(PontosProximos::ordenar(-30.0, -51.0, [
+    ['id' => 1, 'nome' => 'Perto', 'latitude' => -30.001, 'longitude' => -51.0, 'raio' => 200],
+    ['id' => 2, 'nome' => 'Longe', 'latitude' => -30.05, 'longitude' => -51.0, 'raio' => 100],
+], 2)[0]['nome'] === 'Perto', 'o ponto mais próximo vem primeiro');
+ok(FaixaEtaria::resumir([7, 8]) === null, 'idade de poucos alunos fica omitida');
+ok(FaixaEtaria::resumir([7, 8, 12])['6 a 10 anos'] === 2, 'faixa etária só aparece com três ou mais');
+ok(count(GradeCalor::celulas([
+    ['latitude' => -30.001, 'longitude' => -51.001],
+    ['latitude' => -30.002, 'longitude' => -51.002],
+])) === 0, 'mancha com menos de três residências não entra no mapa');
+ok(GradeCalor::celulas([
+    ['latitude' => -30.001, 'longitude' => -51.001],
+    ['latitude' => -30.002, 'longitude' => -51.002],
+    ['latitude' => -30.003, 'longitude' => -51.003],
+])[0]['alunos'] === 3, 'três residências na mesma área formam uma mancha');
+ok(str_contains(implode("\n", DocumentoTexto::ordem([
+    'municipio' => 'Prefeitura',
+    'protocolo' => $protocoloOs,
+    'situacao' => 'Autorizada',
+    'veiculo' => 'ABC1D23',
+    'data' => '08/10/2026',
+    'descricao' => 'Troca de pastilha',
+    'peca' => 'Pastilha',
+    'mao_obra' => '80,00',
+    'valor' => '180,00',
+    'fonte' => 'PNATE',
+    'fornecedor' => 'Oficina',
+    'solicitante' => 'Garagem',
+])), 'Servico a realizar'), 'ordem descreve o serviço a realizar');
 
 exit($falhas === 0 ? 0 : 1);

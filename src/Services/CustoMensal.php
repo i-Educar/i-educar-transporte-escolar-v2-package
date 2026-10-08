@@ -6,6 +6,7 @@ use iEducar\Packages\BuritiTransporteEscolar\Support\DiasUteis;
 use iEducar\Packages\BuritiTransporteEscolar\Support\Encargo;
 use iEducar\Packages\BuritiTransporteEscolar\Support\MedicaoContrato;
 use iEducar\Packages\BuritiTransporteEscolar\Support\RateioSalario;
+use iEducar\Packages\BuritiTransporteEscolar\Support\SituacaoDocumento;
 use Illuminate\Support\Facades\DB;
 
 final class CustoMensal
@@ -20,10 +21,18 @@ final class CustoMensal
         $linhas = [];
 
         foreach (DB::table('transporte_escolar.abastecimento')->whereBetween('data', [$inicio, $fim])->get() as $item) {
+            if (!SituacaoDocumento::contaNoCusto('bilhete', property_exists($item, 'situacao') ? $item->situacao : null)) {
+                continue;
+            }
+
             $linhas[] = ['rotulo' => 'Combustível', 'fonte' => (string) $item->fonte, 'valor' => (float) $item->valor];
         }
 
         foreach (DB::table('transporte_escolar.ordem_servico')->whereBetween('data', [$inicio, $fim])->get() as $item) {
+            if (!SituacaoDocumento::contaNoCusto('ordem', property_exists($item, 'situacao') ? $item->situacao : null)) {
+                continue;
+            }
+
             $linhas[] = ['rotulo' => $item->preventiva ? 'Manutenção preventiva' : 'Manutenção corretiva', 'fonte' => (string) $item->fonte, 'valor' => (float) $item->valor];
         }
 

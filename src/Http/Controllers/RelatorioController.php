@@ -181,7 +181,8 @@ class RelatorioController
         $veiculos = DB::table('transporte_escolar.veiculo')->where('ativo', true)->get();
 
         foreach ($veiculos as $veiculo) {
-            $abastecimentos = DB::table('transporte_escolar.abastecimento')->where('veiculo_id', $veiculo->id)->whereYear('data', $ano)->get();
+            $abastecimentos = DB::table('transporte_escolar.abastecimento')->where('veiculo_id', $veiculo->id)->whereYear('data', $ano)->get()
+                ->filter(fn ($item) => \iEducar\Packages\BuritiTransporteEscolar\Support\SituacaoDocumento::contaNoCusto('bilhete', $item->situacao ?? null));
 
             if ($abastecimentos->isEmpty()) {
                 continue;

@@ -6,10 +6,10 @@
     <title>@yield('titulo', 'Transporte escolar')</title>
     <style>
         :root {
-            --verde: #0f6b4c;
-            --verde-escuro: #0c3d2e;
-            --verde-claro: #e5f4ec;
-            --ambar: #c47b08;
+            --verde: #47728f;
+            --verde-escuro: #3d657f;
+            --verde-claro: #e7f1f6;
+            --ambar: #188ad1;
             --ambar-claro: #fff4d8;
             --fundo: #f4f7f4;
             --tinta: #173028;
@@ -22,9 +22,10 @@
         }
         * { box-sizing: border-box; }
         body { margin: 0; font-family: "Segoe UI", sans-serif; background: var(--fundo); color: var(--tinta); line-height: 1.5; }
-        header { background: var(--verde-escuro); color: #fff; }
+        header { background: var(--verde); color: #fff; }
+        .brasao { width: 48px; height: 48px; object-fit: contain; background: #fff; border-radius: 8px; padding: 3px; }
         .faixa { height: 8px; background: var(--ambar); }
-        .topo { display: flex; justify-content: space-between; gap: 16px; align-items: center; max-width: 960px; margin: 0 auto; padding: 16px 20px; }
+        .topo { display: flex; justify-content: space-between; gap: 16px; align-items: center; max-width: 1100px; margin: 0 auto; padding: 16px 20px; }
         .marca { display: flex; gap: 12px; align-items: center; color: #fff; text-decoration: none; }
         .marca strong { display: block; font-size: 1.05rem; }
         .marca small { display: block; font-weight: 400; opacity: .85; }
@@ -35,7 +36,7 @@
         nav { display: flex; gap: 8px; }
         nav a { color: #fff; text-decoration: none; border: 1px solid rgba(255,255,255,.35); border-radius: 999px; padding: 8px 14px; display: inline-flex; gap: 8px; align-items: center; }
         nav a .icone, nav a .icone svg { width: 18px; height: 18px; }
-        main { max-width: 960px; margin: 0 auto; padding: 28px 20px 48px; }
+        main { max-width: 1100px; margin: 0 auto; padding: 28px 20px 48px; }
         h1 { margin: 0 0 8px; font-size: 1.9rem; line-height: 1.2; }
         .lead { margin: 0 0 20px; font-size: 1.08rem; color: var(--suave); }
         .cartao { background: #fff; border: 1px solid var(--linha); border-radius: 16px; padding: 20px; }
@@ -65,7 +66,7 @@
         .selo.indeferida, .selo.cancelada { background: var(--erro-fundo); color: var(--erro); }
         .selo.em_analise { background: var(--ambar-claro); color: var(--ambar); }
         footer { background: #fff; border-top: 1px solid var(--linha); }
-        .rodape { max-width: 960px; margin: 0 auto; padding: 18px 20px 28px; color: var(--suave); display: grid; gap: 6px; }
+        .rodape { max-width: 1100px; margin: 0 auto; padding: 18px 20px 28px; color: var(--suave); display: grid; gap: 6px; }
         .mapa { width: 100%; height: 280px; border: 0; border-radius: 12px; margin-top: 12px; }
         @media (max-width: 720px) {
             .passos { grid-template-columns: 1fr; }
@@ -78,10 +79,13 @@
         <div class="faixa"></div>
         <div class="topo">
             <a class="marca" href="{{ url('/transporte-escolar/familia') }}">
+                @if(!empty($logoMunicipio))
+                    <img class="brasao" src="{{ $logoMunicipio }}" alt="Logomarca de {{ $municipio }}">
+                @endif
                 <span class="icone" aria-hidden="true">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="6" width="14" height="9" rx="2"/><path d="M17 9h3l1 3v3h-4"/><circle cx="7.5" cy="17.5" r="1.5"/><circle cx="16.5" cy="17.5" r="1.5"/></svg>
                 </span>
-                <span><strong>Transporte escolar</strong><small>Pedido da família</small></span>
+                <span><strong>{{ $municipio ?? 'Transporte escolar' }}</strong><small>Pedido da família</small></span>
             </a>
             <nav>
                 <a href="{{ url('/transporte-escolar/familia/pedir') }}">

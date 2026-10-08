@@ -4,6 +4,7 @@ namespace iEducar\Packages\BuritiTransporteEscolar\Providers;
 
 use iEducar\Packages\BuritiTransporteEscolar\Http\Middleware\ExigeProcesso;
 use iEducar\Packages\BuritiTransporteEscolar\Support\Acesso;
+use iEducar\Packages\BuritiTransporteEscolar\Support\IdentidadeMunicipio;
 use iEducar\Packages\BuritiTransporteEscolar\Support\Processos;
 use iEducar\Packages\BuritiTransporteEscolar\Support\VisaoRede;
 use Illuminate\Support\Facades\Route;
@@ -23,6 +24,7 @@ class TransporteEscolarServiceProvider extends ServiceProvider
         }
 
         Route::middleware(['web'])->group(function () {
+            Route::get('/transporte-escolar/marca', [\iEducar\Packages\BuritiTransporteEscolar\Http\Controllers\DocumentoController::class, 'marca']);
             Route::get('/transporte-escolar/aviso/{token}', [\iEducar\Packages\BuritiTransporteEscolar\Http\Controllers\AvisoController::class, 'publico']);
             Route::get('/transporte-escolar/familia', [\iEducar\Packages\BuritiTransporteEscolar\Http\Controllers\FamiliaPortalController::class, 'inicio']);
             Route::get('/transporte-escolar/familia/pedir', [\iEducar\Packages\BuritiTransporteEscolar\Http\Controllers\FamiliaPortalController::class, 'pedir']);
@@ -44,7 +46,12 @@ class TransporteEscolarServiceProvider extends ServiceProvider
 
         $this->app['router']->aliasMiddleware('transporte.processo', ExigeProcesso::class);
 
-        View::composer('transporte-escolar::layout', function ($view): void {
+        View::composer(['transporte-escolar::layout', 'transporte-escolar::portal.layout'], function ($view): void {
+            $view->with('municipio', IdentidadeMunicipio::rotulo());
+            $view->with('logoMunicipio', IdentidadeMunicipio::arquivo() ? url('/transporte-escolar/marca') : null);
+        });
+
+        View::composer(['transporte-escolar::layout', 'transporte-escolar::painel'], function ($view): void {
             $view->with('visaoRotulo', VisaoRede::rotulo());
             $view->with('menuTransporte', [
                 'painel' => Acesso::permite(Processos::RAIZ, 'ver'),

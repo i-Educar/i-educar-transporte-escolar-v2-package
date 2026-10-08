@@ -4,7 +4,9 @@ namespace iEducar\Packages\BuritiTransporteEscolar\Http\Controllers;
 
 use iEducar\Packages\BuritiTransporteEscolar\Support\Acesso;
 use iEducar\Packages\BuritiTransporteEscolar\Support\Codigos;
+use iEducar\Packages\BuritiTransporteEscolar\Support\Coordenada;
 use iEducar\Packages\BuritiTransporteEscolar\Support\Processos;
+use iEducar\Packages\BuritiTransporteEscolar\Support\UsoPonto;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -22,6 +24,7 @@ class FrotaController
             'titulo' => $this->titulo($recurso),
             'linhas' => $this->linhas($recurso),
             'podeGravar' => Acesso::permite($processo, 'gravar'),
+            'podeExcluir' => Acesso::permite($processo, 'excluir'),
             'codigos' => Codigos::class,
         ]);
     }
@@ -30,18 +33,20 @@ class FrotaController
     {
         $recurso = (string) $request->input('recurso');
 
+        if ($recurso === 'pontos') {
+            $erro = $this->criarPonto($request);
+
+            return $erro === null
+                ? back()->with('ok', 'Ponto gravado com a coordenada informada.')
+                : back()->with('erro', $erro);
+        }
+
         match ($recurso) {
             'empresas' => $this->empresa($request),
             'fornecedores' => $this->fornecedor($request),
             'motoristas' => $this->motorista($request),
             'monitores' => $this->monitor($request),
             'veiculos' => $this->veiculo($request),
-            'pontos' => DB::table('transporte_escolar.ponto')->insert([
-                'descricao' => $request->validate(['descricao' => ['required', 'string', 'max:70']])['descricao'],
-                'origem' => 'ieducar',
-                'created_at' => now(),
-                'updated_at' => now(),
-            ]),
             default => abort(404),
         };
 
@@ -145,6 +150,80 @@ class FrotaController
                 'created_at' => now(),
             ],
         );
+    }
+
+    public function atualizarPonto(Request $request, int $ponto): RedirectResponse
+    {
+        if (DB::table('transporte_escolar.ponto')->where('id', $ponto)->doesntExist()) {
+            abort(404);
+        }
+
+        $dados = $this->dadosPonto($request);
+        if (is_string($dados)) {
+            return back()->with('erro', $dados);
+        }
+
+        DB::table('transporte_escolar.ponto')->where('id', $ponto)->update($dados + ['updated_at' => now()]);
+
+        return back()->with('ok', 'Ponto atualizado.');
+    }
+
+    public function excluirPonto(int $ponto): RedirectResponse
+    {
+        $motivo = UsoPonto::motivoBloqueio(
+            (int) DB::table('transporte_escolar.itinerario')->where('ponto_id', $ponto)->count(),
+            (int) DB::table('transporte_escolar.aluno_rota')->where('ponto_id', $ponto)->count(),
+        );
+
+        if ($motivo !== null) {
+            return back()->with('erro', $motivo);
+        }
+
+        DB::table('transporte_escolar.ponto')->where('id', $ponto)->delete();
+
+        return back()->with('ok', 'Ponto excluído.');
+    }
+
+    private function criarPonto(Request $request): ?string
+    {
+        $dados = $this->dadosPonto($request);
+
+        if (is_string($dados)) {
+            return $dados;
+        }
+
+        DB::table('transporte_escolar.ponto')->insert($dados + [
+            'origem' => 'ieducar',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        return null;
+    }
+
+    /**
+     * @return array<string, mixed>|string
+     */
+    private function dadosPonto(Request $request): array|string
+    {
+        $dados = $request->validate([
+            'descricao' => ['required', 'string', 'max:70'],
+            'latitude' => ['nullable', 'numeric'],
+            'longitude' => ['nullable', 'numeric'],
+            'raio_metros' => ['nullable', 'integer', 'min:1', 'max:500'],
+        ]);
+        $motivo = Coordenada::motivo($dados['latitude'] ?? null, $dados['longitude'] ?? null);
+
+        if ($motivo !== null) {
+            return $motivo;
+        }
+
+        return [
+            'descricao' => $dados['descricao'],
+            'latitude' => Coordenada::valor($dados['latitude'] ?? null),
+            'longitude' => Coordenada::valor($dados['longitude'] ?? null),
+            'raio_metros' => $dados['raio_metros'] ?? null,
+        ];
     }
 
     private function fisica(string $cpf): int

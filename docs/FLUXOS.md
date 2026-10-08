@@ -1,42 +1,66 @@
 # Fluxos
 
-A família não entra no menu do i-Educar. O institucional abre o processo de vagas. A escola encaminha. A rede aceita ou recusa.
+A família não entra no menu do i-Educar. O institucional prepara a rede, abre o processo e publica a vaga. A escola encaminha o pedido da própria escola. A rede aceita ou recusa. O dia da rota, a frota e a conta ficam nas telas da equipe, na ordem do painel.
+
+## Ordem do trabalho
+
+O painel em `/transporte-escolar` segue esta ordem. Cada etapa tem uma cor. O ícone abre a tela; o nome aparece ao passar o mouse.
+
+```mermaid
+flowchart LR
+    A["1 Preparar a rede"] --> B["2 Abrir o ano"]
+    B --> C["3 Rodar o dia"]
+    C --> D["4 Cuidar da frota"]
+    D --> E["5 Prestar contas"]
+```
+
+| Etapa | Cor | O que a equipe faz |
+| --- | --- | --- |
+| 1 Preparar a rede | Azul | Empresas, veículos, motoristas, monitores, pontos, rotas e normas |
+| 2 Abrir o ano | Azul claro | Cópia do ano, pedidos da família e alunos na rota |
+| 3 Rodar o dia | Verde | Viagens, pacote offline e aviso à família |
+| 4 Cuidar da frota | Âmbar | Ordens de serviço, bilhetes e gastos |
+| 5 Prestar contas | Roxo | SETE, relatórios e CACS |
+
+O card de informes usa a mesma lógica de cor: azul para pedido da família, âmbar para prazo de CNH ou documento, vermelho para lotação acima dos lugares e verde para ordem ou bilhete ainda aberto.
 
 ## Processo de vagas
 
-O processo vale para um ano letivo e um período, no mesmo espírito da pré-matrícula. Fora do período, ou sem vaga publicada, a família não envia pedido.
+O institucional agrupa os processos que a família vê juntos, abre cada processo no ano letivo e publica a vaga com escola, rota, turno, quantidade, idade em 31 de março, série e turma. Série ou turma em branco significa qualquer uma. O processo pausado ou bloqueado sai da página da família. A pausa volta com Retomar. O bloqueio só volta com Desbloquear. Processo bloqueado não recebe vaga nova.
 
 ```mermaid
 flowchart TD
-    A["Institucional abre o processo"] --> B["Informa ano, início e fim"]
-    B --> C["Publica escola, rota, turno e vagas"]
-    C --> D{"Hoje está no período e o processo está ativo?"}
-    D -->|não| E["A página Pedir avisa que não há processo aberto"]
-    D -->|sim| F["A família vê ano, escola, rota e vagas livres"]
+    A["Agrupar processos do mesmo ano"] --> B["Abrir processo no período"]
+    B --> C["Publicar vaga: escola, rota, turno, lugares, idade, série e turma"]
+    C --> D{"Situação"}
+    D -->|Aberto e no período| E["A família vê a vaga se ainda há lugar e a regra cabe"]
+    D -->|Pausado| F["Some da família. Retomar reabre"]
+    D -->|Bloqueado| G["Some da família e não aceita vaga nova. Desbloquear reabre"]
+    B --> H["Editar nome, ano, período e agrupamento"]
 ```
+
+Pedido recebido, em análise ou aceito ocupa a vaga. Recusado ou cancelado devolve o lugar. O grupo também pode ser pausado ou bloqueado: se o processo está num grupo, os dois precisam estar abertos e no período.
 
 ## Pedido da família
 
-O protocolo sai no formato `TE-ano-sequência-dígito`. A consulta pede o protocolo e a data de nascimento. Data errada e protocolo inexistente devolvem a mesma frase.
+O endereço é `/transporte-escolar/familia`. O protocolo sai no formato `TE-ano-sequência-dígito`. A consulta pede o protocolo e a data de nascimento. Data errada e protocolo inexistente devolvem a mesma frase. A prefeitura não pede senha nem dados do aluno por rede social.
 
 ```mermaid
 flowchart TD
-    A["Família abre /transporte-escolar/familia"] --> B["Escolhe processo, escola e rota com vaga"]
-    B --> C["Informa aluno, nascimento, responsável, telefone e endereço de saída"]
-    C --> D{"Ainda há vaga?"}
-    D -->|não| E["A rota não recebe o pedido"]
-    D -->|sim| F["Protocolo gravado, situação recebida"]
-    F --> G["Página Acompanhar"]
-    G --> H{"Protocolo e nascimento conferem?"}
-    H -->|não| I["Não encontramos o pedido"]
-    H -->|sim| J["Mostra a situação"]
+    A["Família abre o portal"] --> B["Escolhe o agrupamento, se houver"]
+    B --> C["Informa nascimento, série e turma"]
+    C --> D{"Há oferta aberta que cabe na regra e ainda tem lugar?"}
+    D -->|não| E["A página avisa que não há vaga"]
+    D -->|sim| F["Informa aluno, responsável, telefone e endereço de saída"]
+    F --> G["Protocolo gravado, situação recebida"]
+    G --> H["Acompanhar: protocolo e nascimento"]
 ```
 
-Pedido recebido, em análise ou aceito ocupa a vaga. Recusado ou cancelado devolve o lugar.
+## Análise do pedido
 
-## Análise
+Em `/transporte-escolar/solicitacoes`, cada linha tem Ver protocolo. A ficha mostra aluno, nascimento, responsável, telefone, endereço, escola, turno, processo, rota, série e turma antes de aceitar ou recusar. A observação da decisão aparece para a família na página Acompanhar.
 
-A escola só vê o pedido da própria escola e só encaminha. Aceitar ou recusar é da rede. Pedido já decidido não volta.
+Depois do endereço, a ficha calcula a distância até os pontos com coordenada. O mapa detalhado abre em outra aba. A consulta ao mapa usa só o texto do endereço. Nome, telefone e nascimento ficam no i-Educar.
 
 ```mermaid
 flowchart TD
@@ -51,17 +75,67 @@ flowchart TD
     E --> G["Aceita"]
     F --> H["Recusada"]
     D --> I["Cancelada"]
+    G --> J["Família vê o setor e leva os documentos"]
 ```
+
+Pedido já decidido não volta. Aceitar não cria pessoa, matrícula nem aluno na rota. A secretaria inclui o aluno em Alunos na rota.
 
 ## Pedido aceito
 
-A família vê documentos, horário, endereço e mapa só depois do aceite. O mapa depende de latitude e longitude gravadas pelo institucional. A prefeitura não pede senha nem dados por rede social. O andamento fica na página Acompanhar.
+A família vê documentos, horário, endereço e mapa só depois do aceite, e só com o que o institucional gravou em Pedidos da família. O mapa exige latitude e longitude válidas.
+
+## Rota
+
+Em `/transporte-escolar/rotas/{id}` há três ações diferentes. O clique no mapa preenche só o formulário que estiver escutando.
 
 ```mermaid
 flowchart TD
-    A["Pedido aceito"] --> B["Levar documentos ao setor de Transporte Escolar"]
-    B --> C{"Endereço e coordenadas gravados?"}
-    C -->|só endereço| D["Mostra o endereço"]
-    C -->|endereço e coordenadas| E["Mostra endereço e mapa"]
-    C -->|nada gravado| F["A lista e o endereço ainda não foram publicados"]
+    A["Abrir a rota"] --> B["1 Incluir parada"]
+    A --> C["2 Criar ponto e colocar nesta rota"]
+    A --> D["3 Ajustar coordenada de um ponto desta rota"]
+    B --> E["Usa um ponto que já existe. Não grava coordenada"]
+    C --> F["O clique preenche o ponto novo e a parada entra no itinerário"]
+    D --> G["O clique só entra depois de escolher Usar o clique neste ajuste"]
+    A --> H["Escola e GPX ficam à parte"]
+    H --> I["O clique do mapa não altera a escola"]
 ```
+
+Coordenada fora do território brasileiro não entra no mapa. A escola com latitude ou longitude inválida fica fora do enquadramento até ser corrigida. Retirar uma parada refaz a ordem das demais.
+
+## Cobertura no mapa da rota
+
+O mapa mostra os pontos da rota, o raio de cada um, um raio de 500 m em volta da escola e a concentração das residências. Nome, endereço e data de nascimento não aparecem. A faixa de idade e a mancha de residências só entram com pelo menos três registros. Em cada ponto a equipe vê a quantidade de alunos, de embarques e de desembarques.
+
+## Ordem de serviço e bilhete
+
+O pedido nasce em Ordens ou em Bilhetes, com protocolo. A impressão é sempre duas vias na mesma folha: via 1, arquivo, em cima; via 2, canhoto, embaixo; linha tracejada com tesoura no meio. Cabeçalho e rodapé são curtos e trazem o município, o título, o protocolo e a via.
+
+```mermaid
+flowchart TD
+    A["Ordem solicitada"] --> B["Autorizada"]
+    B --> C["Em execução"]
+    C --> D["Concluída"]
+    A --> E["Cancelada"]
+    B --> E
+    C --> E
+    F["Bilhete solicitado"] --> G["Autorizado"]
+    G --> H["Abastecido"]
+    F --> I["Cancelado"]
+    G --> I
+    D --> J["Entra no custo do mês"]
+    H --> J
+```
+
+Ordem que não está concluída e bilhete que não está abastecido não entram no custo. O PDF não substitui nota fiscal nem o extrato da conta do PNATE.
+
+## Gastos do mês
+
+A tela `/transporte-escolar/gastos` abre pelo mês. Os totais separam PNATE, recurso próprio e outras fontes. A composição soma o bilhete abastecido, a ordem concluída, o gasto do art. 13, o contrato medido pelas viagens e o salário rateado em recurso próprio. Combustível e serviço não se lançam nesta tela: nascem em Bilhetes e Ordens. Aqui entram o gasto do art. 13, o contrato, o plano preventivo, a parcela informada e as regras da cerca, do transporte aquaviário e do rateio.
+
+## O que estes fluxos ainda não fazem
+
+- Aceitar o pedido não coloca o aluno na rota.
+- Não há limite de um pedido por aluno.
+- Não há fila de espera com prioridade. Sem lugar, o pedido não entra.
+- Não há envio de SMS nem notificação de celular.
+- O módulo não envia a prestação ao SiGPC e não gera folha de pagamento.

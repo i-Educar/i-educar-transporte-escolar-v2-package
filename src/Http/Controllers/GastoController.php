@@ -24,12 +24,15 @@ class GastoController
             ->whereNotNull('licenciamento_vencimento')
             ->where('licenciamento_vencimento', '<', now()->toDateString())
             ->get(['placa', 'descricao', 'licenciamento_vencimento']);
+        $inicio = sprintf('%04d-%02d-01', $ano, $mes);
+        $fim = date('Y-m-t', strtotime($inicio));
 
         return view('transporte-escolar::gastos.index', [
             'ano' => $ano,
             'mes' => $mes,
             'aquaviario' => $aquaviario,
             'geocerca' => $geocerca,
+            'raio' => (int) (DB::table('transporte_escolar.configuracao')->where('chave', 'raio_metros')->value('valor') ?: 150),
             'rateio' => $rateio,
             'vencidos' => $vencidos,
             'custo' => CustoMensal::fechar($ano, $mes),
@@ -39,7 +42,19 @@ class GastoController
             'veiculos' => DB::table('transporte_escolar.veiculo')->orderBy('placa')->get(),
             'fornecedores' => DB::table('transporte_escolar.fornecedor as f')->join('cadastro.pessoa as p', 'p.idpes', '=', 'f.ref_idpes')->orderBy('p.nome')->get(['f.id', 'p.nome']),
             'empresas' => DB::table('transporte_escolar.empresa as e')->join('cadastro.pessoa as p', 'p.idpes', '=', 'e.ref_idpes')->orderBy('p.nome')->get(['e.id', 'p.nome']),
-            'planos' => DB::table('transporte_escolar.manutencao_plano as m')->join('transporte_escolar.veiculo as v', 'v.id', '=', 'm.veiculo_id')->get(['m.*', 'v.placa']),
+            'planos' => DB::table('transporte_escolar.manutencao_plano as m')->join('transporte_escolar.veiculo as v', 'v.id', '=', 'm.veiculo_id')->orderBy('v.placa')->get(['m.*', 'v.placa', 'v.descricao']),
+            'gastos' => DB::table('transporte_escolar.gasto as g')
+                ->leftJoin('transporte_escolar.veiculo as v', 'v.id', '=', 'g.veiculo_id')
+                ->leftJoin('transporte_escolar.comprovante as c', 'c.gasto_id', '=', 'g.id')
+                ->whereBetween('g.data', [$inicio, $fim])
+                ->orderByDesc('g.data')
+                ->get(['g.id', 'g.data', 'g.categoria', 'g.fonte', 'g.valor', 'g.descricao', 'v.placa', 'c.id as comprovante_id']),
+            'contratos' => DB::table('transporte_escolar.contrato as c')
+                ->join('transporte_escolar.empresa as e', 'e.id', '=', 'c.empresa_id')
+                ->join('cadastro.pessoa as p', 'p.idpes', '=', 'e.ref_idpes')
+                ->orderByDesc('c.inicio')
+                ->get(['c.*', 'p.nome as empresa']),
+            'parcelas' => DB::table('transporte_escolar.parcela_recurso')->where('ano', $ano)->orderBy('mes')->get(),
         ]);
     }
 
@@ -221,7 +236,7 @@ class GastoController
             ['valor' => $request->boolean('aquaviario') ? '1' : '0'],
         );
 
-        return back();
+        return back()->with('ok', 'Transporte aquaviário atualizado.');
     }
 
     public function geocerca(Request $request): RedirectResponse
@@ -235,7 +250,7 @@ class GastoController
             ['valor' => (string) max(0, (int) $request->input('raio_metros', 150))],
         );
 
-        return back();
+        return back()->with('ok', 'Cerca do ponto atualizada.');
     }
 
     public function rateio(Request $request): RedirectResponse
@@ -245,7 +260,7 @@ class GastoController
             ['valor' => $request->input('rateio') === 'alunos' ? 'alunos' : 'km'],
         );
 
-        return back();
+        return back()->with('ok', 'Forma de rateio do salário atualizada.');
     }
 
     public function comprovante(int $comprovante)

@@ -1,11 +1,10 @@
 # Guia de evolução — Transporte escolar no i-Educar
 
-> Documento interno de produto. Fora do Git (`tmp/`). Data: 8 de outubro de 2026.
-> Pacote analisado: `packages/portabilis/i-educar-transport-package`.
-> Relatórios associados: `packages/portabilis/i-educar-reports-package`.
-> Este texto aprofunda só o transporte. O arquivo `tmp/ROADMAP-TRANSPORTE-E-ALIMENTACAO-ESCOLAR.md` continua válido para merenda e para o desenho geral de módulos satélite.
+> Este arquivo está no pacote v2. O começo descreve o pacote da Portábilis, que este repositório não usa. A entrega atual está em `ESTA-VERSAO.md` e `FLUXOS.md`. O v2 grava no schema `transporte_escolar` e não nas tabelas `modules` daquele pacote.
 
 ## Decisão
+
+O texto abaixo registra a leitura do pacote da Portábilis. A decisão que este repositório executa é outra: o v2 não depende daquelas tabelas `modules`.
 
 Evoluir o pacote atual. Ele já é o lugar onde o aluno do i-Educar se liga a empresa, rota, ponto e veículo, e o menu já respeita o multi-tenant (`PackageTenant`).
 
@@ -189,7 +188,7 @@ Salário de motorista e de monitor entra no custo por km e por aluno, como o SET
 ### Onda 5 — Relatórios
 
 - [x] Os três relatórios atuais (motoristas, usuários, rotas) passam a funcionar dentro do pacote de transporte, sem depender do pacote de relatórios.
-- [x] Igual ao SETE: menor, média e maior quilometragem e tempo, em planilha. O PDF é a impressão da página no navegador.
+- [x] Igual ao SETE: menor, média e maior quilometragem e tempo, em planilha. Ordem de serviço e bilhete de abastecimento saem em PDF de duas vias na mesma folha. Os demais relatórios continuam em planilha ou na impressão da página.
 - [x] Previsto contra realizado por rota no ano: km, alunos da lista e alunos que embarcaram. O recorte por dia não está na tela.
 - [x] Custo por aluno, por km, por rota e por veículo, com salário rateado, combustível, manutenção, seguro, IPVA e contrato.
 - [x] Gasto por fonte: PNATE, recurso próprio, estadual e outro.
@@ -293,14 +292,18 @@ A família usa uma página própria, no mesmo espírito da pré-matrícula digit
 
 O protocolo leva ano, sequência e um dígito de conferência. A consulta pede também a data de nascimento do aluno. A escola só encaminha o pedido da própria escola. Aceitar ou recusar é da rede. A família cancela antes da decisão. O pedido não cria pessoa nem matrícula. A página avisa que a prefeitura não pede senha nem dados por rede social.
 
-No mesmo processo, o institucional grava o setor de atendimento: endereço, horário, documentos e coordenadas. A família vê esse bloco, com mapa, só depois que o pedido é aceito. O institucional também abre o processo de vagas do ano letivo e publica escola, rota e quantidade de vagas.
+No mesmo processo, o institucional grava o setor de atendimento: endereço, horário, documentos e coordenadas. A família vê esse bloco, com mapa, só depois que o pedido é aceito.
+
+O institucional agrupa processos do mesmo ano, abre cada processo e publica a vaga com idade em 31 de março, série, turma, escola, rota, turno e quantidade de lugares. Pode editar o processo, pausá-lo ou bloqueá-lo. Pausado ou bloqueado, a família deixa de ver a vaga. A pausa volta com Retomar. O bloqueio volta com Desbloquear. O desenho está em `docs/FLUXOS.md`.
 
 
 ## O que o código ainda não faz
 
 - Monitor ligado a uma lista de rotas. O cadastro guarda turno e salário.
-- Arquivo PDF gerado no servidor. A planilha existe, e o PDF continua sendo a impressão da página.
-- Envio de SMS ou notificação push. A família abre um link.
+- Envio de SMS ou notificação push. O aviso de embarque é um link. O andamento do pedido fica na página Acompanhar.
+- Aceitar o pedido não inclui o aluno na rota. A secretaria faz isso em Alunos na rota.
+- Não há um pedido por aluno. A mesma pessoa pode abrir outro protocolo enquanto houver vaga.
+- Não há fila de espera com peso ou prioridade. Sem vaga, o pedido não entra.
 
 
 ## O que permanece de fora
@@ -313,8 +316,8 @@ No mesmo processo, o institucional grava o setor de atendimento: endereço, hor�
 - Mapa pago como dependência obrigatória.
 - Roteirizador próprio enquanto a sugestão do SETE desktop puder ser importada.
 
-## Critério para um pacote novo, em vez de evoluir este
+## Critério que este pacote já cumpriu
 
-Abrir outro repositório só se a fase 1 exigir uma interface que o legado não comporta e a equipe decidir congelar as telas `intranet/transporte_*`. Mesmo nesse caso, as tabelas `modules.*` atuais são a base: migrar coluna, não criar `rota_v2` paralela. Empresas, motoristas, veículos, pontos, rotas e usuários já são o cadastro mestre.
+O v2 nasceu porque o ambiente alvo pode não ter o pacote da Portábilis. As tabelas dele, em `modules`, não são a base daqui. Empresa, motorista, veículo, ponto e rota deste pacote ficam em `transporte_escolar`.
 
 O multi-tenant já permite ligar o pacote só em alguns municípios. Qualquer fase nova deve continuar atrás de `PackageTenant::allows('buriti/i-educar-transporte-escolar-v2')`, inclusive menu, rota HTTP e migration.

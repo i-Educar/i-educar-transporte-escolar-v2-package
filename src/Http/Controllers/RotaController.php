@@ -5,8 +5,12 @@ namespace iEducar\Packages\BuritiTransporteEscolar\Http\Controllers;
 use iEducar\Packages\BuritiTransporteEscolar\Services\RedeConsulta;
 use iEducar\Packages\BuritiTransporteEscolar\Support\Acesso;
 use iEducar\Packages\BuritiTransporteEscolar\Support\Codigos;
+use iEducar\Packages\BuritiTransporteEscolar\Support\Coordenada;
 use iEducar\Packages\BuritiTransporteEscolar\Support\Gpx;
+use iEducar\Packages\BuritiTransporteEscolar\Support\FaixaEtaria;
+use iEducar\Packages\BuritiTransporteEscolar\Support\GradeCalor;
 use iEducar\Packages\BuritiTransporteEscolar\Support\KmCalculado;
+use iEducar\Packages\BuritiTransporteEscolar\Support\RegraOferta;
 use iEducar\Packages\BuritiTransporteEscolar\Support\OrdemPontos;
 use iEducar\Packages\BuritiTransporteEscolar\Support\Processos;
 use Illuminate\Http\RedirectResponse;
@@ -85,7 +89,7 @@ class RotaController
             ->leftJoin('transporte_escolar.veiculo as v', 'v.id', '=', 'i.veiculo_id')
             ->where('i.rota_id', $rota)
             ->orderBy('i.seq')
-            ->get(['i.seq', 'i.hora', 'i.tipo', 'p.id as ponto_id', 'p.descricao', 'p.latitude', 'p.longitude', 'v.placa', 'v.passageiros', 'v.id as veiculo_id']);
+            ->get(['i.id', 'i.seq', 'i.hora', 'i.tipo', 'p.id as ponto_id', 'p.descricao', 'p.latitude', 'p.longitude', 'p.raio_metros', 'v.placa', 'v.passageiros', 'v.id as veiculo_id']);
 
         $alunos = (int) DB::table('transporte_escolar.aluno_rota')->where('rota_id', $rota)->count();
         $tracado = DB::table('transporte_escolar.tracado')->where('rota_id', $rota)->first();
@@ -115,6 +119,8 @@ class RotaController
             'podeMapa' => Acesso::permite(Processos::PONTOS, 'gravar'),
             'temTracado' => $tracado !== null,
             'codigos' => Codigos::class,
+            'cobertura' => $this->cobertura($rota, (int) $registro->ano, $itinerario),
+            'raioEscola' => 500,
         ]);
     }
 
@@ -191,24 +197,61 @@ class RotaController
     public function itinerario(Request $request, int $rota): RedirectResponse
     {
         $this->visivel($rota);
+
+        if ($request->input('hora') === '') {
+            $request->merge(['hora' => null]);
+        }
+
+        if ($request->input('veiculo_id') === '') {
+            $request->merge(['veiculo_id' => null]);
+        }
+
         $dados = $request->validate([
             'ponto_id' => ['required', 'integer'],
             'veiculo_id' => ['nullable', 'integer'],
             'hora' => ['nullable', 'date_format:H:i'],
             'tipo' => ['required', 'in:I,V'],
         ]);
+        $ponto = DB::table('transporte_escolar.ponto')->where('id', $dados['ponto_id'])->first();
+
+        if ($ponto === null) {
+            return back()->with('erro', 'Escolha um ponto que já esteja cadastrado.');
+        }
+
         $seq = (int) DB::table('transporte_escolar.itinerario')->where('rota_id', $rota)->max('seq') + 1;
 
         DB::table('transporte_escolar.itinerario')->insert([
             'rota_id' => $rota,
             'seq' => $seq,
-            'ponto_id' => $dados['ponto_id'],
+            'ponto_id' => $ponto->id,
             'veiculo_id' => $dados['veiculo_id'] ?? null,
             'hora' => $dados['hora'] ?? null,
             'tipo' => $dados['tipo'],
         ]);
 
-        return back();
+        $aviso = $ponto->latitude === null
+            ? ' Parada incluída, mas este ponto ainda não tem coordenada e não aparece no mapa.'
+            : '';
+
+        return back()->with('ok', 'Parada ' . $seq . ' incluída no itinerário.' . $aviso);
+    }
+
+    public function removerParada(int $rota, int $parada): RedirectResponse
+    {
+        $this->visivel($rota);
+        $apagou = DB::table('transporte_escolar.itinerario')->where('rota_id', $rota)->where('id', $parada)->delete();
+
+        if ($apagou === 0) {
+            abort(404);
+        }
+
+        $ids = DB::table('transporte_escolar.itinerario')->where('rota_id', $rota)->orderBy('seq')->pluck('id');
+
+        foreach ($ids as $indice => $id) {
+            DB::table('transporte_escolar.itinerario')->where('id', $id)->update(['seq' => $indice + 1]);
+        }
+
+        return back()->with('ok', 'Parada retirada. A ordem das demais foi refeita.');
     }
 
     public function escolas(Request $request, int $rota): RedirectResponse
@@ -234,17 +277,42 @@ class RotaController
             'latitude' => ['nullable', 'numeric'],
             'longitude' => ['nullable', 'numeric'],
         ]);
+        $motivo = Coordenada::noTerritorio($dados['latitude'] ?? null, $dados['longitude'] ?? null);
 
-        DB::table('transporte_escolar.ponto')->insert([
+        if ($motivo !== null) {
+            return back()->with('erro', $motivo);
+        }
+
+        $pontoId = DB::table('transporte_escolar.ponto')->insertGetId([
             'descricao' => $dados['descricao'],
-            'latitude' => $dados['latitude'] ?? null,
-            'longitude' => $dados['longitude'] ?? null,
+            'latitude' => Coordenada::valor($dados['latitude'] ?? null),
+            'longitude' => Coordenada::valor($dados['longitude'] ?? null),
             'origem' => 'ieducar',
             'created_at' => now(),
             'updated_at' => now(),
         ]);
+        $rotaId = (int) $request->input('rota_id');
 
-        return back();
+        if ($rotaId > 0) {
+            if (!Acesso::permite(Processos::ROTAS, 'gravar')) {
+                abort(403);
+            }
+
+            $this->visivel($rotaId);
+            $seq = (int) DB::table('transporte_escolar.itinerario')->where('rota_id', $rotaId)->max('seq') + 1;
+            DB::table('transporte_escolar.itinerario')->insert([
+                'rota_id' => $rotaId,
+                'seq' => $seq,
+                'ponto_id' => $pontoId,
+                'veiculo_id' => $request->input('veiculo_id') ?: null,
+                'hora' => $request->input('hora') ?: null,
+                'tipo' => in_array($request->input('tipo'), ['I', 'V'], true) ? $request->input('tipo') : 'I',
+            ]);
+
+            return back()->with('ok', 'Ponto criado e incluído como parada ' . $seq . ' desta rota.');
+        }
+
+        return back()->with('ok', 'Ponto criado. Inclua-o no itinerário da rota para ele entrar na viagem.');
     }
 
     public function coordenada(Request $request, int $ponto): RedirectResponse
@@ -253,6 +321,11 @@ class RotaController
             'latitude' => ['required', 'numeric'],
             'longitude' => ['required', 'numeric'],
         ]);
+        $motivo = Coordenada::noTerritorio($dados['latitude'], $dados['longitude']);
+
+        if ($motivo !== null) {
+            return back()->with('erro', $motivo);
+        }
 
         DB::table('transporte_escolar.ponto')->where('id', $ponto)->update([
             'latitude' => $dados['latitude'],
@@ -270,6 +343,12 @@ class RotaController
             'longitude' => ['required', 'numeric'],
         ]);
 
+        $motivo = Coordenada::noTerritorio($dados['latitude'], $dados['longitude']);
+
+        if ($motivo !== null) {
+            return back()->with('erro', $motivo);
+        }
+
         DB::table('pmieducar.escola')->where('cod_escola', $escola)->update([
             'latitude' => (string) $dados['latitude'],
             'longitude' => (string) $dados['longitude'],
@@ -284,5 +363,109 @@ class RotaController
         abort_if($registro === null, 404);
 
         return $registro;
+    }
+
+    /**
+     * @return array{pontos: list<array<string, mixed>>, calor: list<array{latitude: float, longitude: float, alunos: int}>}
+     */
+    private function cobertura(int $rota, int $ano, $itinerario): array
+    {
+        $vinculos = DB::table('transporte_escolar.aluno_rota as ar')
+            ->join('pmieducar.aluno as a', 'a.cod_aluno', '=', 'ar.ref_cod_aluno')
+            ->leftJoin('cadastro.fisica as f', 'f.idpes', '=', 'a.ref_idpes')
+            ->where('ar.rota_id', $rota)
+            ->get(['ar.ponto_id', 'ar.residencia_latitude', 'ar.residencia_longitude', 'f.data_nasc']);
+
+        $movimentos = DB::table('transporte_escolar.embarque as e')
+            ->join('transporte_escolar.viagem as v', 'v.id', '=', 'e.viagem_id')
+            ->join('transporte_escolar.aluno_rota as ar', function ($join) {
+                $join->on('ar.ref_cod_aluno', '=', 'e.ref_cod_aluno')->on('ar.rota_id', '=', 'v.rota_id');
+            })
+            ->where('v.rota_id', $rota)
+            ->whereIn('e.tipo', ['embarque', 'desembarque'])
+            ->whereNotNull('ar.ponto_id')
+            ->groupBy('ar.ponto_id', 'e.tipo')
+            ->selectRaw('ar.ponto_id, e.tipo, count(*) as n')
+            ->get();
+
+        $porPonto = [];
+
+        foreach ($itinerario as $parada) {
+            $id = (int) $parada->ponto_id;
+
+            if (isset($porPonto[$id])) {
+                continue;
+            }
+
+            $porPonto[$id] = [
+                'id' => $id,
+                'nome' => (string) $parada->descricao,
+                'lat' => $parada->latitude === null ? null : (float) $parada->latitude,
+                'lng' => $parada->longitude === null ? null : (float) $parada->longitude,
+                'raio' => (int) ($parada->raio_metros ?: 150),
+                'vinculos' => 0,
+                'idades' => [],
+                'embarques' => 0,
+                'desembarques' => 0,
+            ];
+        }
+
+        $casas = [];
+
+        foreach ($vinculos as $vinculo) {
+            $idade = $vinculo->data_nasc === null
+                ? null
+                : RegraOferta::idade(substr((string) $vinculo->data_nasc, 0, 10), $ano);
+            $pontoId = $vinculo->ponto_id === null ? null : (int) $vinculo->ponto_id;
+
+            if ($pontoId !== null && isset($porPonto[$pontoId])) {
+                $porPonto[$pontoId]['vinculos']++;
+
+                if ($idade !== null) {
+                    $porPonto[$pontoId]['idades'][] = $idade;
+                }
+            }
+
+            if ($vinculo->residencia_latitude !== null && $vinculo->residencia_longitude !== null) {
+                $casas[] = [
+                    'latitude' => (float) $vinculo->residencia_latitude,
+                    'longitude' => (float) $vinculo->residencia_longitude,
+                ];
+            }
+        }
+
+        foreach ($movimentos as $movimento) {
+            $id = (int) $movimento->ponto_id;
+
+            if (!isset($porPonto[$id])) {
+                continue;
+            }
+
+            if ($movimento->tipo === 'embarque') {
+                $porPonto[$id]['embarques'] = (int) $movimento->n;
+            }
+
+            if ($movimento->tipo === 'desembarque') {
+                $porPonto[$id]['desembarques'] = (int) $movimento->n;
+            }
+        }
+
+        $pontos = [];
+
+        foreach ($porPonto as $ponto) {
+            $pontos[] = [
+                'id' => $ponto['id'],
+                'nome' => $ponto['nome'],
+                'lat' => $ponto['lat'],
+                'lng' => $ponto['lng'],
+                'raio' => $ponto['raio'],
+                'alunos' => $ponto['vinculos'],
+                'faixas' => FaixaEtaria::resumir($ponto['idades']),
+                'embarques' => $ponto['embarques'],
+                'desembarques' => $ponto['desembarques'],
+            ];
+        }
+
+        return ['pontos' => $pontos, 'calor' => GradeCalor::celulas($casas)];
     }
 }

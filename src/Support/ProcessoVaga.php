@@ -8,6 +8,38 @@ namespace iEducar\Packages\BuritiTransporteEscolar\Support;
  */
 final class ProcessoVaga
 {
+    public const ABERTO = 'aberto';
+
+    public const PAUSADO = 'pausado';
+
+    public const BLOQUEADO = 'bloqueado';
+
+    public static function rotulo(string $situacao): string
+    {
+        return [
+            self::ABERTO => 'Aberto',
+            self::PAUSADO => 'Pausado',
+            self::BLOQUEADO => 'Bloqueado',
+        ][$situacao] ?? 'Aberto';
+    }
+
+    /**
+     * Pausa interrompe os pedidos e pode ser retomada.
+     * Bloqueio fecha o processo até um desbloqueio explícito.
+     */
+    public static function proxima(string $atual, string $acao): ?string
+    {
+        $atual = $atual === '' ? self::ABERTO : $atual;
+
+        return match ($acao) {
+            'pausar' => $atual === self::ABERTO ? self::PAUSADO : null,
+            'retomar' => $atual === self::PAUSADO ? self::ABERTO : null,
+            'bloquear' => $atual === self::BLOQUEADO ? null : self::BLOQUEADO,
+            'desbloquear' => $atual === self::BLOQUEADO ? self::ABERTO : null,
+            default => null,
+        };
+    }
+
     public static function noPeriodo(bool $ativo, string $inicio, string $fim, \DateTimeImmutable $hoje): bool
     {
         if (!$ativo) {

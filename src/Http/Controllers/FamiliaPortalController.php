@@ -6,6 +6,7 @@ use iEducar\Packages\BuritiTransporteEscolar\Providers\TransporteEscolarServiceP
 use iEducar\Packages\BuritiTransporteEscolar\Support\AtendimentoSetor;
 use iEducar\Packages\BuritiTransporteEscolar\Support\PedidoFamilia;
 use iEducar\Packages\BuritiTransporteEscolar\Support\ProcessoVaga;
+use iEducar\Packages\BuritiTransporteEscolar\Support\RegraOferta;
 use iEducar\Packages\BuritiTransporteEscolar\Support\ProtocoloSolicitacao;
 use iEducar\Packages\BuritiTransporteEscolar\Support\SituacaoPedido;
 use Illuminate\Http\RedirectResponse;
@@ -26,8 +27,12 @@ class FamiliaPortalController
     {
         $this->municipio();
 
+        $ofertas = $this->ofertasAbertas();
+
         return view('transporte-escolar::portal.pedir', [
-            'ofertas' => $this->ofertasAbertas(),
+            'ofertas' => $ofertas,
+            'series' => $this->seriesDas($ofertas),
+            'turmas' => $this->turmasDas($ofertas),
             'erros' => [],
             'velho' => [],
         ]);
@@ -36,7 +41,7 @@ class FamiliaPortalController
     public function gravar(Request $request): View|RedirectResponse
     {
         $this->municipio();
-        $dados = $request->only(['nome_aluno', 'nascimento', 'nome_responsavel', 'telefone', 'endereco', 'oferta_id']);
+        $dados = $request->only(['nome_aluno', 'nascimento', 'nome_responsavel', 'telefone', 'endereco', 'oferta_id', 'serie_id', 'turma_id']);
         $ofertas = $this->ofertasAbertas();
         $oferta = $ofertas->firstWhere('id', (int) ($dados['oferta_id'] ?? 0));
         $erros = [];
@@ -55,6 +60,22 @@ class FamiliaPortalController
                 $erros[] = 'Esta rota não tem mais vaga neste processo.';
             }
 
+            $serieId = (int) ($dados['serie_id'] ?? 0) ?: null;
+            $turmaId = (int) ($dados['turma_id'] ?? 0) ?: null;
+            $idade = RegraOferta::idade((string) ($dados['nascimento'] ?? ''), (int) $oferta->ano);
+
+            if (!RegraOferta::cabeIdade($idade, $oferta->idade_min === null ? null : (int) $oferta->idade_min, $oferta->idade_max === null ? null : (int) $oferta->idade_max)) {
+                $erros[] = 'A idade do aluno em 31 de março deste ano não cabe nesta vaga.';
+            }
+
+            if (!RegraOferta::cabeLista($serieId, RegraOferta::lista($oferta->series))) {
+                $erros[] = 'Escolha uma série permitida nesta vaga.';
+            }
+
+            if (!RegraOferta::cabeLista($turmaId, RegraOferta::lista($oferta->turmas))) {
+                $erros[] = 'Escolha uma turma permitida nesta vaga.';
+            }
+
             $dados['escola'] = $oferta->escola;
             $dados['turno'] = $oferta->turno;
             $dados['ref_cod_escola'] = $oferta->ref_cod_escola;
@@ -65,6 +86,8 @@ class FamiliaPortalController
         if ($erros !== []) {
             return view('transporte-escolar::portal.pedir', [
                 'ofertas' => $ofertas,
+                'series' => $this->seriesDas($ofertas),
+                'turmas' => $this->turmasDas($ofertas),
                 'erros' => $erros,
                 'velho' => $dados,
             ]);
@@ -89,6 +112,8 @@ class FamiliaPortalController
             'processo_id' => $oferta->processo_id,
             'rota_id' => $oferta->rota_id,
             'oferta_id' => $oferta->id,
+            'ref_cod_serie' => (int) ($dados['serie_id'] ?? 0) ?: null,
+            'ref_cod_turma' => (int) ($dados['turma_id'] ?? 0) ?: null,
             'situacao' => SituacaoPedido::RECEBIDA,
             'pedido_em' => now(),
             'atualizado_em' => now(),
@@ -200,9 +225,18 @@ class FamiliaPortalController
             ->join('transporte_escolar.rota as r', 'r.id', '=', 'o.rota_id')
             ->join('pmieducar.escola as e', 'e.cod_escola', '=', 'o.ref_cod_escola')
             ->join('cadastro.pessoa as pes', 'pes.idpes', '=', 'e.ref_idpes')
+            ->leftJoin('transporte_escolar.processo_grupo as g', 'g.id', '=', 'p.grupo_id')
             ->where('p.ativo', true)
             ->whereDate('p.inicio', '<=', $hoje)
             ->whereDate('p.fim', '>=', $hoje)
+            ->where(function ($consulta) use ($hoje) {
+                $consulta->whereNull('p.grupo_id')
+                    ->orWhere(function ($grupo) use ($hoje) {
+                        $grupo->where('g.ativo', true)
+                            ->whereDate('g.inicio', '<=', $hoje)
+                            ->whereDate('g.fim', '>=', $hoje);
+                    });
+            })
             ->orderBy('p.ano')
             ->orderBy('pes.nome')
             ->orderBy('r.descricao')
@@ -210,11 +244,17 @@ class FamiliaPortalController
                 'o.id',
                 'o.vagas',
                 'o.turno',
+                'o.idade_min',
+                'o.idade_max',
+                'o.series',
+                'o.turmas',
                 'o.ref_cod_escola',
                 'o.rota_id',
                 'o.processo_id',
                 'p.nome as processo',
                 'p.ano',
+                'p.grupo_id',
+                'g.nome as grupo',
                 'r.descricao as rota',
                 'pes.nome as escola',
             ]);
@@ -237,6 +277,40 @@ class FamiliaPortalController
 
             return $item;
         })->filter(fn ($item) => $item->livres > 0)->values();
+    }
+
+    private function seriesDas($ofertas)
+    {
+        $ids = [];
+
+        foreach ($ofertas as $oferta) {
+            foreach (RegraOferta::lista($oferta->series) as $id) {
+                $ids[$id] = $id;
+            }
+        }
+
+        if ($ids === []) {
+            return collect();
+        }
+
+        return DB::table('pmieducar.serie')->whereIn('cod_serie', array_values($ids))->orderBy('nm_serie')->get(['cod_serie', 'nm_serie']);
+    }
+
+    private function turmasDas($ofertas)
+    {
+        $ids = [];
+
+        foreach ($ofertas as $oferta) {
+            foreach (RegraOferta::lista($oferta->turmas) as $id) {
+                $ids[$id] = $id;
+            }
+        }
+
+        if ($ids === []) {
+            return collect();
+        }
+
+        return DB::table('pmieducar.turma')->whereIn('cod_turma', array_values($ids))->orderBy('nm_turma')->get(['cod_turma', 'nm_turma', 'ref_ref_cod_escola', 'ano']);
     }
 
     private function municipio(): void

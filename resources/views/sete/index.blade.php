@@ -1,26 +1,53 @@
 @extends('transporte-escolar::layout')
 
 @section('transporte')
-    <h1>SETE</h1>
-    <p>A planilha entra de novo sem duplicar placa, CPF ou rota do mesmo ano. Pessoa que não existe no i-Educar vira divergência, não um cadastro novo.</p>
+    <h1><i class="fa fa-exchange" aria-hidden="true"></i> SETE</h1>
+    <p class="lead">A planilha entra de novo sem duplicar placa, CPF ou rota do mesmo ano. Pessoa que não existe no i-Educar vira divergência, não um cadastro novo.</p>
+    <div data-painel>
+        <div class="barra-dados">
+            <label class="filtro"><i class="fa fa-search" aria-hidden="true"></i><input type="search" data-filtro-tabela placeholder="Buscar divergência"></label>
+            @if($podeImportar)
+                <button type="button" class="botao" data-abre-modal="importar-sete"><i class="fa fa-upload" aria-hidden="true"></i> Importar</button>
+            @endif
+        </div>
+        @if($podeImportar)
+            <p class="acao">
+                <a href="{{ url('/transporte-escolar/sete/exportar/alunos') }}">Exportar alunos</a>
+                <a href="{{ url('/transporte-escolar/sete/exportar/veiculos') }}">Veículos</a>
+                <a href="{{ url('/transporte-escolar/sete/exportar/motoristas') }}">Motoristas</a>
+                <a href="{{ url('/transporte-escolar/sete/exportar/monitores') }}">Monitores</a>
+            </p>
+        @endif
+        <div class="tabela-wrap">
+            <table>
+                <thead><tr><th>Situação</th><th>Entidade</th><th>Linha</th><th>Mensagem</th></tr></thead>
+                <tbody>
+                    @forelse($linhas as $linha)
+                        <tr data-busca="{{ $linha->situacao }} {{ $linha->entidade }} {{ $linha->mensagem }}">
+                            <td>{{ $linha->situacao }}</td>
+                            <td>{{ $linha->entidade }}</td>
+                            <td>{{ $linha->linha }}</td>
+                            <td>{{ $linha->mensagem }}</td>
+                        </tr>
+                    @empty
+                        <tr data-vazio><td colspan="4" class="vazio">Nenhuma divergência.</td></tr>
+                    @endforelse
+                </tbody>
+            </table>
+        </div>
+    </div>
     @if($podeImportar)
-        <form method="post" enctype="multipart/form-data">
-            @csrf
-            <label>Ano <input name="ano" value="{{ date('Y') }}" required></label>
-            <input type="file" name="arquivo" required accept=".csv,.txt,.xlsx,.xls">
-            <button type="submit">Importar</button>
-        </form>
-        <p>
-            <a href="{{ url('/transporte-escolar/sete/exportar/alunos') }}">Exportar alunos</a> ·
-            <a href="{{ url('/transporte-escolar/sete/exportar/veiculos') }}">veículos</a> ·
-            <a href="{{ url('/transporte-escolar/sete/exportar/motoristas') }}">motoristas</a> ·
-            <a href="{{ url('/transporte-escolar/sete/exportar/monitores') }}">monitores</a>
-        </p>
+        <dialog class="modal" id="importar-sete">
+            <div class="modal-cabeca">
+                <h2>Importar planilha</h2>
+                <button type="button" data-fecha-modal aria-label="Fechar">&times;</button>
+            </div>
+            <form method="post" enctype="multipart/form-data">
+                @csrf
+                <label>Ano <input name="ano" value="{{ date('Y') }}" required></label>
+                <label>Arquivo <input type="file" name="arquivo" required accept=".csv,.txt,.xlsx,.xls"></label>
+                <button type="submit">Importar</button>
+            </form>
+        </dialog>
     @endif
-    <h2>Divergências e cargas</h2>
-    <ul>
-        @foreach($linhas as $linha)
-            <li>{{ $linha->situacao }} · {{ $linha->entidade }} · linha {{ $linha->linha }} · {{ $linha->mensagem }}</li>
-        @endforeach
-    </ul>
 @endsection
