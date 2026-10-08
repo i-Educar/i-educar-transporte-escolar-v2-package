@@ -12,40 +12,55 @@ use iEducar\Packages\BuritiTransporteEscolar\Support\ResumoNumerico;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
-use Symfony\Component\HttpFoundation\StreamedResponse;
+use Symfony\Component\HttpFoundation\Response;
 
 class RelatorioController
 {
     public function index(Request $request): View
     {
         $ano = (int) $request->input('ano', date('Y'));
+        $mes = (int) $request->input('mes', date('n'));
+        $mes = $mes < 1 || $mes > 12 ? (int) date('n') : $mes;
         $dados = $this->dados($ano);
-        $custo = Acesso::permite(Processos::GASTOS, 'ver') ? CustoMensal::fechar($ano, (int) date('n')) : null;
+        $podeCusto = Acesso::permite(Processos::GASTOS, 'ver');
+        $custo = $podeCusto ? CustoMensal::fechar($ano, $mes) : null;
         $totalGasto = $custo === null ? 0.0 : $custo['pnate'] + $custo['proprio'] + $custo['outros'];
 
         return view('transporte-escolar::relatorios.index', $dados + [
             'ano' => $ano,
-            'podeCusto' => $custo !== null,
+            'mes' => $mes,
+            'podeCusto' => $podeCusto,
             'custo' => $custo,
+            'alertaSaldo' => $podeCusto ? CustoMensal::alertaSaldo($ano) : null,
             'custoAluno' => $dados['alunos'] > 0 ? round($totalGasto / $dados['alunos'], 2) : 0.0,
             'custoKm' => $dados['realizado']['total'] > 0 ? round($totalGasto / $dados['realizado']['total'], 2) : 0.0,
+            'fontes' => ['pnate' => 'PNATE', 'proprio' => 'Recurso próprio', 'outros' => 'Outras fontes'],
         ]);
     }
 
-    public function csv(Request $request): StreamedResponse
+    public function csv(Request $request): Response
     {
         $ano = (int) $request->input('ano', date('Y'));
+        $mes = (int) $request->input('mes', date('n'));
+        $mes = $mes < 1 || $mes > 12 ? (int) date('n') : $mes;
+        $planilha = (string) $request->input('planilha', 'resumo');
         $dados = $this->dados($ano);
 
-        return response()->streamDownload(function () use ($dados): void {
-            $saida = fopen('php://output', 'w');
-            fprintf($saida, chr(0xEF) . chr(0xBB) . chr(0xBF));
-            fputcsv($saida, ['indicador', 'minimo', 'media', 'maximo', 'total'], ';');
-            fputcsv($saida, ['km informado', $dados['km']['minimo'], $dados['km']['media'], $dados['km']['maximo'], $dados['km']['total']], ';');
-            fputcsv($saida, ['tempo estimado min', $dados['tempo']['minimo'], $dados['tempo']['media'], $dados['tempo']['maximo'], $dados['tempo']['total']], ';');
-            fputcsv($saida, ['km realizado', $dados['realizado']['minimo'], $dados['realizado']['media'], $dados['realizado']['maximo'], $dados['realizado']['total']], ';');
-            fclose($saida);
-        }, 'transporte-resumo.csv', ['Content-Type' => 'text/csv; charset=UTF-8']);
+        if ($planilha === 'custo') {
+            abort_unless(Acesso::permite(Processos::GASTOS, 'ver'), 403);
+        }
+
+        $saida = fopen('php://temp', 'w+');
+        fprintf($saida, chr(0xEF) . chr(0xBB) . chr(0xBF));
+        $this->escreverPlanilha($saida, $planilha, $dados, $ano, $mes);
+        rewind($saida);
+        $conteudo = stream_get_contents($saida);
+        fclose($saida);
+
+        return response($conteudo, 200, [
+            'Content-Type' => 'text/csv; charset=UTF-8',
+            'Content-Disposition' => 'attachment; filename="transporte-' . $planilha . '-' . $ano . '.csv"',
+        ]);
     }
 
     public function dossie(Request $request): View
@@ -103,6 +118,8 @@ class RelatorioController
             ->where('e.tipo', 'embarque')
             ->distinct()
             ->count('e.ref_cod_aluno');
+        $viagens = $ids === [] ? 0 : DB::table('transporte_escolar.viagem')->whereIn('rota_id', $ids)->whereYear('data', $ano)->count();
+        $frota = $this->frotaVisivel($ids, $ano);
 
         return [
             'rotas' => $rotas,
@@ -111,19 +128,145 @@ class RelatorioController
             'realizado' => ResumoNumerico::de($realizados),
             'alunos' => $alunosRota,
             'embarcados' => $embarcados,
-            'motoristas' => DB::table('transporte_escolar.motorista as m')->join('cadastro.pessoa as p', 'p.idpes', '=', 'm.ref_idpes')->orderBy('p.nome')->get(['p.nome', 'm.cnh', 'm.vencimento_cnh']),
-            'vencimentos' => DB::table('transporte_escolar.veiculo')
-                ->where('ativo', true)
-                ->whereNotNull('licenciamento_vencimento')
-                ->where('licenciamento_vencimento', '<=', now()->addDays(30)->toDateString())
-                ->limit(30)
-                ->get(),
+            'viagens' => $viagens,
+            'motoristas' => $this->motoristas($frota['motoristas']),
+            'vencimentos' => $this->vencimentos($frota['veiculos']),
             'censoSemRota' => $this->censoSemRota($ano),
             'rotaSemCenso' => $this->rotaSemCenso($ano, $ids),
             'porRota' => $this->porRota($rotas, $ano),
-            'parados' => $this->parados(),
-            'consumo' => $this->consumo($ano),
+            'parados' => $this->parados($frota['veiculos']),
+            'consumo' => $this->consumo($ano, $frota['veiculos']),
         ];
+    }
+
+    /**
+     * @param list<int> $rotaIds
+     * @return array{veiculos: list<int>|null, motoristas: list<int>|null}
+     */
+    private function frotaVisivel(array $rotaIds, int $ano): array
+    {
+        if (\iEducar\Packages\BuritiTransporteEscolar\Support\VisaoRede::escolas() === null) {
+            return ['veiculos' => null, 'motoristas' => null];
+        }
+
+        if ($rotaIds === []) {
+            return ['veiculos' => [], 'motoristas' => []];
+        }
+
+        $viagens = DB::table('transporte_escolar.viagem')->whereIn('rota_id', $rotaIds)->whereYear('data', $ano);
+
+        return [
+            'veiculos' => (clone $viagens)->whereNotNull('veiculo_id')->distinct()->pluck('veiculo_id')->map(fn ($id) => (int) $id)->all(),
+            'motoristas' => (clone $viagens)->whereNotNull('motorista_id')->distinct()->pluck('motorista_id')->map(fn ($id) => (int) $id)->all(),
+        ];
+    }
+
+    /**
+     * @param list<int>|null $ids
+     */
+    private function motoristas(?array $ids)
+    {
+        $consulta = DB::table('transporte_escolar.motorista as m')
+            ->join('cadastro.pessoa as p', 'p.idpes', '=', 'm.ref_idpes')
+            ->orderBy('p.nome');
+
+        if (is_array($ids)) {
+            $consulta->whereIn('m.id', $ids === [] ? [0] : $ids);
+        }
+
+        return $consulta->get(['p.nome', 'm.cnh', 'm.vencimento_cnh']);
+    }
+
+    /**
+     * @param list<int>|null $ids
+     */
+    private function vencimentos(?array $ids)
+    {
+        $consulta = DB::table('transporte_escolar.veiculo')
+            ->where('ativo', true)
+            ->whereNotNull('licenciamento_vencimento')
+            ->where('licenciamento_vencimento', '<=', now()->addDays(30)->toDateString())
+            ->orderBy('licenciamento_vencimento');
+
+        if (is_array($ids)) {
+            $consulta->whereIn('id', $ids === [] ? [0] : $ids);
+        }
+
+        return $consulta->limit(30)->get();
+    }
+
+    /**
+     * @param resource $saida
+     * @param array<string, mixed> $dados
+     */
+    private function escreverPlanilha($saida, string $planilha, array $dados, int $ano, int $mes): void
+    {
+        if ($planilha === 'rotas') {
+            fputcsv($saida, ['rota', 'tipo', 'km_planejado', 'km_realizado', 'alunos', 'embarcados'], ';');
+
+            foreach ($dados['porRota'] as $rota) {
+                fputcsv($saida, [$rota['descricao'], $rota['tipo'], $rota['planejado'], $rota['realizado'], $rota['alunos'], $rota['embarcados']], ';');
+            }
+
+            return;
+        }
+
+        if ($planilha === 'motoristas') {
+            fputcsv($saida, ['nome', 'cnh', 'vencimento'], ';');
+
+            foreach ($dados['motoristas'] as $motorista) {
+                fputcsv($saida, [$motorista->nome, $motorista->cnh, $motorista->vencimento_cnh], ';');
+            }
+
+            return;
+        }
+
+        if ($planilha === 'censo') {
+            fputcsv($saida, ['situacao', 'aluno'], ';');
+
+            foreach ($dados['censoSemRota'] as $aluno) {
+                fputcsv($saida, ['ficha com transporte e sem rota', $aluno->nome], ';');
+            }
+
+            foreach ($dados['rotaSemCenso'] as $aluno) {
+                fputcsv($saida, ['rota sem transporte na ficha', $aluno->nome], ';');
+            }
+
+            return;
+        }
+
+        if ($planilha === 'consumo') {
+            fputcsv($saida, ['veiculo', 'km_por_litro', 'medio_cadastrado', 'alerta'], ';');
+
+            foreach ($dados['consumo'] as $item) {
+                fputcsv($saida, [$item['placa'], $item['real'], $item['medio'], $item['alerta'] ? 'sim' : 'nao'], ';');
+            }
+
+            return;
+        }
+
+        if ($planilha === 'custo') {
+            $custo = CustoMensal::fechar($ano, $mes);
+            fputcsv($saida, ['mes', 'rotulo', 'fonte', 'valor'], ';');
+
+            foreach ($custo['linhas'] as $linha) {
+                fputcsv($saida, [$mes, $linha['rotulo'], $linha['fonte'], number_format($linha['valor'], 2, '.', '')], ';');
+            }
+
+            fputcsv($saida, [$mes, 'total PNATE', 'pnate', number_format($custo['pnate'], 2, '.', '')], ';');
+            fputcsv($saida, [$mes, 'total recurso proprio', 'proprio', number_format($custo['proprio'], 2, '.', '')], ';');
+            fputcsv($saida, [$mes, 'total outras fontes', 'outros', number_format($custo['outros'], 2, '.', '')], ';');
+
+            return;
+        }
+
+        fputcsv($saida, ['indicador', 'minimo', 'media', 'maximo', 'total'], ';');
+        fputcsv($saida, ['km informado', $dados['km']['minimo'], $dados['km']['media'], $dados['km']['maximo'], $dados['km']['total']], ';');
+        fputcsv($saida, ['tempo estimado min', $dados['tempo']['minimo'], $dados['tempo']['media'], $dados['tempo']['maximo'], $dados['tempo']['total']], ';');
+        fputcsv($saida, ['km realizado', $dados['realizado']['minimo'], $dados['realizado']['media'], $dados['realizado']['maximo'], $dados['realizado']['total']], ';');
+        fputcsv($saida, ['alunos na lista', '', '', '', $dados['alunos']], ';');
+        fputcsv($saida, ['alunos com embarque', '', '', '', $dados['embarcados']], ';');
+        fputcsv($saida, ['viagens', '', '', '', $dados['viagens']], ';');
     }
 
     private function porRota($rotas, int $ano): array
@@ -143,6 +286,7 @@ class RelatorioController
 
             $linhas[] = [
                 'descricao' => $rota->descricao,
+                'tipo' => \iEducar\Packages\BuritiTransporteEscolar\Support\Codigos::TIPO_ROTA[$rota->tipo_rota] ?? $rota->tipo_rota,
                 'planejado' => (float) $rota->km_pav + (float) $rota->km_npav,
                 'realizado' => round($kmReal, 1),
                 'alunos' => DB::table('transporte_escolar.aluno_rota')->where('rota_id', $rota->id)->count(),
@@ -158,11 +302,13 @@ class RelatorioController
         return $linhas;
     }
 
-    private function parados()
+    /**
+     * @param list<int>|null $ids
+     */
+    private function parados(?array $ids)
     {
         $limite = now()->subDays(30)->toDateString();
-
-        return DB::table('transporte_escolar.veiculo as ve')
+        $consulta = DB::table('transporte_escolar.veiculo as ve')
             ->where('ve.ativo', true)
             ->whereNotExists(function ($q) use ($limite) {
                 $q->select(DB::raw('1'))
@@ -170,15 +316,28 @@ class RelatorioController
                     ->whereColumn('v.veiculo_id', 've.id')
                     ->where('v.data', '>=', $limite);
             })
-            ->orderBy('ve.placa')
-            ->limit(30)
-            ->get(['ve.placa', 've.descricao']);
+            ->orderBy('ve.placa');
+
+        if (is_array($ids)) {
+            $consulta->whereIn('ve.id', $ids === [] ? [0] : $ids);
+        }
+
+        return $consulta->limit(30)->get(['ve.placa', 've.descricao']);
     }
 
-    private function consumo(int $ano): array
+    /**
+     * @param list<int>|null $ids
+     */
+    private function consumo(int $ano, ?array $ids): array
     {
         $linhas = [];
-        $veiculos = DB::table('transporte_escolar.veiculo')->where('ativo', true)->get();
+        $consulta = DB::table('transporte_escolar.veiculo')->where('ativo', true);
+
+        if (is_array($ids)) {
+            $consulta->whereIn('id', $ids === [] ? [0] : $ids);
+        }
+
+        $veiculos = $consulta->get();
 
         foreach ($veiculos as $veiculo) {
             $abastecimentos = DB::table('transporte_escolar.abastecimento')->where('veiculo_id', $veiculo->id)->whereYear('data', $ano)->get()

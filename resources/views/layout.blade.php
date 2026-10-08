@@ -69,11 +69,14 @@
         .conteudo h2 { margin: 28px 0 10px; font-size: 1.15rem; }
         .conteudo a { color: var(--azul); }
         .barra-dados { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: space-between; margin: 0 0 12px; }
+        .barra-dados h2 { margin: 0; font-size: 1.05rem; }
         .filtro { display: flex; align-items: center; gap: 8px; background: #fff; border: 1px solid var(--linha); border-radius: 10px; padding: 0 12px; min-width: min(100%, 320px); flex: 1 1 240px; }
         .filtro i { color: var(--suave); }
         .filtro input { border: 0; padding: 10px 0; width: 100%; font: inherit; color: var(--tinta); background: transparent; outline: none; }
         .botao { display: inline-flex; align-items: center; gap: 8px; background: var(--azul); color: #fff; border: 0; border-radius: 10px; padding: 10px 14px; font: inherit; text-decoration: none; cursor: pointer; }
         .botao.claro { background: #fff; color: var(--azul); border: 1px solid var(--linha); }
+        .conteudo a.botao { color: #fff; }
+        .conteudo a.botao.claro { color: var(--azul); }
         .tabela-wrap { overflow-x: auto; background: #fff; border: 1px solid var(--linha); border-radius: 12px; }
         .conteudo table { width: 100%; border-collapse: collapse; background: #fff; margin: 0; }
         .conteudo th, .conteudo td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--linha); vertical-align: middle; }
@@ -82,17 +85,79 @@
         .conteudo tr[hidden] { display: none; }
         .acao { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
         .acao button, .conteudo button, .conteudo input[type="submit"] { background: var(--azul); color: #fff; border: 0; border-radius: 8px; padding: 8px 12px; font: inherit; cursor: pointer; }
+        .conteudo td.acoes { display: table-cell; white-space: nowrap; width: 1%; text-align: right; vertical-align: middle; }
+        .conteudo td.acoes form, .conteudo .modal .acao { display: inline-flex; flex-flow: row nowrap; gap: 4px; margin: 0; padding: 0; background: none; border: 0; vertical-align: middle; align-items: center; }
+        .conteudo td.acoes > .icone, .conteudo td.acoes > a, .conteudo td.acoes > button { vertical-align: middle; }
+        .conteudo .acoes .icone, .conteudo button.icone, .conteudo a.icone { width: 32px; height: 32px; padding: 0; display: inline-grid; place-items: center; border-radius: 8px; border: 0; text-decoration: none; cursor: pointer; font-size: 14px; line-height: 1; }
+        .conteudo .icone.ver { background: #eef3f7; color: #47728f; }
+        .conteudo .icone.editar { background: #fff6e8; color: #b86e00; }
+        .conteudo .icone.aceitar { background: #e7f6ef; color: #0f6b4c; }
+        .conteudo .icone.imprimir { background: #e8f3fb; color: #188ad1; }
+        .conteudo .icone.encaminhar { background: #eef3f7; color: #47728f; }
+        .conteudo .icone.cancelar { background: #fdeceb; color: #9b2c2c; }
+        .conteudo .icone.pausar { background: #f3eef8; color: #5c4d7a; }
+        .conteudo .icone.marcado { box-shadow: inset 0 0 0 2px currentColor; }
+        .aluno-linha { display: flex; align-items: center; gap: 12px; }
+        .aluno-linha svg { width: 52px; height: 52px; flex: none; background: #fff; }
+        .aluno-linha small { display: block; color: var(--suave); font-weight: 500; }
+        .diario tr.ausente td:first-child { box-shadow: inset 3px 0 #9b2c2c; }
         .conteudo input:not([type="checkbox"]):not([type="radio"]):not([type="search"]), .conteudo select, .conteudo textarea { padding: 8px 10px; border: 1px solid var(--linha); border-radius: 8px; font: inherit; color: var(--tinta); background: #fff; }
         .vazio { color: var(--suave); padding: 16px; }
+        .conteudo .ficha { display: grid; grid-template-columns: 150px 1fr; gap: 8px 12px; margin: 0; }
+        .conteudo .ficha dt { color: var(--suave); font-weight: 700; }
+        .conteudo .ficha dd { margin: 0; }
         .conteudo > form:not(.acao) { background: #fff; border: 1px solid var(--linha); border-radius: 16px; padding: 16px 18px; margin: 12px 0 20px; }
         .cartao-rota { background: #fff; border: 1px solid var(--linha); border-radius: 16px; padding: 16px 18px; margin: 12px 0 20px; }
         .cartao-rota h2 { margin: 0 0 8px; }
         .cartao-rota form { display: flex; flex-wrap: wrap; gap: 10px; align-items: end; margin: 12px 0; }
         .cartao-rota label { display: grid; gap: 4px; font-weight: 600; }
         .numeros { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin: 0 0 16px; }
-        .numeros article { background: #fff; border: 1px solid var(--linha); border-radius: 16px; padding: 14px 16px; }
+        .numeros.gestao { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+        .numeros article { background: #fff; border: 1px solid var(--linha); border-top: 4px solid var(--azul); border-radius: 16px; padding: 14px 16px; }
+        .numeros article.rede { border-top-color: #47728f; }
+        .numeros article.ano { border-top-color: #188ad1; }
+        .numeros article.viagem { border-top-color: #0f6b4c; }
+        .numeros article.frota { border-top-color: #b86e00; }
+        .numeros article.conta { border-top-color: #5c4d7a; }
         .numeros strong { display: block; font-size: 1.35rem; color: var(--azul-escuro); }
         .numeros span { color: var(--suave); font-size: .86rem; }
+        .painel-grupo { background: #fff; border: 1px solid var(--linha); border-radius: 16px; padding: 16px 18px; margin: 0 0 16px; }
+        .painel-grupo > h2 { margin: 0 0 4px; display: flex; align-items: center; gap: 10px; font-size: 1.05rem; }
+        .painel-grupo > h2 .marca-grupo { width: 34px; height: 34px; border-radius: 10px; display: grid; place-items: center; flex: none; }
+        .painel-grupo > .lead { margin: 0 0 14px; }
+        .kpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+        .kpi { display: flex; gap: 12px; align-items: center; min-width: 0; border: 1px solid var(--linha); border-radius: 14px; padding: 12px 14px; background: #f8fbfc; color: inherit; text-decoration: none; }
+        a.kpi:hover { border-color: currentColor; }
+        .kpi .marca-kpi { width: 40px; height: 40px; border-radius: 12px; display: grid; place-items: center; flex: none; font-size: 16px; }
+        .kpi strong { display: block; font-size: 1.25rem; color: var(--azul-escuro); line-height: 1.15; }
+        .kpi em { display: block; font-style: normal; color: var(--suave); font-size: .8rem; }
+        .kpi.azul, .marca-grupo.azul { color: #47728f; }
+        .kpi.azul .marca-kpi, .marca-grupo.azul { background: #e7f1f6; }
+        .kpi.destaque, .marca-grupo.destaque { color: #188ad1; }
+        .kpi.destaque .marca-kpi, .marca-grupo.destaque { background: #e8f3fb; }
+        .kpi.verde, .marca-grupo.verde { color: #0f6b4c; }
+        .kpi.verde .marca-kpi, .marca-grupo.verde { background: #e7f6ef; }
+        .kpi.ambar, .marca-grupo.ambar { color: #b86e00; }
+        .kpi.ambar .marca-kpi, .marca-grupo.ambar { background: #fff6e8; }
+        .kpi.roxo, .marca-grupo.roxo { color: #5c4d7a; }
+        .kpi.roxo .marca-kpi, .marca-grupo.roxo { background: #f3eef8; }
+        .kpi.alerta, .marca-grupo.alerta { color: #9b2c2c; }
+        .kpi.alerta .marca-kpi, .marca-grupo.alerta { background: #fdeceb; }
+        .grade-relatorio { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; align-items: start; }
+        .grade-relatorio .painel-grupo { margin: 0; }
+        .selo { display: inline-flex; align-items: center; border-radius: 999px; padding: 2px 8px; font-size: .78rem; font-weight: 700; background: #eef3f7; color: #47728f; }
+        .selo.ok { background: #e7f6ef; color: #0f6b4c; }
+        .selo.alerta { background: #fdeceb; color: #9b2c2c; }
+        .selo.prazo { background: #fff6e8; color: #b86e00; }
+        .paginas { display: flex; gap: 12px; align-items: center; justify-content: flex-end; margin: 12px 0 0; color: var(--suave); }
+        .paginas a { font-weight: 700; text-decoration: none; }
+        @media (max-width: 1100px) {
+            .numeros.gestao { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+            .kpis, .grade-relatorio { grid-template-columns: 1fr 1fr; }
+        }
+        @media (max-width: 700px) {
+            .numeros.gestao, .kpis, .grade-relatorio { grid-template-columns: 1fr; }
+        }
         .conteudo ul { background: #fff; border: 1px solid var(--linha); border-radius: 12px; margin: 8px 0 16px; padding: 12px 12px 12px 32px; }
         .fluxograma { list-style: none; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 18px; margin: 0 0 16px; padding: 0; align-items: stretch; }
         .etapa { --etapa: var(--azul); position: relative; background: #fff; border: 1px solid var(--linha); border-top: 4px solid var(--etapa); border-radius: 16px; padding: 12px; display: flex; flex-direction: column; min-width: 0; }
@@ -135,19 +200,35 @@
         .card-avisos li.servico i { color: #0f6b4c; }
         .card-avisos li span { flex: 1; }
         .card-avisos .vazio { margin: 0; }
-        dialog.modal { border: 0; border-radius: 16px; padding: 0; width: min(760px, calc(100% - 32px)); max-height: calc(100vh - 48px); overflow: auto; box-shadow: 0 16px 48px rgba(36, 50, 60, .28); }
-        dialog.modal::backdrop { background: rgba(36, 50, 60, .45); }
-        .modal-cabeca { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 16px 18px; border-bottom: 1px solid var(--linha); }
-        .modal-cabeca h2 { margin: 0; font-size: 1.15rem; }
-        .modal-cabeca button { background: transparent; color: var(--suave); border: 0; font-size: 1.2rem; cursor: pointer; }
-        .modal form, .modal-corpo { padding: 16px 18px 18px; display: grid; gap: 10px; }
-        .ficha { display: grid; grid-template-columns: 1fr 1fr; gap: 12px 16px; margin: 0; }
-        .ficha > div { display: grid; gap: 2px; }
+        dialog.modal { border: 0; border-radius: 8px; padding: 0; width: min(820px, calc(100% - 32px)); max-height: calc(100vh - 48px); overflow: hidden; box-shadow: 0 18px 50px rgba(20, 32, 42, .28); }
+        dialog.modal[open] { display: flex; flex-direction: column; }
+        dialog.modal::backdrop { background: rgba(20, 32, 42, .5); }
+        .modal-cabeca { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex: none; padding: 14px 18px; border-bottom: 1px solid var(--linha); background: #fff; }
+        .modal-cabeca h2 { margin: 0; font-size: 1.02rem; font-weight: 700; letter-spacing: 0; display: flex; align-items: center; gap: 8px; }
+        .modal-cabeca h2 i { color: var(--azul); }
+        .modal-cabeca button { width: 32px; height: 32px; display: grid; place-items: center; background: #fff; color: var(--suave); border: 1px solid var(--linha); border-radius: 6px; font-size: 1.15rem; line-height: 1; cursor: pointer; padding: 0; }
+        .modal-cabeca button:hover { background: var(--azul-claro); color: var(--azul-escuro); }
+        .modal form, .modal-corpo { padding: 16px 18px 18px; display: grid; gap: 12px; align-content: start; overflow: auto; flex: 1 1 auto; min-height: 0; background: #f4f7f9; }
+        .modal form:has(.modal-miolo) { display: flex; flex-direction: column; gap: 0; padding: 0; overflow: hidden; }
+        .modal-miolo { padding: 16px 18px 18px; display: grid; gap: 12px; align-content: start; overflow: auto; flex: 1 1 auto; min-height: 0; }
+        .modal-rodape { display: flex; justify-content: flex-end; gap: 8px; flex: none; margin: 0; padding: 12px 18px; background: #fff; border-top: 1px solid var(--linha); }
+        .modal-rodape button, .modal-rodape .botao { min-width: 112px; justify-content: center; border-radius: 6px; }
+        .conteudo .modal-rodape .botao.claro { background: #fff; color: var(--azul-escuro); border: 1px solid var(--linha); }
+        .ficha { display: grid; grid-template-columns: 1fr 1fr; gap: 12px 16px; margin: 0; background: #fff; border: 1px solid var(--linha); border-radius: 8px; padding: 12px 14px; }
+        .ficha > div { display: grid; gap: 2px; min-width: 0; }
         .ficha .largo { grid-column: 1 / -1; }
-        .ficha dt { margin: 0; font-size: .78rem; color: var(--suave); font-weight: 700; }
-        .ficha dd { margin: 0; }
-        .modal label { display: grid; gap: 4px; font-weight: 600; }
-        .modal .linha { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .ficha dt { margin: 0; font-size: .72rem; color: var(--suave); font-weight: 700; letter-spacing: .02em; }
+        .ficha dd { margin: 0; font-weight: 600; }
+        dialog.modal > .ficha { margin: 16px 18px 18px; overflow: auto; flex: 1 1 auto; min-height: 0; }
+        .modal label { display: grid; gap: 6px; font-size: .78rem; font-weight: 700; color: var(--suave); min-width: 0; }
+        .modal label.opcao { display: flex; flex-direction: row; align-items: center; gap: 8px; font-size: .86rem; font-weight: 600; color: var(--tinta); background: #fff; border: 1px solid var(--linha); border-radius: 6px; padding: 8px 10px; }
+        .modal label.opcao input { width: 16px; height: 16px; margin: 0; flex: none; }
+        .modal .opcoes { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 12px; }
+        .modal .linha { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; align-items: end; }
+        .modal .linha > label, .modal form > label { min-width: 0; }
+        .modal select, .modal input:not([type="checkbox"]), .modal textarea { width: 100%; min-height: 38px; border-radius: 6px; background: #fff; font-weight: 500; color: var(--tinta); }
+        .modal textarea { min-height: 88px; resize: vertical; }
+        .modal select:focus, .modal input:focus, .modal textarea:focus { outline: 2px solid rgba(24, 138, 209, .28); border-color: #188ad1; }
         footer.rodape-fixo { position: fixed; left: 0; right: 0; bottom: 0; z-index: 25; background: #fff; border-top: 1px solid var(--linha); }
         .rodape { max-width: 1680px; margin: 0 auto; padding: 12px 20px; color: var(--suave); display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; font-size: .92rem; }
         @media (max-width: 1100px) {
@@ -158,7 +239,7 @@
         @media (max-width: 720px) {
             .barra { align-items: flex-start; flex-direction: column; }
             .barra-acoes { width: 100%; justify-content: space-between; }
-            .modal .linha, .ficha { grid-template-columns: 1fr; }
+            .modal .linha, .modal .opcoes, .ficha { grid-template-columns: 1fr; }
         }
     </style>
 </head>
@@ -308,13 +389,43 @@
                 }
             });
         });
-        document.querySelectorAll('[data-fecha-modal]').forEach(function (botao) {
-            botao.addEventListener('click', function () {
-                var modal = botao.closest('dialog');
-                if (modal) {
-                    modal.close();
-                }
+        document.querySelectorAll('dialog.modal form').forEach(function (form) {
+            if (form.querySelector('.modal-rodape')) {
+                return;
+            }
+            var botoes = Array.prototype.filter.call(form.children, function (filho) {
+                return filho.tagName === 'BUTTON';
             });
+            if (!botoes.length) {
+                return;
+            }
+            var gravar = botoes[botoes.length - 1];
+            var miolo = document.createElement('div');
+            var rodape = document.createElement('div');
+            var cancelar = document.createElement('button');
+            miolo.className = 'modal-miolo';
+            while (form.firstChild) {
+                miolo.appendChild(form.firstChild);
+            }
+            rodape.className = 'modal-rodape';
+            cancelar.type = 'button';
+            cancelar.className = 'botao claro';
+            cancelar.setAttribute('data-fecha-modal', '');
+            cancelar.textContent = 'Cancelar';
+            rodape.appendChild(cancelar);
+            rodape.appendChild(gravar);
+            form.appendChild(miolo);
+            form.appendChild(rodape);
+        });
+        document.addEventListener('click', function (evento) {
+            var botao = evento.target.closest('[data-fecha-modal]');
+            if (!botao) {
+                return;
+            }
+            var modal = botao.closest('dialog');
+            if (modal) {
+                modal.close();
+            }
         });
     </script>
 </body>

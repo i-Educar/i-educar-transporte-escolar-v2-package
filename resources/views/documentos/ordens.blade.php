@@ -22,21 +22,34 @@
                             <td>{{ $ordem->placa ?: $ordem->veiculo }}</td>
                             <td>{{ $ordem->descricao }}</td>
                             <td>{{ number_format((float) $ordem->valor, 2, ',', '.') }}</td>
-                            <td class="acao">
+                            <td class="acoes">
                                 @if($ordem->protocolo)
-                                    <a href="{{ url('/transporte-escolar/ordens/'.$ordem->id.'/pdf') }}">Imprimir</a>
+                                    <a class="icone imprimir" href="{{ url('/transporte-escolar/ordens/'.$ordem->id.'/pdf') }}" aria-label="Imprimir" title="Imprimir"><i class="fa fa-print" aria-hidden="true"></i></a>
                                 @endif
                                 @php $proximas = \iEducar\Packages\BuritiTransporteEscolar\Support\SituacaoDocumento::proximas(\iEducar\Packages\BuritiTransporteEscolar\Support\SituacaoDocumento::ORDEM, (string) $ordem->situacao); @endphp
-                                @if($podeGravar && $proximas !== [])
-                                    <form method="post" action="{{ url('/transporte-escolar/ordens/'.$ordem->id.'/situacao') }}" class="acao">
-                                        @csrf
-                                        <select name="situacao">
-                                            @foreach($proximas as $codigo)
-                                                <option value="{{ $codigo }}">{{ \iEducar\Packages\BuritiTransporteEscolar\Support\SituacaoDocumento::frase($codigo) }}</option>
-                                            @endforeach
-                                        </select>
-                                        <button type="submit">Atualizar</button>
-                                    </form>
+                                @if($podeGravar)
+                                    @foreach($proximas as $codigo)
+                                        @php
+                                            $tom = match ($codigo) {
+                                                'autorizada', 'concluida' => 'aceitar',
+                                                'cancelada' => 'cancelar',
+                                                default => 'encaminhar',
+                                            };
+                                            $icone = match ($codigo) {
+                                                'autorizada' => 'fa-check',
+                                                'em_execucao' => 'fa-wrench',
+                                                'concluida' => 'fa-flag-checkered',
+                                                'cancelada' => 'fa-ban',
+                                                default => 'fa-arrow-right',
+                                            };
+                                            $frase = \iEducar\Packages\BuritiTransporteEscolar\Support\SituacaoDocumento::frase($codigo);
+                                        @endphp
+                                        <form method="post" action="{{ url('/transporte-escolar/ordens/'.$ordem->id.'/situacao') }}">
+                                            @csrf
+                                            <input type="hidden" name="situacao" value="{{ $codigo }}">
+                                            <button type="submit" class="icone {{ $tom }}" aria-label="{{ $frase }}" title="{{ $frase }}"><i class="fa {{ $icone }}" aria-hidden="true"></i></button>
+                                        </form>
+                                    @endforeach
                                 @endif
                             </td>
                         </tr>

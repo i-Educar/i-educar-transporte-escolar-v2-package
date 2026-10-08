@@ -2,7 +2,7 @@
 
 @section('transporte')
     <h1><i class="fa fa-comments" aria-hidden="true"></i> Aviso à família</h1>
-    <p class="lead">O link abre sem login e sem aplicativo. Não há envio de SMS nem de notificação do celular.</p>
+    <p class="lead">O responsável escolhe o cadastro em <a href="{{ url('/transporte-escolar/avisos/cadastro') }}">{{ url('/transporte-escolar/avisos/cadastro') }}</a> e recebe o aviso no navegador e no celular. Não há SMS.</p>
     <div data-painel>
         <div class="barra-dados">
             <label class="filtro"><i class="fa fa-search" aria-hidden="true"></i><input type="search" data-filtro-tabela placeholder="Buscar data ou texto do aviso"></label>

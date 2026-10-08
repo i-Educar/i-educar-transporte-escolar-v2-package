@@ -54,7 +54,8 @@ final class MenuFluxo
                 'itens' => [
                     self::item($pode, 'viagens', 'Viagens', 'fa-clock-o', '/transporte-escolar/viagens', request()->is('transporte-escolar/viagens*')),
                     self::item($pode, 'offline', 'Offline', 'fa-download', '/transporte-escolar/offline', request()->is('transporte-escolar/offline*')),
-                    self::item($pode, 'avisos', 'Aviso à família', 'fa-comments', '/transporte-escolar/avisos', request()->is('transporte-escolar/avisos*')),
+                    self::item($pode, 'avisos', 'Aviso à família', 'fa-comments', '/transporte-escolar/avisos', request()->is('transporte-escolar/avisos') || request()->is('transporte-escolar/aviso/*')),
+                    self::item($pode, 'avisosModelos', 'Modelos de aviso', 'fa-bell', '/transporte-escolar/avisos/modelos', request()->is('transporte-escolar/avisos/modelos*')),
                 ],
             ],
             [
@@ -75,6 +76,7 @@ final class MenuFluxo
                     self::item($pode, 'sete', 'SETE', 'fa-exchange', '/transporte-escolar/sete', request()->is('transporte-escolar/sete*')),
                     self::item($pode, 'relatorios', 'Relatórios', 'fa-file-text-o', '/transporte-escolar/relatorios', request()->is('transporte-escolar/relatorios*')),
                     self::item($pode, 'cacs', 'CACS', 'fa-balance-scale', '/transporte-escolar/cacs', request()->is('transporte-escolar/cacs')),
+                    self::item($pode, 'auditoria', 'Auditoria', 'fa-history', '/transporte-escolar/auditoria', request()->is('transporte-escolar/auditoria*')),
                 ],
             ],
         ];

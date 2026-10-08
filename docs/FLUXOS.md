@@ -26,7 +26,7 @@ O card de informes usa a mesma lógica de cor: azul para pedido da família, âm
 
 ## Processo de vagas
 
-O institucional agrupa os processos que a família vê juntos, abre cada processo no ano letivo e publica a vaga com escola, rota, turno, quantidade, idade em 31 de março, série e turma. Série ou turma em branco significa qualquer uma. O processo pausado ou bloqueado sai da página da família. A pausa volta com Retomar. O bloqueio só volta com Desbloquear. Processo bloqueado não recebe vaga nova.
+O institucional agrupa os processos que a família vê juntos, abre cada processo no ano letivo e publica a vaga com escola, rota, turno, quantidade, idade em 31 de março, série e turma. Série ou turma em branco significa qualquer uma. O processo pausado sai da página da família. O mesmo botão retoma. Não há exclusão de processo nem de vaga. Se já existe pedido, o ano do processo e a escola, a rota e o turno da vaga permanecem. Se já existe pedido aceito, idade, série e turma também permanecem. As vagas não ficam abaixo dos pedidos que ainda ocupam lugar.
 
 ```mermaid
 flowchart TD
@@ -34,8 +34,7 @@ flowchart TD
     B --> C["Publicar vaga: escola, rota, turno, lugares, idade, série e turma"]
     C --> D{"Situação"}
     D -->|Aberto e no período| E["A família vê a vaga se ainda há lugar e a regra cabe"]
-    D -->|Pausado| F["Some da família. Retomar reabre"]
-    D -->|Bloqueado| G["Some da família e não aceita vaga nova. Desbloquear reabre"]
+    D -->|Pausado| F["Some da família. O mesmo botão retoma"]
     B --> H["Editar nome, ano, período e agrupamento"]
 ```
 
@@ -131,6 +130,18 @@ Ordem que não está concluída e bilhete que não está abastecido não entram 
 ## Gastos do mês
 
 A tela `/transporte-escolar/gastos` abre pelo mês. Os totais separam PNATE, recurso próprio e outras fontes. A composição soma o bilhete abastecido, a ordem concluída, o gasto do art. 13, o contrato medido pelas viagens e o salário rateado em recurso próprio. Combustível e serviço não se lançam nesta tela: nascem em Bilhetes e Ordens. Aqui entram o gasto do art. 13, o contrato, o plano preventivo, a parcela informada e as regras da cerca, do transporte aquaviário e do rateio.
+
+## Frequência da viagem
+
+A tela Frequência lista cada viagem do mês e emite o PDF da chamada. Presente só aparece quando houve embarque. Sem marcação, a linha é falta. No mês, o aluno é frequente se embarcou ao menos uma vez na rota; se todas as viagens ficaram sem marcação, a situação é não frequente. O perfil da escola vê apenas as rotas das escolas que ele acessa. O institucional vê a rede.
+
+## Chamada pelo aplicativo
+
+O aplicativo ainda não existe. A API que ele vai usar já recebe a marcação na hora e a fila gravada no aparelho quando a rede volta. O dispositivo se identifica pelo token, no cabeçalho `Authorization: Bearer` ou `X-Transporte-Token`, e precisa estar ligado a um motorista ou a um monitor.
+
+- `GET /transporte-escolar/api/chamada?data=AAAA-MM-DD` devolve as viagens daquele dia, com aluno, cartão, QR e a marca atual.
+- `POST /transporte-escolar/api/chamada` recebe `eventos`. Cada evento traz `uuid`, `viagem_id`, `tipo` (`embarque`, `falta` ou `desembarque`), `origem` (`motorista`, `monitor` ou `rfid`) e `aluno_id` ou `cartao`.
+- O mesmo `uuid` enviado de novo não grava outra presença. A falta apaga o embarque. O embarque é a presença.
 
 ## O que estes fluxos ainda não fazem
 

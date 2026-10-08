@@ -158,9 +158,9 @@
                         <td>{{ \Illuminate\Support\Carbon::parse($grupo->fim)->format('d/m/Y') }}</td>
                         <td>{{ \iEducar\Packages\BuritiTransporteEscolar\Support\ProcessoVaga::rotulo($situacaoGrupo) }}</td>
                         <td>{{ $processos->where('grupo_id', $grupo->id)->pluck('nome')->implode(', ') ?: '—' }}</td>
-                        <td>
-                            <button type="button" class="botao claro" data-abre-modal="ver-grupo-{{ $grupo->id }}">Ver</button>
-                            <button type="button" class="botao claro" data-abre-modal="editar-grupo-{{ $grupo->id }}">Editar</button>
+                        <td class="acoes">
+                            <button type="button" class="icone ver" data-abre-modal="ver-grupo-{{ $grupo->id }}" aria-label="Ver agrupamento" title="Ver"><i class="fa fa-eye" aria-hidden="true"></i></button>
+                            <button type="button" class="icone editar" data-abre-modal="editar-grupo-{{ $grupo->id }}" aria-label="Editar agrupamento" title="Editar"><i class="fa fa-pencil" aria-hidden="true"></i></button>
                             @include('transporte-escolar::solicitacoes.situacao', ['alvo' => 'grupo', 'id' => $grupo->id, 'situacao' => $situacaoGrupo])
                         </td>
                     </tr>
@@ -169,12 +169,16 @@
             </table>
             </div>
             @foreach($grupos as $grupo)
+                @php $pedidosGrupo = (int) $processos->where('grupo_id', $grupo->id)->sum(fn ($processo) => (int) ($usoProcesso[$processo->id]->pedidos ?? 0)); @endphp
                 <dialog class="modal" id="editar-grupo-{{ $grupo->id }}">
-                    <div class="modal-cabeca"><h2>Editar agrupamento</h2><button type="button" data-fecha-modal aria-label="Fechar">&times;</button></div>
+                    <div class="modal-cabeca"><h2><i class="fa fa-pencil" aria-hidden="true"></i> Editar agrupamento</h2><button type="button" data-fecha-modal aria-label="Fechar">&times;</button></div>
                     <form method="post" action="{{ url('/transporte-escolar/solicitacoes/grupo/'.$grupo->id) }}">
                         @csrf
                         <p><label>Nome <input name="nome" required value="{{ $grupo->nome }}"></label></p>
-                        <p><label>Ano letivo <input name="ano" type="number" required value="{{ $grupo->ano }}"></label></p>
+                        <p><label>Ano letivo <input name="ano" type="number" required value="{{ $grupo->ano }}" @if($pedidosGrupo > 0) readonly @endif></label></p>
+                        @if($pedidosGrupo > 0)
+                            <p class="lead">O ano fica fixo porque já existe pedido da família em um processo deste agrupamento.</p>
+                        @endif
                         <p><label>Início <input name="inicio" type="date" required value="{{ \Illuminate\Support\Carbon::parse($grupo->inicio)->format('Y-m-d') }}"></label></p>
                         <p><label>Fim <input name="fim" type="date" required value="{{ \Illuminate\Support\Carbon::parse($grupo->fim)->format('Y-m-d') }}"></label></p>
                         <button type="submit">Gravar</button>
@@ -197,8 +201,8 @@
                         <td>{{ \Illuminate\Support\Carbon::parse($processo->inicio)->format('d/m/Y') }}</td>
                         <td>{{ \Illuminate\Support\Carbon::parse($processo->fim)->format('d/m/Y') }}</td>
                         <td>{{ \iEducar\Packages\BuritiTransporteEscolar\Support\ProcessoVaga::rotulo($situacaoProcesso) }}</td>
-                        <td>
-                            <button type="button" class="botao claro" data-abre-modal="editar-processo-{{ $processo->id }}">Editar</button>
+                        <td class="acoes">
+                            <button type="button" class="icone editar" data-abre-modal="editar-processo-{{ $processo->id }}" aria-label="Editar processo" title="Editar"><i class="fa fa-pencil" aria-hidden="true"></i></button>
                             @include('transporte-escolar::solicitacoes.situacao', ['alvo' => 'processo', 'id' => $processo->id, 'situacao' => $situacaoProcesso])
                         </td>
                     </tr>
@@ -208,11 +212,14 @@
         </div>
         @foreach($processos as $processo)
             <dialog class="modal" id="editar-processo-{{ $processo->id }}">
-                <div class="modal-cabeca"><h2>Editar processo</h2><button type="button" data-fecha-modal aria-label="Fechar">&times;</button></div>
+                <div class="modal-cabeca"><h2><i class="fa fa-pencil" aria-hidden="true"></i> Editar processo</h2><button type="button" data-fecha-modal aria-label="Fechar">&times;</button></div>
                 <form method="post" action="{{ url('/transporte-escolar/solicitacoes/processo/'.$processo->id) }}">
                     @csrf
                     <p><label>Nome <input name="nome" required value="{{ $processo->nome }}"></label></p>
-                    <p><label>Ano letivo <input name="ano" type="number" required value="{{ $processo->ano }}"></label></p>
+                    <p><label>Ano letivo <input name="ano" type="number" required value="{{ $processo->ano }}" @if((int) ($usoProcesso[$processo->id]->pedidos ?? 0) > 0) readonly @endif></label></p>
+                    @if((int) ($usoProcesso[$processo->id]->pedidos ?? 0) > 0)
+                        <p class="lead">O ano fica fixo porque já existe pedido da família neste processo.</p>
+                    @endif
                     <p><label>Início <input name="inicio" type="date" required value="{{ \Illuminate\Support\Carbon::parse($processo->inicio)->format('Y-m-d') }}"></label></p>
                     <p><label>Fim <input name="fim" type="date" required value="{{ \Illuminate\Support\Carbon::parse($processo->fim)->format('Y-m-d') }}"></label></p>
                     @if($grupos->isNotEmpty())
@@ -234,9 +241,10 @@
             <h2>Vagas publicadas</h2>
             <div class="tabela-wrap" style="margin-bottom:16px;">
             <table>
-                <thead><tr><th>Processo</th><th>Escola</th><th>Rota</th><th>Turno</th><th>Vagas</th><th>Idade</th><th></th></tr></thead>
+                <thead><tr><th>Processo</th><th>Escola</th><th>Rota</th><th>Turno</th><th>Vagas</th><th>Idade</th><th>Situação</th><th></th></tr></thead>
                 <tbody>
                 @foreach($ofertas as $oferta)
+                    @php $situacaoOferta = $oferta->situacao ?? 'aberto'; @endphp
                     <tr>
                         <td>{{ $oferta->processo }}</td>
                         <td>{{ $oferta->escola }}</td>
@@ -244,12 +252,80 @@
                         <td>{{ \iEducar\Packages\BuritiTransporteEscolar\Support\Codigos::PERIODO[$oferta->turno] ?? $oferta->turno }}</td>
                         <td>{{ $oferta->vagas }}</td>
                         <td>{{ $oferta->idade_min === null && $oferta->idade_max === null ? 'Qualquer' : ($oferta->idade_min ?? '…') . ' a ' . ($oferta->idade_max ?? '…') }}</td>
-                        <td><button type="button" class="botao claro" data-abre-modal="ver-oferta-{{ $oferta->id }}">Ver</button></td>
+                        <td>{{ \iEducar\Packages\BuritiTransporteEscolar\Support\ProcessoVaga::rotulo($situacaoOferta) }}</td>
+                        <td class="acoes">
+                            <button type="button" class="icone ver" data-abre-modal="ver-oferta-{{ $oferta->id }}" aria-label="Ver vaga" title="Ver"><i class="fa fa-eye" aria-hidden="true"></i></button>
+                            <button type="button" class="icone editar" data-abre-modal="editar-oferta-{{ $oferta->id }}" aria-label="Editar vaga" title="Editar"><i class="fa fa-pencil" aria-hidden="true"></i></button>
+                            @include('transporte-escolar::solicitacoes.situacao', ['alvo' => 'oferta', 'id' => $oferta->id, 'situacao' => $situacaoOferta])
+                        </td>
                     </tr>
                 @endforeach
                 </tbody>
             </table>
             </div>
+            @foreach($ofertas as $oferta)
+                @php
+                    $uso = $usoOferta[$oferta->id] ?? null;
+                    $pedidosOferta = (int) ($uso->pedidos ?? 0);
+                    $deferidosOferta = (int) ($uso->deferidos ?? 0);
+                    $seriesMarcadas = \iEducar\Packages\BuritiTransporteEscolar\Support\RegraOferta::lista($oferta->series);
+                    $turmasMarcadas = \iEducar\Packages\BuritiTransporteEscolar\Support\RegraOferta::lista($oferta->turmas);
+                @endphp
+                <dialog class="modal" id="editar-oferta-{{ $oferta->id }}">
+                    <div class="modal-cabeca"><h2><i class="fa fa-pencil" aria-hidden="true"></i> Editar vaga</h2><button type="button" data-fecha-modal aria-label="Fechar">&times;</button></div>
+                    <form method="post" action="{{ url('/transporte-escolar/solicitacoes/oferta/'.$oferta->id) }}">
+                        @csrf
+                        @if($pedidosOferta > 0)
+                            <p class="lead">Já existe pedido nesta vaga. Escola, rota e turno permanecem.</p>
+                        @else
+                            <p><label>Processo
+                                <select name="processo_id">
+                                    @foreach($processos as $processo)
+                                        <option value="{{ $processo->id }}" @selected((int) $oferta->processo_id === (int) $processo->id)>{{ $processo->ano }} · {{ $processo->nome }}</option>
+                                    @endforeach
+                                </select>
+                            </label></p>
+                            <input type="hidden" name="rota_id" value="{{ $oferta->rota_id }}">
+                            <input type="hidden" name="ref_cod_escola" value="{{ $oferta->ref_cod_escola }}">
+                            <p><label>Turno
+                                <select name="turno">
+                                    @foreach(\iEducar\Packages\BuritiTransporteEscolar\Support\Codigos::PERIODO as $codigo => $rotulo)
+                                        <option value="{{ $codigo }}" @selected($oferta->turno === $codigo)>{{ $rotulo }}</option>
+                                    @endforeach
+                                </select>
+                            </label></p>
+                        @endif
+                        <p><label>Vagas <input name="vagas" type="number" min="1" value="{{ $oferta->vagas }}" required></label></p>
+                        @if($deferidosOferta > 0)
+                            <p class="lead">Há pedido aceito. Idade, série e turma permanecem.</p>
+                            <input type="hidden" name="idade_min" value="{{ $oferta->idade_min }}">
+                            <input type="hidden" name="idade_max" value="{{ $oferta->idade_max }}">
+                            @foreach($seriesMarcadas as $serieId)<input type="hidden" name="series[]" value="{{ $serieId }}">@endforeach
+                            @foreach($turmasMarcadas as $turmaId)<input type="hidden" name="turmas[]" value="{{ $turmaId }}">@endforeach
+                        @else
+                            <div class="linha">
+                                <label>Idade mínima <input name="idade_min" type="number" min="0" max="30" value="{{ $oferta->idade_min }}"></label>
+                                <label>Idade máxima <input name="idade_max" type="number" min="0" max="30" value="{{ $oferta->idade_max }}"></label>
+                            </div>
+                            <p><label>Séries
+                                <select name="series[]" multiple size="5">
+                                    @foreach($series as $serie)
+                                        <option value="{{ $serie->cod_serie }}" @selected(in_array((int) $serie->cod_serie, $seriesMarcadas, true))>{{ $serie->nm_serie }}</option>
+                                    @endforeach
+                                </select>
+                            </label></p>
+                            <p><label>Turmas
+                                <select name="turmas[]" multiple size="5">
+                                    @foreach($turmas as $turma)
+                                        <option value="{{ $turma->cod_turma }}" @selected(in_array((int) $turma->cod_turma, $turmasMarcadas, true))>{{ $turma->ano }} · {{ $turma->nm_turma }}</option>
+                                    @endforeach
+                                </select>
+                            </label></p>
+                        @endif
+                        <button type="submit"><i class="fa fa-check" aria-hidden="true"></i> Gravar vaga</button>
+                    </form>
+                </dialog>
+            @endforeach
         @endif
     @endif
     <div data-painel>
@@ -259,7 +335,7 @@
         <div class="tabela-wrap">
     <table>
         <thead>
-            <tr><th>Protocolo</th><th>Aluno</th><th>Escola</th><th>Situação</th><th></th></tr>
+            <tr><th>Protocolo</th><th>Aluno</th><th>Escola</th><th>Situação</th><th>Ações</th></tr>
         </thead>
         <tbody>
             @forelse($pedidos as $pedido)
@@ -268,7 +344,29 @@
                     <td>{{ $pedido->nome_aluno }}</td>
                     <td>{{ $pedido->escola_informada }}</td>
                     <td>{{ \iEducar\Packages\BuritiTransporteEscolar\Support\SituacaoPedido::frase($pedido->situacao) }}</td>
-                    <td><button type="button" class="botao" data-abre-modal="pedido-{{ $pedido->id }}">Ver protocolo</button></td>
+                    <td class="acoes">
+                        @php $segue = \iEducar\Packages\BuritiTransporteEscolar\Support\ProcessoVaga::recebePedido($pedido->situacao_processo ?? null, $pedido->situacao_grupo ?? null, $pedido->situacao_oferta ?? null); @endphp
+                        <button type="button" class="icone ver" data-abre-modal="pedido-{{ $pedido->id }}" aria-label="Ver protocolo" title="Ver protocolo"><i class="fa fa-eye" aria-hidden="true"></i></button>
+                        <a class="icone imprimir" href="{{ url('/transporte-escolar/solicitacoes/'.$pedido->id.'/pdf') }}" aria-label="Imprimir" title="Imprimir"><i class="fa fa-print" aria-hidden="true"></i></a>
+                        @if($segue && $pedido->situacao === 'recebida')
+                            <form method="post" action="{{ url('/transporte-escolar/solicitacoes/'.$pedido->id) }}">
+                                @csrf
+                                <button class="icone encaminhar" name="acao" value="encaminhar" aria-label="Encaminhar" title="Encaminhar"><i class="fa fa-share" aria-hidden="true"></i></button>
+                            </form>
+                        @endif
+                        @if($segue && $rede && in_array($pedido->situacao, ['recebida', 'em_analise'], true))
+                            <form method="post" action="{{ url('/transporte-escolar/solicitacoes/'.$pedido->id) }}">
+                                @csrf
+                                <button class="icone aceitar" name="acao" value="deferir" aria-label="Aceitar" title="Aceitar"><i class="fa fa-check" aria-hidden="true"></i></button>
+                            </form>
+                        @endif
+                        @if($rede && in_array($pedido->situacao, ['recebida', 'em_analise'], true))
+                            <form method="post" action="{{ url('/transporte-escolar/solicitacoes/'.$pedido->id) }}">
+                                @csrf
+                                <button class="icone cancelar" name="acao" value="indeferir" aria-label="Recusar" title="Recusar"><i class="fa fa-times" aria-hidden="true"></i></button>
+                            </form>
+                        @endif
+                    </td>
                 </tr>
             @empty
                 <tr data-vazio><td colspan="5" class="vazio">Nenhum pedido nesta visão.</td></tr>
@@ -320,15 +418,21 @@
                     @endif
                 </dl>
                 @if($pedido->situacao === 'recebida' || ($rede && in_array($pedido->situacao, ['recebida', 'em_analise'], true)))
+                    @php $segue = \iEducar\Packages\BuritiTransporteEscolar\Support\ProcessoVaga::recebePedido($pedido->situacao_processo ?? null, $pedido->situacao_grupo ?? null, $pedido->situacao_oferta ?? null); @endphp
                     <form method="post" action="{{ url('/transporte-escolar/solicitacoes/'.$pedido->id) }}">
                         @csrf
                         <label>Observação da decisão <input name="motivo" maxlength="255" placeholder="Opcional. A família vê este texto ao acompanhar o protocolo."></label>
+                        @if(!$segue)
+                            <p class="lead">Este processo ou agrupamento está pausado. Dá para recusar o pedido, mas não encaminhar nem aceitar.</p>
+                        @endif
                         <div class="acao">
-                            @if($pedido->situacao === 'recebida')
+                            @if($segue && $pedido->situacao === 'recebida')
                                 <button name="acao" value="encaminhar">Encaminhar</button>
                             @endif
-                            @if($rede && in_array($pedido->situacao, ['recebida', 'em_analise'], true))
+                            @if($segue && $rede && in_array($pedido->situacao, ['recebida', 'em_analise'], true))
                                 <button name="acao" value="deferir">Aceitar</button>
+                            @endif
+                            @if($rede && in_array($pedido->situacao, ['recebida', 'em_analise'], true))
                                 <button name="acao" value="indeferir">Recusar</button>
                             @endif
                         </div>

@@ -4,8 +4,12 @@ namespace iEducar\Packages\BuritiTransporteEscolar\Http\Controllers;
 
 use iEducar\Packages\BuritiTransporteEscolar\Support\AtendimentoSetor;
 use iEducar\Packages\BuritiTransporteEscolar\Support\Codigos;
-use iEducar\Packages\BuritiTransporteEscolar\Support\LocalizarEndereco;
+use iEducar\Packages\BuritiTransporteEscolar\Support\ComprovantePedido;
+use iEducar\Packages\BuritiTransporteEscolar\Support\IdentidadeMunicipio;
+use iEducar\Packages\BuritiTransporteEscolar\Support\PdfSimples;
+use iEducar\Packages\BuritiTransporteEscolar\Support\QrCodigo;
 use iEducar\Packages\BuritiTransporteEscolar\Support\PontosProximos;
+use iEducar\Packages\BuritiTransporteEscolar\Support\ProcessoEdicao;
 use iEducar\Packages\BuritiTransporteEscolar\Support\ProcessoVaga;
 use iEducar\Packages\BuritiTransporteEscolar\Support\RegraOferta;
 use iEducar\Packages\BuritiTransporteEscolar\Support\SituacaoPedido;
@@ -13,8 +17,11 @@ use iEducar\Packages\BuritiTransporteEscolar\Support\VisaoRede;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use Illuminate\View\View;
+use Symfony\Component\HttpFoundation\Response;
 
 class SolicitacaoController
 {
@@ -24,10 +31,12 @@ class SolicitacaoController
         $consulta = DB::table('transporte_escolar.solicitacao as s')
             ->leftJoin('transporte_escolar.rota as r', 'r.id', '=', 's.rota_id')
             ->leftJoin('transporte_escolar.processo_vaga as pv', 'pv.id', '=', 's.processo_id')
+            ->leftJoin('transporte_escolar.processo_grupo as pg', 'pg.id', '=', 'pv.grupo_id')
+            ->leftJoin('transporte_escolar.processo_vaga_oferta as of', 'of.id', '=', 's.oferta_id')
             ->leftJoin('pmieducar.serie as ser', 'ser.cod_serie', '=', 's.ref_cod_serie')
             ->leftJoin('pmieducar.turma as tur', 'tur.cod_turma', '=', 's.ref_cod_turma')
             ->orderByDesc('s.id')
-            ->select(['s.*', 'r.descricao as rota', 'pv.nome as processo', 'ser.nm_serie', 'tur.nm_turma']);
+            ->select(['s.*', 'r.descricao as rota', 'pv.nome as processo', 'pv.situacao as situacao_processo', 'pg.situacao as situacao_grupo', 'of.situacao as situacao_oferta', 'ser.nm_serie', 'tur.nm_turma']);
 
         if ($escolas === []) {
             $consulta->whereRaw('1 = 0');
@@ -58,6 +67,18 @@ class SolicitacaoController
                 ->orderBy('p.nome')
                 ->get(['p.*', 'g.nome as grupo']),
             'grupos' => DB::table('transporte_escolar.processo_grupo')->orderByDesc('ano')->orderBy('nome')->get(),
+            'usoProcesso' => DB::table('transporte_escolar.solicitacao')
+                ->whereNotNull('processo_id')
+                ->selectRaw("processo_id, count(*) as pedidos, count(*) filter (where situacao = 'deferida') as deferidos")
+                ->groupBy('processo_id')
+                ->get()
+                ->keyBy('processo_id'),
+            'usoOferta' => DB::table('transporte_escolar.solicitacao')
+                ->whereNotNull('oferta_id')
+                ->selectRaw("oferta_id, count(*) as pedidos, count(*) filter (where situacao = 'deferida') as deferidos, count(*) filter (where situacao in ('recebida', 'em_analise', 'deferida')) as ocupadas")
+                ->groupBy('oferta_id')
+                ->get()
+                ->keyBy('oferta_id'),
             'ofertas' => DB::table('transporte_escolar.processo_vaga_oferta as o')
                 ->join('transporte_escolar.processo_vaga as p', 'p.id', '=', 'o.processo_id')
                 ->join('transporte_escolar.rota as r', 'r.id', '=', 'o.rota_id')
@@ -178,6 +199,27 @@ class SolicitacaoController
         return $this->mudarSituacao('transporte_escolar.processo_grupo', $grupo, (string) $request->input('acao'));
     }
 
+    public function situacaoOferta(Request $request, int $oferta): RedirectResponse
+    {
+        if (VisaoRede::escolas() !== null) {
+            abort(403, 'Só o perfil institucional pausa a vaga.');
+        }
+
+        $registro = DB::table('transporte_escolar.processo_vaga_oferta')->where('id', $oferta)->first();
+        $proxima = $registro === null ? null : ProcessoVaga::proxima((string) ($registro->situacao ?? ProcessoVaga::ABERTO), (string) $request->input('acao'));
+
+        if ($proxima === null) {
+            return redirect('/transporte-escolar/solicitacoes')->with('erro', 'Essa mudança de situação não cabe na vaga agora.');
+        }
+
+        DB::table('transporte_escolar.processo_vaga_oferta')->where('id', $oferta)->update([
+            'situacao' => $proxima,
+            'updated_at' => now(),
+        ]);
+
+        return redirect('/transporte-escolar/solicitacoes')->with('ok', 'Vaga ' . mb_strtolower(ProcessoVaga::rotulo($proxima)) . '. Pedidos novos desta vaga ficam suspensos.');
+    }
+
     public function grupo(Request $request): RedirectResponse
     {
         if (VisaoRede::escolas() !== null) {
@@ -222,6 +264,9 @@ class SolicitacaoController
         }
 
         $processo = DB::table('transporte_escolar.processo_vaga')->where('id', (int) $request->input('processo_id'))->first();
+        $grupo = $processo === null || $processo->grupo_id === null
+            ? null
+            : DB::table('transporte_escolar.processo_grupo')->where('id', $processo->grupo_id)->first();
         $rota = DB::table('transporte_escolar.rota')->where('id', (int) $request->input('rota_id'))->first();
         $escola = (int) $request->input('ref_cod_escola');
         $turno = (string) $request->input('turno');
@@ -248,7 +293,7 @@ class SolicitacaoController
             && ($idadeMax === null || ($idadeMax >= 0 && $idadeMax <= 30))
             && ($idadeMin === null || $idadeMax === null || $idadeMin <= $idadeMax);
 
-        if ($processo === null || $rota === null || (int) $rota->ano !== (int) $processo->ano || !$liga || !isset(Codigos::PERIODO[$turno]) || $vagas < 1 || !$seriesOk || !$turmasOk || !$idadeOk || ($processo->situacao ?? ProcessoVaga::ABERTO) === ProcessoVaga::BLOQUEADO) {
+        if ($processo === null || $rota === null || (int) $rota->ano !== (int) $processo->ano || !$liga || !isset(Codigos::PERIODO[$turno]) || $vagas < 1 || !$seriesOk || !$turmasOk || !$idadeOk || !ProcessoVaga::recebePedido($processo->situacao ?? null, $grupo->situacao ?? null)) {
             return redirect('/transporte-escolar/solicitacoes')->with('erro', 'A vaga precisa de processo, rota do mesmo ano, escola dessa rota, turno e regras de idade, série e turma coerentes.');
         }
 
@@ -273,6 +318,86 @@ class SolicitacaoController
         return redirect('/transporte-escolar/solicitacoes')->with('ok', 'Vaga publicada na rota ' . $rota->descricao . '.');
     }
 
+    public function editarOferta(Request $request, int $oferta): RedirectResponse
+    {
+        if (VisaoRede::escolas() !== null) {
+            abort(403, 'Só o perfil institucional altera vaga publicada.');
+        }
+
+        $atual = DB::table('transporte_escolar.processo_vaga_oferta')->where('id', $oferta)->first();
+
+        if ($atual === null) {
+            abort(404);
+        }
+
+        $uso = DB::table('transporte_escolar.solicitacao')->where('oferta_id', $oferta)->selectRaw("count(*) as pedidos, count(*) filter (where situacao = 'deferida') as deferidos, count(*) filter (where situacao in ('recebida', 'em_analise', 'deferida')) as ocupadas")->first();
+        $pedidos = (int) ($uso->pedidos ?? 0);
+        $processoId = $pedidos > 0 ? (int) $atual->processo_id : (int) $request->input('processo_id', $atual->processo_id);
+        $rotaId = $pedidos > 0 ? (int) $atual->rota_id : (int) $request->input('rota_id', $atual->rota_id);
+        $escola = $pedidos > 0 ? (int) $atual->ref_cod_escola : (int) $request->input('ref_cod_escola', $atual->ref_cod_escola);
+        $turno = $pedidos > 0 ? (string) $atual->turno : (string) $request->input('turno', $atual->turno);
+        $vagas = (int) $request->input('vagas');
+        $idadeMin = $request->input('idade_min');
+        $idadeMax = $request->input('idade_max');
+        $idadeMin = $idadeMin === null || $idadeMin === '' ? null : (int) $idadeMin;
+        $idadeMax = $idadeMax === null || $idadeMax === '' ? null : (int) $idadeMax;
+        $series = array_values(array_unique(array_filter(array_map('intval', (array) $request->input('series', [])))));
+        $turmas = array_values(array_unique(array_filter(array_map('intval', (array) $request->input('turmas', [])))));
+        $motivo = ProcessoEdicao::oferta([
+            'processo_id' => (int) $atual->processo_id,
+            'rota_id' => (int) $atual->rota_id,
+            'escola' => (int) $atual->ref_cod_escola,
+            'turno' => (string) $atual->turno,
+            'vagas' => (int) $atual->vagas,
+            'idade_min' => $atual->idade_min === null ? null : (int) $atual->idade_min,
+            'idade_max' => $atual->idade_max === null ? null : (int) $atual->idade_max,
+            'series' => RegraOferta::lista($atual->series),
+            'turmas' => RegraOferta::lista($atual->turmas),
+        ], [
+            'processo_id' => $processoId,
+            'rota_id' => $rotaId,
+            'escola' => $escola,
+            'turno' => $turno,
+            'vagas' => $vagas,
+            'idade_min' => $idadeMin,
+            'idade_max' => $idadeMax,
+            'series' => $series,
+            'turmas' => $turmas,
+        ], $pedidos, (int) ($uso->deferidos ?? 0), (int) ($uso->ocupadas ?? 0));
+
+        if ($motivo !== null || $vagas < 1) {
+            return redirect('/transporte-escolar/solicitacoes')->with('erro', $motivo ?? 'Informe ao menos uma vaga.');
+        }
+
+        if ($pedidos === 0) {
+            $processo = DB::table('transporte_escolar.processo_vaga')->where('id', $processoId)->first();
+            $rota = DB::table('transporte_escolar.rota')->where('id', $rotaId)->first();
+            $liga = $rota === null ? false : DB::table('transporte_escolar.rota_escola')->where('rota_id', $rotaId)->where('ref_cod_escola', $escola)->exists();
+            $seriesOk = $series === [] || DB::table('pmieducar.serie')->where('ativo', 1)->whereIn('cod_serie', $series)->count() === count($series);
+            $turmasOk = $turmas === [] || DB::table('pmieducar.turma')->where('ativo', 1)->where('ref_ref_cod_escola', $escola)->where('ano', $processo->ano ?? 0)->whereIn('cod_turma', $turmas)->count() === count($turmas);
+            $idadeOk = ($idadeMin === null || ($idadeMin >= 0 && $idadeMin <= 30)) && ($idadeMax === null || ($idadeMax >= 0 && $idadeMax <= 30)) && ($idadeMin === null || $idadeMax === null || $idadeMin <= $idadeMax);
+
+            if ($processo === null || $rota === null || (int) $rota->ano !== (int) $processo->ano || !$liga || !isset(Codigos::PERIODO[$turno]) || !$seriesOk || !$turmasOk || !$idadeOk) {
+                return redirect('/transporte-escolar/solicitacoes')->with('erro', 'A vaga precisa de processo, rota do mesmo ano, escola dessa rota, turno e regras coerentes.');
+            }
+        }
+
+        DB::table('transporte_escolar.processo_vaga_oferta')->where('id', $oferta)->update([
+            'processo_id' => $processoId,
+            'rota_id' => $rotaId,
+            'ref_cod_escola' => $escola,
+            'turno' => $turno,
+            'vagas' => $vagas,
+            'idade_min' => $idadeMin,
+            'idade_max' => $idadeMax,
+            'series' => $series === [] ? null : json_encode($series),
+            'turmas' => $turmas === [] ? null : json_encode($turmas),
+            'updated_at' => now(),
+        ]);
+
+        return redirect('/transporte-escolar/solicitacoes')->with('ok', 'Vaga atualizada.');
+    }
+
     public function situacao(Request $request, int $solicitacao): RedirectResponse
     {
         $escolas = VisaoRede::escolas();
@@ -282,7 +407,19 @@ class SolicitacaoController
             abort(404);
         }
 
-        $proxima = SituacaoPedido::mover($pedido->situacao, (string) $request->input('acao'), $escolas === null ? 'rede' : 'escola');
+        $acao = (string) $request->input('acao');
+        $contexto = DB::table('transporte_escolar.solicitacao as s')
+            ->leftJoin('transporte_escolar.processo_vaga as p', 'p.id', '=', 's.processo_id')
+            ->leftJoin('transporte_escolar.processo_grupo as g', 'g.id', '=', 'p.grupo_id')
+            ->leftJoin('transporte_escolar.processo_vaga_oferta as o', 'o.id', '=', 's.oferta_id')
+            ->where('s.id', $solicitacao)
+            ->first(['p.situacao as situacao_processo', 'g.situacao as situacao_grupo', 'o.situacao as situacao_oferta']);
+
+        if (in_array($acao, ['encaminhar', 'deferir'], true) && $contexto !== null && !ProcessoVaga::recebePedido($contexto->situacao_processo, $contexto->situacao_grupo, $contexto->situacao_oferta)) {
+            return redirect('/transporte-escolar/solicitacoes')->with('erro', 'O processo ou a vaga está pausado. O pedido não segue enquanto a pausa durar.');
+        }
+
+        $proxima = SituacaoPedido::mover($pedido->situacao, $acao, $escolas === null ? 'rede' : 'escola');
 
         if ($proxima === null) {
             return redirect('/transporte-escolar/solicitacoes')->with('erro', 'Esta mudança de situação não cabe neste perfil.');
@@ -295,6 +432,55 @@ class SolicitacaoController
         ]);
 
         return redirect('/transporte-escolar/solicitacoes')->with('ok', 'Situação do protocolo ' . $pedido->protocolo . ' atualizada.');
+    }
+
+    public function pdf(int $solicitacao): Response
+    {
+        $pedido = DB::table('transporte_escolar.solicitacao as s')
+            ->leftJoin('transporte_escolar.rota as r', 'r.id', '=', 's.rota_id')
+            ->leftJoin('transporte_escolar.processo_vaga as pv', 'pv.id', '=', 's.processo_id')
+            ->where('s.id', $solicitacao)
+            ->first(['s.*', 'r.descricao as rota', 'pv.nome as processo']);
+
+        if ($pedido === null) {
+            abort(404);
+        }
+
+        $escolas = VisaoRede::escolas();
+
+        if ($escolas === [] || (is_array($escolas) && !in_array((int) $pedido->ref_cod_escola, $escolas, true))) {
+            abort(404);
+        }
+
+        $token = $this->acompanhamento($pedido);
+        $contatos = $this->contatos($pedido);
+        $link = url('/te/' . $token);
+        $pdf = PdfSimples::impresso([
+            'municipio' => IdentidadeMunicipio::rotulo(),
+            'titulo' => 'PEDIDO DE TRANSPORTE ESCOLAR',
+            'protocolo' => (string) $pedido->protocolo,
+            'campos' => ComprovantePedido::campos(
+                SituacaoPedido::frase((string) $pedido->situacao),
+                date('d/m/Y H:i', strtotime((string) $pedido->pedido_em)),
+                (string) $pedido->nome_aluno,
+                (string) $pedido->escola_informada,
+                Codigos::PERIODO[$pedido->turno] ?? (string) $pedido->turno,
+                $contatos['escola'],
+                $contatos['setor'],
+                $link,
+            ),
+            'assinaturas' => ['Responsavel', 'Escola', 'Transporte escolar'],
+            'observacao' => 'Aluno e unidade abreviados. O QR pede a confirmacao antes do status.',
+            'logo' => IdentidadeMunicipio::arquivo(),
+            'qr' => QrCodigo::matriz($link),
+        ]);
+
+        $arquivo = preg_replace('/[^A-Za-z0-9._-]/', '-', (string) $pedido->protocolo) ?: 'pedido';
+
+        return response($pdf, 200, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => 'inline; filename="' . $arquivo . '.pdf"',
+        ]);
     }
 
     public function proximos(int $solicitacao): JsonResponse
@@ -340,6 +526,50 @@ class SolicitacaoController
         }
 
         return $pedido;
+    }
+
+    private function acompanhamento(object $pedido): string
+    {
+        $token = trim((string) ($pedido->acompanhamento ?? ''));
+
+        if ($token !== '') {
+            return $token;
+        }
+
+        do {
+            $token = Str::lower(Str::random(10));
+        } while (DB::table('transporte_escolar.solicitacao')->where('acompanhamento', $token)->exists());
+
+        DB::table('transporte_escolar.solicitacao')->where('id', $pedido->id)->update([
+            'acompanhamento' => $token,
+            'atualizado_em' => now(),
+        ]);
+
+        return $token;
+    }
+
+    /**
+     * @return array{escola: string, setor: string}
+     */
+    private function contatos(object $pedido): array
+    {
+        $gestor = (string) DB::table('pmieducar.escola as e')
+            ->leftJoin('cadastro.pessoa as p', 'p.idpes', '=', 'e.ref_idpes_gestor')
+            ->where('e.cod_escola', $pedido->ref_cod_escola)
+            ->value('p.nome');
+        $usuario = Auth::user();
+        $logado = trim((string) ($usuario->name ?? ''));
+        $setor = trim((string) DB::table('transporte_escolar.configuracao')->where('chave', 'atendimento_setor')->value('valor'));
+        $escola = $gestor !== '' ? $gestor : $logado;
+        $setorTexto = trim(($setor !== '' ? $setor : 'Transporte escolar') . ($logado !== '' ? ' · ' . $logado : ''));
+
+        DB::table('transporte_escolar.solicitacao')->where('id', $pedido->id)->update([
+            'contato_escola' => $escola !== '' ? $escola : null,
+            'contato_setor' => $setorTexto,
+            'atualizado_em' => now(),
+        ]);
+
+        return ['escola' => $escola, 'setor' => $setorTexto];
     }
 
     /**
@@ -406,6 +636,16 @@ class SolicitacaoController
             $dados['grupo_id'] = $grupo?->id;
         }
 
+        $ids = $comGrupo
+            ? [$id]
+            : DB::table('transporte_escolar.processo_vaga')->where('grupo_id', $id)->pluck('id')->all();
+        $pedidos = $ids === [] ? 0 : (int) DB::table('transporte_escolar.solicitacao')->whereIn('processo_id', $ids)->count();
+        $motivo = ProcessoEdicao::processo((int) $registro->ano, $ano, $pedidos);
+
+        if ($motivo !== null) {
+            return redirect('/transporte-escolar/solicitacoes')->with('erro', $motivo);
+        }
+
         DB::table($tabela)->where('id', $id)->update($dados);
 
         return redirect('/transporte-escolar/solicitacoes')->with('ok', 'Dados atualizados.');
@@ -414,7 +654,7 @@ class SolicitacaoController
     private function mudarSituacao(string $tabela, int $id, string $acao): RedirectResponse
     {
         if (VisaoRede::escolas() !== null) {
-            abort(403, 'Só o perfil institucional pausa ou bloqueia o processo de vagas.');
+            abort(403, 'Só o perfil institucional pausa o processo de vagas.');
         }
 
         $registro = DB::table($tabela)->where('id', $id)->first();

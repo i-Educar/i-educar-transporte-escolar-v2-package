@@ -22,24 +22,26 @@
                             <td>{{ $bilhete->placa ?: $bilhete->veiculo }}</td>
                             <td>{{ $bilhete->litros_autorizados === null ? '—' : number_format((float) $bilhete->litros_autorizados, 2, ',', '.') }} L</td>
                             <td>{{ number_format((float) $bilhete->litros, 2, ',', '.') }} L · {{ number_format((float) $bilhete->valor, 2, ',', '.') }}</td>
-                            <td>
+                            <td class="acoes">
                                 @if($bilhete->protocolo)
-                                    <a href="{{ url('/transporte-escolar/bilhetes/'.$bilhete->id.'/pdf') }}">Imprimir</a>
+                                    <a class="icone imprimir" href="{{ url('/transporte-escolar/bilhetes/'.$bilhete->id.'/pdf') }}" aria-label="Imprimir" title="Imprimir"><i class="fa fa-print" aria-hidden="true"></i></a>
                                 @endif
                                 @php $proximas = \iEducar\Packages\BuritiTransporteEscolar\Support\SituacaoDocumento::proximas(\iEducar\Packages\BuritiTransporteEscolar\Support\SituacaoDocumento::BILHETE, (string) ($bilhete->situacao ?? '')); @endphp
-                                @if($podeGravar && $proximas !== [])
-                                    <form method="post" action="{{ url('/transporte-escolar/bilhetes/'.$bilhete->id.'/situacao') }}" class="acao">
-                                        @csrf
-                                        <select name="situacao">
-                                            @foreach($proximas as $codigo)
-                                                <option value="{{ $codigo }}">{{ \iEducar\Packages\BuritiTransporteEscolar\Support\SituacaoDocumento::frase($codigo) }}</option>
-                                            @endforeach
-                                        </select>
-                                        <input name="litros" placeholder="Litros" size="6">
-                                        <input name="valor" placeholder="Valor" size="6">
-                                        <input name="km" placeholder="Km" size="5">
-                                        <button type="submit">Atualizar</button>
-                                    </form>
+                                @if($podeGravar)
+                                    @foreach($proximas as $codigo)
+                                        @php
+                                            $frase = \iEducar\Packages\BuritiTransporteEscolar\Support\SituacaoDocumento::frase($codigo);
+                                        @endphp
+                                        @if($codigo === 'abastecido')
+                                            <button type="button" class="icone aceitar" data-abre-modal="abastecer-{{ $bilhete->id }}" aria-label="Confirmar abastecimento" title="Confirmar abastecimento"><i class="fa fa-check" aria-hidden="true"></i></button>
+                                        @else
+                                            <form method="post" action="{{ url('/transporte-escolar/bilhetes/'.$bilhete->id.'/situacao') }}">
+                                                @csrf
+                                                <input type="hidden" name="situacao" value="{{ $codigo }}">
+                                                <button type="submit" class="icone {{ $codigo === 'cancelado' ? 'cancelar' : 'aceitar' }}" aria-label="{{ $frase }}" title="{{ $frase }}"><i class="fa {{ $codigo === 'cancelado' ? 'fa-ban' : 'fa-check' }}" aria-hidden="true"></i></button>
+                                            </form>
+                                        @endif
+                                    @endforeach
                                 @endif
                             </td>
                         </tr>
@@ -76,5 +78,20 @@
                 <button type="submit">Solicitar bilhete</button>
             </form>
         </dialog>
+        @foreach($bilhetes as $bilhete)
+            @if(in_array('abastecido', \iEducar\Packages\BuritiTransporteEscolar\Support\SituacaoDocumento::proximas(\iEducar\Packages\BuritiTransporteEscolar\Support\SituacaoDocumento::BILHETE, (string) ($bilhete->situacao ?? '')), true))
+                <dialog class="modal" id="abastecer-{{ $bilhete->id }}">
+                    <div class="modal-cabeca"><h2>Confirmar abastecimento</h2><button type="button" data-fecha-modal aria-label="Fechar">&times;</button></div>
+                    <form method="post" action="{{ url('/transporte-escolar/bilhetes/'.$bilhete->id.'/situacao') }}">
+                        @csrf
+                        <input type="hidden" name="situacao" value="abastecido">
+                        <label>Litros do canhoto <input name="litros" required></label>
+                        <label>Valor do canhoto <input name="valor" required></label>
+                        <label>Quilometragem <input name="km"></label>
+                        <button type="submit">Confirmar</button>
+                    </form>
+                </dialog>
+            @endif
+        @endforeach
     @endif
 @endsection

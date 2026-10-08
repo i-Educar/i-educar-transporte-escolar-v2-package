@@ -60,6 +60,22 @@ final class AplicarFila
     private static function aplicar(string $uuid, string $tipo, array $evento): void
     {
         if (in_array($tipo, ['embarque', 'desembarque', 'falta'], true) && isset($evento['viagem_id'], $evento['aluno_id'])) {
+            if ($tipo === 'falta') {
+                DB::table('transporte_escolar.embarque')
+                    ->where('viagem_id', (int) $evento['viagem_id'])
+                    ->where('ref_cod_aluno', (int) $evento['aluno_id'])
+                    ->where('tipo', 'embarque')
+                    ->delete();
+
+                return;
+            }
+
+            DB::table('transporte_escolar.embarque')
+                ->where('viagem_id', (int) $evento['viagem_id'])
+                ->where('ref_cod_aluno', (int) $evento['aluno_id'])
+                ->where('tipo', 'falta')
+                ->delete();
+
             DB::table('transporte_escolar.embarque')->updateOrInsert(
                 [
                     'viagem_id' => (int) $evento['viagem_id'],

@@ -1,26 +1,6 @@
-@if($situacao === 'aberto')
-    <form method="post" class="acao" action="{{ url('/transporte-escolar/solicitacoes/'.$alvo.'/'.$id.'/situacao') }}">
-        @csrf
-        <input type="hidden" name="acao" value="pausar">
-        <button type="submit" class="botao claro">Pausar</button>
-    </form>
-@elseif($situacao === 'pausado')
-    <form method="post" class="acao" action="{{ url('/transporte-escolar/solicitacoes/'.$alvo.'/'.$id.'/situacao') }}">
-        @csrf
-        <input type="hidden" name="acao" value="retomar">
-        <button type="submit" class="botao claro">Retomar</button>
-    </form>
-@endif
-@if($situacao === 'bloqueado')
-    <form method="post" class="acao" action="{{ url('/transporte-escolar/solicitacoes/'.$alvo.'/'.$id.'/situacao') }}">
-        @csrf
-        <input type="hidden" name="acao" value="desbloquear">
-        <button type="submit" class="botao claro">Desbloquear</button>
-    </form>
-@else
-    <form method="post" class="acao" action="{{ url('/transporte-escolar/solicitacoes/'.$alvo.'/'.$id.'/situacao') }}">
-        @csrf
-        <input type="hidden" name="acao" value="bloquear">
-        <button type="submit" class="botao claro">Bloquear</button>
-    </form>
-@endif
+@php $pausado = in_array($situacao, ['pausado', 'bloqueado'], true); @endphp
+<form method="post" action="{{ url('/transporte-escolar/solicitacoes/'.$alvo.'/'.$id.'/situacao') }}">
+    @csrf
+    <input type="hidden" name="acao" value="{{ $pausado ? 'retomar' : 'pausar' }}">
+    <button type="submit" class="icone {{ $pausado ? 'aceitar' : 'pausar' }}" aria-label="{{ $pausado ? 'Retomar' : 'Pausar' }}" title="{{ $pausado ? 'Retomar' : 'Pausar' }}"><i class="fa {{ $pausado ? 'fa-play' : 'fa-pause' }}" aria-hidden="true"></i></button>
+</form>

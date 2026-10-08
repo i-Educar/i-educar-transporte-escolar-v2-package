@@ -50,6 +50,8 @@ final class Processos
 
     public const SOLICITACOES = 880161;
 
+    public const AUDITORIA = 880162;
+
     /**
      * @return array<int, string>
      */
@@ -77,6 +79,7 @@ final class Processos
             self::CACS => 'Painel do CACS',
             self::AVISOS => 'Aviso à família',
             self::SOLICITACOES => 'Pedidos da família',
+            self::AUDITORIA => 'Auditoria',
         ];
     }
 }

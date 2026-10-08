@@ -60,6 +60,45 @@ final class AtribuicaoAluno
         self::sincronizar($alunoId, $rota);
     }
 
+    public static function cartao(int $alunoId, int $rotaId, string $cartao): void
+    {
+        $vinculo = DB::table('transporte_escolar.aluno_rota as ar')
+            ->join('transporte_escolar.rota as r', 'r.id', '=', 'ar.rota_id')
+            ->where('ar.ref_cod_aluno', $alunoId)
+            ->where('ar.rota_id', $rotaId)
+            ->first(['ar.id', 'r.ano']);
+
+        if ($vinculo === null) {
+            throw new RuntimeException('Este aluno não está nesta rota.');
+        }
+
+        $codigo = trim($cartao);
+
+        if ($codigo !== '') {
+            $outro = DB::table('transporte_escolar.aluno_rota')
+                ->where('cartao', $codigo)
+                ->where(function ($consulta) use ($alunoId, $rotaId) {
+                    $consulta->where('ref_cod_aluno', '!=', $alunoId)->orWhere('rota_id', '!=', $rotaId);
+                })
+                ->exists();
+
+            if ($outro) {
+                throw new RuntimeException('Este cartão já está com outro aluno.');
+            }
+        }
+
+        $matricula = RedeConsulta::matriculasAtivas((int) $vinculo->ano)->where('a.cod_aluno', $alunoId)->first();
+
+        if ($matricula !== null && !VisaoRede::contemEscola((int) $matricula->cod_escola)) {
+            throw new RuntimeException('A matrícula é de outra escola.');
+        }
+
+        DB::table('transporte_escolar.aluno_rota')
+            ->where('ref_cod_aluno', $alunoId)
+            ->where('rota_id', $rotaId)
+            ->update(['cartao' => $codigo === '' ? null : $codigo, 'updated_at' => now()]);
+    }
+
     public static function desvincular(int $alunoId, int $rotaId): void
     {
         $rota = DB::table('transporte_escolar.rota')->where('id', $rotaId)->first();

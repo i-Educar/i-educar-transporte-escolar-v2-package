@@ -40,18 +40,20 @@ final class QrCodigo
      */
     public static function matriz(string $texto): array
     {
-        $bytes = array_values(unpack('C*', $texto));
-        $versao = count($bytes) <= 14 ? 1 : 2;
-        $capacidade = $versao === 1 ? 16 : 28;
-        $ecc = $versao === 1 ? 10 : 16;
+        $bytes = array_values(unpack('C*', $texto) ?: []);
+        [$versao, $capacidade, $ecc, $blocos] = match (true) {
+            count($bytes) <= 14 => [1, 16, 10, 1],
+            count($bytes) <= 26 => [2, 28, 16, 1],
+            default => [4, 64, 18, 2],
+        };
 
         if (count($bytes) > $capacidade - 2) {
             $bytes = array_slice($bytes, 0, $capacidade - 2);
         }
 
         $dados = self::codewords($bytes, $capacidade);
-        $resto = array_merge($dados, self::reedSolomon($dados, $ecc));
-        $n = $versao === 1 ? 21 : 25;
+        $resto = self::intercalar($dados, $ecc, $blocos);
+        $n = [1 => 21, 2 => 25, 4 => 33][$versao];
         $matriz = array_fill(0, $n, array_fill(0, $n, false));
         $reservado = array_fill(0, $n, array_fill(0, $n, false));
         self::funcoes($matriz, $reservado, $versao);
@@ -130,6 +132,39 @@ final class QrCodigo
         return array_slice($resto, -$ecc);
     }
 
+    /**
+     * @param list<int> $dados
+     * @return list<int>
+     */
+    private static function intercalar(array $dados, int $ecc, int $blocos): array
+    {
+        $tamanho = intdiv(count($dados), $blocos);
+        $partes = [];
+        $correcoes = [];
+
+        for ($bloco = 0; $bloco < $blocos; $bloco++) {
+            $pedaco = array_slice($dados, $bloco * $tamanho, $tamanho);
+            $partes[] = $pedaco;
+            $correcoes[] = self::reedSolomon($pedaco, $ecc);
+        }
+
+        $saida = [];
+
+        for ($i = 0; $i < $tamanho; $i++) {
+            for ($bloco = 0; $bloco < $blocos; $bloco++) {
+                $saida[] = $partes[$bloco][$i];
+            }
+        }
+
+        for ($i = 0; $i < $ecc; $i++) {
+            for ($bloco = 0; $bloco < $blocos; $bloco++) {
+                $saida[] = $correcoes[$bloco][$i];
+            }
+        }
+
+        return $saida;
+    }
+
     private static function gfMul(int $a, int $b): int
     {
         $r = 0;
@@ -205,8 +240,16 @@ final class QrCodigo
         $matriz[$n - 8][8] = true;
         $reservado[$n - 8][8] = true;
 
-        if ($versao === 2) {
-            self::alinhamento($matriz, $reservado, 18, 18);
+        $centros = $versao === 2 ? [18] : ($versao === 4 ? [6, 26] : []);
+
+        foreach ($centros as $cy) {
+            foreach ($centros as $cx) {
+                if (($cy < 9 && $cx < 9) || ($cy < 9 && $cx > $n - 10) || ($cy > $n - 10 && $cx < 9)) {
+                    continue;
+                }
+
+                self::alinhamento($matriz, $reservado, $cy, $cx);
+            }
         }
 
         for ($i = 0; $i < 9; $i++) {

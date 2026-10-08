@@ -23,6 +23,17 @@ class TransporteEscolarServiceProvider extends ServiceProvider
             $this->loadMigrationsFrom(__DIR__ . '/../../database/migrations');
         }
 
+        Route::prefix('transporte-escolar/api')->group(function () {
+            Route::get('/chamada', [\iEducar\Packages\BuritiTransporteEscolar\Http\Controllers\ChamadaApiController::class, 'pacote']);
+            Route::post('/chamada', [\iEducar\Packages\BuritiTransporteEscolar\Http\Controllers\ChamadaApiController::class, 'marcar']);
+        });
+
+        Route::get('/transporte-escolar/avisos/cadastro', [\iEducar\Packages\BuritiTransporteEscolar\Http\Controllers\NotificacaoPublicaController::class, 'cadastro']);
+        Route::post('/transporte-escolar/avisos/cadastro', [\iEducar\Packages\BuritiTransporteEscolar\Http\Controllers\NotificacaoPublicaController::class, 'identificar']);
+        Route::post('/transporte-escolar/avisos/cadastro/inscricao', [\iEducar\Packages\BuritiTransporteEscolar\Http\Controllers\NotificacaoPublicaController::class, 'inscrever']);
+        Route::get('/transporte-escolar/avisos/pendente', [\iEducar\Packages\BuritiTransporteEscolar\Http\Controllers\NotificacaoPublicaController::class, 'pendente']);
+        Route::get('/transporte-escolar/avisos/sw.js', [\iEducar\Packages\BuritiTransporteEscolar\Http\Controllers\NotificacaoPublicaController::class, 'worker']);
+
         Route::middleware(['web'])->group(function () {
             Route::get('/transporte-escolar/marca', [\iEducar\Packages\BuritiTransporteEscolar\Http\Controllers\DocumentoController::class, 'marca']);
             Route::get('/transporte-escolar/aviso/{token}', [\iEducar\Packages\BuritiTransporteEscolar\Http\Controllers\AvisoController::class, 'publico']);
@@ -32,6 +43,8 @@ class TransporteEscolarServiceProvider extends ServiceProvider
             Route::get('/transporte-escolar/familia/protocolo', [\iEducar\Packages\BuritiTransporteEscolar\Http\Controllers\FamiliaPortalController::class, 'protocolo']);
             Route::post('/transporte-escolar/familia/protocolo', [\iEducar\Packages\BuritiTransporteEscolar\Http\Controllers\FamiliaPortalController::class, 'consultar']);
             Route::post('/transporte-escolar/familia/cancelar', [\iEducar\Packages\BuritiTransporteEscolar\Http\Controllers\FamiliaPortalController::class, 'cancelar']);
+            Route::get('/te/{token}', [\iEducar\Packages\BuritiTransporteEscolar\Http\Controllers\FamiliaPortalController::class, 'acompanhar']);
+            Route::post('/te/{token}', [\iEducar\Packages\BuritiTransporteEscolar\Http\Controllers\FamiliaPortalController::class, 'confirmar']);
         });
 
         Route::middleware([
@@ -66,7 +79,9 @@ class TransporteEscolarServiceProvider extends ServiceProvider
                 'gastos' => Acesso::permite(Processos::GASTOS, 'ver'),
                 'relatorios' => Acesso::permite(Processos::RELATORIOS, 'ver'),
                 'cacs' => Acesso::permite(Processos::CACS, 'ver'),
+                'auditoria' => Acesso::permite(Processos::AUDITORIA, 'ver'),
                 'avisos' => Acesso::permite(Processos::AVISOS, 'ver'),
+                'avisosModelos' => Acesso::permite(Processos::AVISOS, 'gravar'),
                 'solicitacoes' => Acesso::permite(Processos::SOLICITACOES, 'ver'),
             ]);
         });

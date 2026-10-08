@@ -12,6 +12,7 @@ use iEducar\Packages\BuritiTransporteEscolar\Support\GradeCalor;
 use iEducar\Packages\BuritiTransporteEscolar\Support\KmCalculado;
 use iEducar\Packages\BuritiTransporteEscolar\Support\RegraOferta;
 use iEducar\Packages\BuritiTransporteEscolar\Support\OrdemPontos;
+use iEducar\Packages\BuritiTransporteEscolar\Support\PercursoTransito;
 use iEducar\Packages\BuritiTransporteEscolar\Support\Processos;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -105,19 +106,30 @@ class RotaController
             ? (float) $registro->km_calculado
             : KmCalculado::quilometros($coordenadas);
 
+        $trilha = [];
+
+        if ($tracado !== null && $tracado->formato === 'gpx') {
+            foreach (Gpx::coordenadas((string) $tracado->conteudo) as $ponto) {
+                $trilha[] = [(float) $ponto['latitude'], (float) $ponto['longitude']];
+            }
+        }
+
         return view('transporte-escolar::rotas.show', [
             'rota' => $registro,
             'escolas' => $escolas,
             'itinerario' => $itinerario,
             'alunos' => $alunos,
             'kmCalculado' => $km,
-            'minutos' => KmCalculado::minutos($km, (float) $registro->velocidade_media_kmh),
+            'minutos' => $registro->tempo_estimado_min !== null
+                ? (int) $registro->tempo_estimado_min
+                : KmCalculado::minutos($km, (float) $registro->velocidade_media_kmh),
             'kmInformado' => (float) $registro->km_pav + (float) $registro->km_npav,
             'pontos' => DB::table('transporte_escolar.ponto')->orderBy('descricao')->get(),
             'veiculos' => DB::table('transporte_escolar.veiculo')->where('ativo', true)->orderBy('placa')->get(),
             'podeGravar' => Acesso::permite(Processos::ROTAS, 'gravar'),
             'podeMapa' => Acesso::permite(Processos::PONTOS, 'gravar'),
             'temTracado' => $tracado !== null,
+            'trilha' => $trilha,
             'codigos' => Codigos::class,
             'cobertura' => $this->cobertura($rota, (int) $registro->ano, $itinerario),
             'raioEscola' => 500,
@@ -157,6 +169,48 @@ class RotaController
         ]);
 
         return back()->with('ok', 'Traçado importado. Km calculado: ' . number_format($km, 2, ',', '.'));
+    }
+
+    public function percurso(int $rota): RedirectResponse
+    {
+        $registro = $this->visivel($rota);
+        $paradas = [];
+
+        foreach (DB::table('transporte_escolar.itinerario as i')
+            ->join('transporte_escolar.ponto as p', 'p.id', '=', 'i.ponto_id')
+            ->where('i.rota_id', $rota)
+            ->whereNotNull('p.latitude')
+            ->whereNotNull('p.longitude')
+            ->orderBy('i.seq')
+            ->get(['p.latitude', 'p.longitude']) as $parada) {
+            $paradas[] = ['latitude' => (float) $parada->latitude, 'longitude' => (float) $parada->longitude];
+        }
+
+        if (count($paradas) < 2) {
+            return back()->with('erro', 'Cadastre ao menos dois pontos com coordenada no itinerário antes de calcular o percurso.');
+        }
+
+        $ruas = $this->ruas($paradas);
+        $percurso = $ruas ?? PercursoTransito::direto($paradas, (float) $registro->velocidade_media_kmh);
+        DB::table('transporte_escolar.tracado')->updateOrInsert(
+            ['rota_id' => $rota],
+            [
+                'formato' => 'gpx',
+                'conteudo' => PercursoTransito::gpx($percurso['pontos']),
+                'km_calculado' => $percurso['km'],
+                'updated_at' => now(),
+                'created_at' => now(),
+            ],
+        );
+        DB::table('transporte_escolar.rota')->where('id', $rota)->update([
+            'km_calculado' => $percurso['km'],
+            'tempo_estimado_min' => $percurso['minutos'],
+            'updated_at' => now(),
+        ]);
+
+        $origem = $ruas === null ? 'A ligação direta entre os pontos' : 'O percurso pelas ruas';
+
+        return back()->with('ok', $origem . ' ficou em ' . number_format($percurso['km'], 1, ',', '.') . ' km e cerca de ' . $percurso['minutos'] . ' min.');
     }
 
     public function ordem(int $rota): RedirectResponse
@@ -268,6 +322,39 @@ class RotaController
         }
 
         return back();
+    }
+
+    /**
+     * @param list<array{latitude: float, longitude: float}> $paradas
+     * @return array{pontos: list<array{latitude: float, longitude: float}>, km: float, minutos: int}|null
+     */
+    private function ruas(array $paradas): ?array
+    {
+        if (!function_exists('curl_init')) {
+            return null;
+        }
+
+        $caminho = implode(';', array_map(
+            static fn (array $parada): string => $parada['longitude'] . ',' . $parada['latitude'],
+            $paradas,
+        ));
+        $curl = curl_init('https://router.project-osrm.org/route/v1/driving/' . $caminho . '?overview=full&geometries=geojson');
+        curl_setopt_array($curl, [
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_TIMEOUT => 8,
+            CURLOPT_HTTPHEADER => ['User-Agent: i-educar-transporte'],
+        ]);
+        $corpo = curl_exec($curl);
+        $codigo = (int) curl_getinfo($curl, CURLINFO_HTTP_CODE);
+        curl_close($curl);
+
+        if (!is_string($corpo) || $codigo !== 200) {
+            return null;
+        }
+
+        $json = json_decode($corpo, true);
+
+        return PercursoTransito::dasRuas(is_array($json) ? $json : null);
     }
 
     public function ponto(Request $request): RedirectResponse

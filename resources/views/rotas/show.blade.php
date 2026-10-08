@@ -32,7 +32,8 @@
         }
         $calorMapa = $cobertura['calor'];
     @endphp
-    <p class="lead">O mapa mostra os pontos da rota, o raio de cada um, um raio de {{ $raioEscola }} m em volta da escola e a concentração das residências. Nome, endereço e data de nascimento não aparecem. A faixa de idade só entra quando o ponto tem pelo menos 3 alunos com idade conhecida. A mancha do mapa só aparece com 3 ou mais residências na mesma área.</p>
+    <p class="lead">A escola fica em verde. O início da linha fica em azul e o fim em vermelho. O traço laranja segue o percurso do veículo quando há trilha gravada; sem ela, o mapa pede o caminho pelas ruas.</p>
+    <p id="percurso" class="lead">Calculando a distância do percurso…</p>
     <div id="mapa" style="height:480px; margin:12px 0; border:1px solid var(--linha); border-radius:12px;"></div>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -40,28 +41,30 @@
         const pontos = @json($pontosMapa);
         const escolas = @json($escolasMapa);
         const calor = @json($calorMapa);
+        const trilha = @json($trilha);
         const raioEscola = {{ (int) $raioEscola }};
         const mapa = L.map('mapa').setView([-14.2, -51.9], 4);
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '&copy; OpenStreetMap' }).addTo(mapa);
         const coords = [];
-        pontos.forEach((ponto) => {
-            if (!ponto.lat || !ponto.lng) return;
+        const paradas = pontos.filter((ponto) => ponto.lat && ponto.lng);
+        paradas.forEach((ponto, indice) => {
             coords.push([ponto.lat, ponto.lng]);
-            let texto = ponto.nome + '<br>' + ponto.alunos + ' aluno(s) vinculado(s)';
+            const extremo = indice === 0 ? 'inicio' : (indice === paradas.length - 1 ? 'fim' : 'meio');
+            const cor = extremo === 'inicio' ? '#188ad1' : (extremo === 'fim' ? '#9b2c2c' : '#47728f');
+            let texto = (extremo === 'inicio' ? 'Início da linha' : (extremo === 'fim' ? 'Fim da linha' : 'Parada')) + '<br>' + ponto.nome;
+            texto += '<br>' + ponto.alunos + ' aluno(s) vinculado(s)';
             texto += '<br>Entradas: ' + ponto.embarques + ' · Saídas: ' + ponto.desembarques;
             if (ponto.faixas) {
                 Object.keys(ponto.faixas).forEach((faixa) => { texto += '<br>' + faixa + ': ' + ponto.faixas[faixa]; });
-            } else if (ponto.alunos > 0) {
-                texto += '<br>Faixa de idade omitida para não identificar o aluno.';
             }
-            L.circle([ponto.lat, ponto.lng], { radius: ponto.raio || 150, color: '#47728f', weight: 1, fillOpacity: 0.08 }).addTo(mapa);
-            L.marker([ponto.lat, ponto.lng]).addTo(mapa).bindPopup(texto);
+            L.circle([ponto.lat, ponto.lng], { radius: ponto.raio || 150, color: cor, weight: 1, fillOpacity: 0.08 }).addTo(mapa);
+            L.circleMarker([ponto.lat, ponto.lng], { radius: extremo === 'meio' ? 6 : 9, color: cor, fillColor: cor, fillOpacity: 1 }).addTo(mapa).bindPopup(texto);
         });
         escolas.forEach((escola) => {
             if (!escola.lat || !escola.lng) return;
             coords.push([escola.lat, escola.lng]);
-            L.circle([escola.lat, escola.lng], { radius: raioEscola, color: '#188ad1', weight: 1, fillOpacity: 0.05 }).addTo(mapa);
-            L.circleMarker([escola.lat, escola.lng], { radius: 7, color: '#188ad1' }).addTo(mapa).bindPopup(escola.nome + '<br>Raio de referência de ' + raioEscola + ' m');
+            L.circle([escola.lat, escola.lng], { radius: raioEscola, color: '#0f6b4c', weight: 1, fillColor: '#0f6b4c', fillOpacity: 0.08 }).addTo(mapa);
+            L.circleMarker([escola.lat, escola.lng], { radius: 9, color: '#0f6b4c', fillColor: '#0f6b4c', fillOpacity: 1 }).addTo(mapa).bindPopup('Escola<br>' + escola.nome);
         });
         calor.forEach((celula) => {
             coords.push([celula.latitude, celula.longitude]);
@@ -71,8 +74,42 @@
                 fillOpacity: 0.35
             }).addTo(mapa).bindPopup(celula.alunos + ' residências nesta área');
         });
-        if (coords.length) {
-            L.polyline(pontos.filter((ponto) => ponto.lat && ponto.lng).map((ponto) => [ponto.lat, ponto.lng])).addTo(mapa);
+        const avisoPercurso = document.getElementById('percurso');
+        function desenharPercurso(latlngs, texto) {
+            if (latlngs.length > 1) {
+                const linha = L.polyline(latlngs, { color: '#b86e00', weight: 5, opacity: 0.9 }).addTo(mapa);
+                latlngs.forEach((ponto) => coords.push(ponto));
+                if (avisoPercurso) avisoPercurso.textContent = texto;
+                linha.bringToBack();
+            }
+        }
+        if (trilha.length > 2) {
+            let metros = 0;
+            for (let i = 1; i < trilha.length; i++) {
+                metros += mapa.distance(trilha[i - 1], trilha[i]);
+            }
+            desenharPercurso(trilha, 'Percurso gravado da trilha: ' + (metros / 1000).toFixed(1).replace('.', ',') + ' km.');
+            if (coords.length) mapa.fitBounds(coords, { padding: [20, 20] });
+        } else if (paradas.length > 1) {
+            const caminho = paradas.map((ponto) => ponto.lng + ',' + ponto.lat).join(';');
+            fetch('https://router.project-osrm.org/route/v1/driving/' + caminho + '?overview=full&geometries=geojson')
+                .then((resposta) => resposta.json())
+                .then((dados) => {
+                    const rota = dados.routes && dados.routes[0];
+                    if (!rota) throw new Error('sem rota');
+                    const linha = rota.geometry.coordinates.map((par) => [par[1], par[0]]);
+                    const minutos = Math.round(rota.duration / 60);
+                    desenharPercurso(linha, 'Percurso pelas ruas: ' + (rota.distance / 1000).toFixed(1).replace('.', ',') + ' km · cerca de ' + minutos + ' min.');
+                    if (coords.length) mapa.fitBounds(coords, { padding: [20, 20] });
+                })
+                .catch(() => {
+                    desenharPercurso(paradas.map((ponto) => [ponto.lat, ponto.lng]), 'O caminho pelas ruas não respondeu. A linha mostra a ligação direta entre as paradas.');
+                    if (coords.length) mapa.fitBounds(coords, { padding: [20, 20] });
+                });
+        } else if (avisoPercurso) {
+            avisoPercurso.textContent = 'Ainda não há paradas suficientes para calcular o percurso.';
+        }
+        if (coords.length && trilha.length < 3 && paradas.length < 2) {
             mapa.fitBounds(coords, { padding: [20, 20] });
         }
         @if($podeMapa)
@@ -146,11 +183,11 @@
                     <td>{{ $parada->hora ? substr($parada->hora, 0, 5) : '—' }}</td>
                     <td>{{ $parada->placa ?: '—' }}</td>
                     <td>{{ $parada->latitude === null ? 'Sem coordenada' : 'Sim' }}</td>
-                    <td>
+                    <td class="acoes">
                         @if($podeGravar)
                             <form method="post" action="{{ url('/transporte-escolar/rotas/'.$rota->id.'/itinerario/'.$parada->id.'/remover') }}">
                                 @csrf
-                                <button type="submit">Retirar</button>
+                                <button type="submit" class="icone cancelar" aria-label="Retirar parada" title="Retirar"><i class="fa fa-times" aria-hidden="true"></i></button>
                             </form>
                         @endif
                     </td>
@@ -241,7 +278,13 @@
         @endif
         <section class="cartao-rota">
             <h2>Escola e traçado</h2>
-            <p class="lead">A coordenada da escola não muda com o clique do mapa. O GPX recalcula o quilômetro da rota.</p>
+            <p class="lead">A coordenada da escola não muda com o clique do mapa. O cálculo usa os pontos do itinerário e grava o caminho, o quilômetro e o tempo.</p>
+            @if($podeGravar)
+                <form method="post" action="{{ url('/transporte-escolar/rotas/'.$rota->id.'/percurso') }}">
+                    @csrf
+                    <button type="submit">Calcular percurso pelas ruas</button>
+                </form>
+            @endif
             <form method="post" action="{{ url('/transporte-escolar/rotas/'.$rota->id.'/gpx') }}" enctype="multipart/form-data">
                 @csrf
                 <label>Arquivo GPX <input type="file" name="gpx" accept=".gpx,application/gpx+xml" required></label>

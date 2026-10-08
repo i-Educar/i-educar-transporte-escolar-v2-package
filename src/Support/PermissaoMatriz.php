@@ -19,6 +19,8 @@ final class PermissaoMatriz
         if (in_array($nivel, [1, 2], true)) {
             $rede = self::todos(true, true, true);
             $rede[Processos::CACS] = ['visualiza' => true, 'cadastra' => false, 'exclui' => false];
+            $rede[Processos::AUDITORIA] = ['visualiza' => true, 'cadastra' => false, 'exclui' => false];
+            $rede[Processos::SOLICITACOES] = ['visualiza' => true, 'cadastra' => true, 'exclui' => false];
 
             return $rede;
         }
@@ -34,6 +36,7 @@ final class PermissaoMatriz
             $ver[Processos::SETE] = ['visualiza' => false, 'cadastra' => false, 'exclui' => false];
             $ver[Processos::GASTOS] = ['visualiza' => false, 'cadastra' => false, 'exclui' => false];
             $ver[Processos::CACS] = ['visualiza' => false, 'cadastra' => false, 'exclui' => false];
+            $ver[Processos::AUDITORIA] = ['visualiza' => false, 'cadastra' => false, 'exclui' => false];
 
             return $ver;
         }

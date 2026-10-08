@@ -4,7 +4,9 @@ namespace iEducar\Packages\BuritiTransporteEscolar\Services;
 
 use iEducar\Packages\BuritiTransporteEscolar\Support\AvisoTexto;
 use iEducar\Packages\BuritiTransporteEscolar\Support\Geocerca;
+use iEducar\Packages\BuritiTransporteEscolar\Support\ModeloAviso;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 
 final class RegistrarAviso
@@ -43,15 +45,45 @@ final class RegistrarAviso
             ->join('transporte_escolar.rota as r', 'r.id', '=', 'v.rota_id')
             ->where('v.id', $viagemId)
             ->value('r.descricao');
+        $acao = $tipo === 'desembarque' ? 'desembarcou' : 'embarcou';
+        $modelo = self::modelo($tipo);
+        $texto = ModeloAviso::texto($modelo['corpo'], $nome, $rota, $acao, AvisoTexto::frase($nome, $tipo, $rota));
 
-        DB::table('transporte_escolar.aviso_familia')->insert([
+        if ($fora) {
+            $extra = self::modelo('fora_cerca');
+            $texto .= ' ' . ($extra['corpo'] !== '' ? $extra['corpo'] : 'O embarque ficou fora da cerca do ponto.');
+        }
+
+        $avisoId = DB::table('transporte_escolar.aviso_familia')->insertGetId([
             'embarque_id' => $embarque->id,
             'ref_cod_aluno' => $alunoId,
             'token' => Str::random(40),
-            'texto' => AvisoTexto::frase($nome, $tipo, $rota) . ($fora ? ' O embarque ficou fora da cerca do ponto.' : ''),
+            'texto' => $texto,
             'created_at' => now(),
             'updated_at' => now(),
         ]);
+
+        EnviarPush::disparar($alunoId, (int) $avisoId, $modelo['titulo'] !== '' ? $modelo['titulo'] : 'Transporte escolar', $texto);
+    }
+
+    /**
+     * @return array{titulo: string, corpo: string}
+     */
+    private static function modelo(string $codigo): array
+    {
+        if (!Schema::hasTable('transporte_escolar.notificacao_modelo')) {
+            return ['titulo' => '', 'corpo' => ''];
+        }
+
+        $modelo = DB::table('transporte_escolar.notificacao_modelo')
+            ->where('codigo', $codigo)
+            ->where('ativo', true)
+            ->first(['titulo', 'corpo']);
+
+        return [
+            'titulo' => (string) ($modelo->titulo ?? ''),
+            'corpo' => (string) ($modelo->corpo ?? ''),
+        ];
     }
 
     private static function foraDaCerca(int $viagemId, int $alunoId, ?float $latitude, ?float $longitude): bool

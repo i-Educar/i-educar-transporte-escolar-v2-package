@@ -4,7 +4,7 @@
 
 @section('portal')
     <h1>Acompanhar pedido</h1>
-    <p class="lead">O protocolo tem o formato TE-ano-número-dígito. Junto com a data de nascimento, ele mostra só o seu pedido.</p>
+    <p class="lead">O QR Code do comprovante abre esta página. O aluno e a unidade aparecem abreviados. O status só abre depois da data de nascimento e dos 4 últimos números do telefone.</p>
     @if(session('ok')) <p class="ok">{{ session('ok') }}</p> @endif
     @if(session('erro')) <p class="erro">{{ session('erro') }}</p> @endif
     @if($novo)
@@ -12,15 +12,24 @@
             <span class="selo">Pedido recebido</span>
             <p>Anote este número. Sem ele, a secretaria não localiza o pedido por aqui.</p>
             <p class="protocolo">{{ $novo }}</p>
-            <p class="dica">Na próxima consulta, informe também a data de nascimento do aluno. Uma data diferente não mostra o pedido.</p>
+            <p class="dica">Para ver o andamento, informe também a data de nascimento e os 4 últimos números do telefone do pedido.</p>
         </div>
     @endif
     @if($aviso) <p class="erro">{{ $aviso }}</p> @endif
+    @if(!empty($resumo) && empty($pedido))
+        <div class="cartao">
+            <p class="protocolo">{{ $resumo->protocolo }}</p>
+            <p>{{ $resumo->aluno_publico }} · {{ $resumo->escola_publica }}</p>
+            <p class="dica">O status fica oculto até a confirmação.</p>
+        </div>
+    @endif
     @if($pedido)
         <div class="cartao">
             <span class="selo {{ $pedido->situacao }}">{{ \iEducar\Packages\BuritiTransporteEscolar\Support\SituacaoPedido::frase($pedido->situacao) }}</span>
             <p class="protocolo">{{ $pedido->protocolo }}</p>
-            <p>{{ $pedido->nome_aluno }} · {{ \iEducar\Packages\BuritiTransporteEscolar\Support\Codigos::PERIODO[$pedido->turno] ?? $pedido->turno }} · {{ $pedido->escola_informada }}@if(!empty($pedido->rota_nome)) · rota {{ $pedido->rota_nome }}@endif @if(!empty($pedido->processo_nome)) · {{ $pedido->processo_nome }}@endif</p>
+            <p>{{ $pedido->aluno_publico }} · {{ \iEducar\Packages\BuritiTransporteEscolar\Support\Codigos::PERIODO[$pedido->turno] ?? $pedido->turno }} · {{ $pedido->escola_publica }}</p>
+            @if(!empty($pedido->contato_escola))<p>Responsável da escola: {{ $pedido->contato_escola }}</p>@endif
+            @if(!empty($pedido->contato_setor))<p>Setor de transporte: {{ $pedido->contato_setor }}</p>@endif
             @if($pedido->motivo_situacao)<p>{{ $pedido->motivo_situacao }}</p>@endif
             @if(\iEducar\Packages\BuritiTransporteEscolar\Support\AtendimentoSetor::publicar($pedido->situacao))
                 <h2>Leve os documentos ao setor de {{ $atendimento['setor'] }}</h2>
@@ -49,23 +58,28 @@
                     @csrf
                     <input type="hidden" name="protocolo" value="{{ $pedido->protocolo }}">
                     <input type="hidden" name="nascimento" value="{{ request('nascimento') }}">
+                    <input type="hidden" name="telefone" value="{{ request('telefone') }}">
                     <div class="acoes"><button class="botao perigo" type="submit">Cancelar pedido</button></div>
                 </form>
             @endif
         </div>
     @endif
-    <form class="cartao" method="post" action="{{ url('/transporte-escolar/familia/protocolo') }}" style="margin-top:16px;">
+    <form class="cartao" method="post" action="{{ !empty($token) ? url('/te/'.$token) : url('/transporte-escolar/familia/protocolo') }}" style="margin-top:16px;">
         @csrf
-        <label for="protocolo">Protocolo</label>
-        <p class="dica">Copie com os traços. O último número confere se a digitação está certa.</p>
-        <input id="protocolo" name="protocolo" value="{{ request('protocolo') }}" placeholder="TE-2026-000001-0" required>
+        @if(empty($token))
+            <label for="protocolo">Protocolo</label>
+            <p class="dica">Copie com os traços. O último número confere se a digitação está certa.</p>
+            <input id="protocolo" name="protocolo" value="{{ request('protocolo', $novo) }}" placeholder="TE-2026-000001-0" required>
+        @endif
         <label for="nascimento">Data de nascimento do aluno</label>
-        <p class="dica">A mesma data informada no pedido. Ela impede que outra pessoa abra o protocolo só com o número.</p>
         <input id="nascimento" name="nascimento" type="date" value="{{ request('nascimento') }}" required>
+        <label for="telefone">4 últimos números do telefone</label>
+        <p class="dica">Os mesmos números informados no pedido. Sem eles, o status não abre.</p>
+        <input id="telefone" name="telefone" inputmode="numeric" maxlength="11" value="{{ request('telefone') }}" required>
         <div class="acoes">
             <button type="submit">
                 <span class="icone" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="11" cy="11" r="6"/><path d="M16 16l4 4"/></svg></span>
-                Consultar
+                Ver o status
             </button>
         </div>
     </form>

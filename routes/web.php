@@ -1,7 +1,10 @@
 <?php
 
 use iEducar\Packages\BuritiTransporteEscolar\Http\Controllers\AlunoRotaController;
+use iEducar\Packages\BuritiTransporteEscolar\Http\Controllers\FrequenciaController;
+use iEducar\Packages\BuritiTransporteEscolar\Http\Controllers\AuditoriaController;
 use iEducar\Packages\BuritiTransporteEscolar\Http\Controllers\AvisoController;
+use iEducar\Packages\BuritiTransporteEscolar\Http\Controllers\NotificacaoModeloController;
 use iEducar\Packages\BuritiTransporteEscolar\Http\Controllers\CacsController;
 use iEducar\Packages\BuritiTransporteEscolar\Http\Controllers\GastoController;
 use iEducar\Packages\BuritiTransporteEscolar\Http\Controllers\OfflineController;
@@ -24,6 +27,7 @@ Route::prefix('transporte-escolar')->group(function () {
     Route::post('/rotas', [RotaController::class, 'store'])->middleware('transporte.processo:' . Processos::ROTAS . ',gravar');
     Route::get('/rotas/{rota}', [RotaController::class, 'show'])->middleware('transporte.processo:' . Processos::MAPA . ',ver');
     Route::post('/rotas/{rota}/gpx', [RotaController::class, 'gpx'])->middleware('transporte.processo:' . Processos::MAPA . ',gravar');
+    Route::post('/rotas/{rota}/percurso', [RotaController::class, 'percurso'])->middleware('transporte.processo:' . Processos::MAPA . ',gravar');
     Route::post('/rotas/{rota}/ordem', [RotaController::class, 'ordem'])->middleware('transporte.processo:' . Processos::ROTAS . ',gravar');
     Route::post('/rotas/{rota}/itinerario/{parada}/remover', [RotaController::class, 'removerParada'])->middleware('transporte.processo:' . Processos::ROTAS . ',gravar');
     Route::post('/rotas/{rota}/itinerario', [RotaController::class, 'itinerario'])->middleware('transporte.processo:' . Processos::ROTAS . ',gravar');
@@ -36,6 +40,8 @@ Route::prefix('transporte-escolar')->group(function () {
 
     Route::get('/alunos', [AlunoRotaController::class, 'index'])->middleware('transporte.processo:' . Processos::ALUNOS . ',ver');
     Route::post('/alunos', [AlunoRotaController::class, 'store'])->middleware('transporte.processo:' . Processos::ALUNOS . ',gravar');
+    Route::post('/alunos/atualizar', [AlunoRotaController::class, 'atualizar'])->middleware('transporte.processo:' . Processos::ALUNOS . ',gravar');
+    Route::post('/alunos/cartao', [AlunoRotaController::class, 'cartao'])->middleware('transporte.processo:' . Processos::ALUNOS . ',gravar');
     Route::post('/alunos/remover', [AlunoRotaController::class, 'destroy'])->middleware('transporte.processo:' . Processos::ALUNOS . ',excluir');
 
     Route::get('/copia-ano', [CopiaAnoController::class, 'index'])->middleware('transporte.processo:' . Processos::COPIA . ',ver');
@@ -47,8 +53,11 @@ Route::prefix('transporte-escolar')->group(function () {
 
     Route::get('/normas', [NormaController::class, 'index'])->middleware('transporte.processo:' . Processos::NORMAS . ',ver');
 
+    Route::get('/frequencia', [FrequenciaController::class, 'index'])->middleware('transporte.processo:' . Processos::VIAGENS . ',ver');
+    Route::get('/frequencia/{viagem}/pdf', [FrequenciaController::class, 'pdf'])->middleware('transporte.processo:' . Processos::VIAGENS . ',ver');
     Route::get('/viagens', [ViagemController::class, 'index'])->middleware('transporte.processo:' . Processos::VIAGENS . ',ver');
     Route::post('/viagens', [ViagemController::class, 'store'])->middleware('transporte.processo:' . Processos::VIAGENS . ',gravar');
+    Route::post('/viagens/lote', [ViagemController::class, 'lote'])->middleware('transporte.processo:' . Processos::VIAGENS . ',gravar');
     Route::get('/viagens/{viagem}', [ViagemController::class, 'show'])->middleware('transporte.processo:' . Processos::VIAGENS . ',ver');
     Route::post('/viagens/{viagem}/evento', [ViagemController::class, 'evento'])->middleware('transporte.processo:' . Processos::VIAGENS . ',gravar');
 
@@ -84,6 +93,9 @@ Route::prefix('transporte-escolar')->group(function () {
     Route::get('/relatorios/csv', [RelatorioController::class, 'csv'])->middleware('transporte.processo:' . Processos::RELATORIOS . ',ver');
     Route::get('/relatorios/dossie', [RelatorioController::class, 'dossie'])->middleware('transporte.processo:' . Processos::GASTOS . ',ver');
     Route::get('/avisos', [AvisoController::class, 'index'])->middleware('transporte.processo:' . Processos::AVISOS . ',ver');
+    Route::get('/avisos/modelos', [NotificacaoModeloController::class, 'index'])->middleware('transporte.processo:' . Processos::AVISOS . ',gravar');
+    Route::post('/avisos/modelos', [NotificacaoModeloController::class, 'store'])->middleware('transporte.processo:' . Processos::AVISOS . ',gravar');
+    Route::post('/avisos/modelos/{modelo}', [NotificacaoModeloController::class, 'atualizar'])->middleware('transporte.processo:' . Processos::AVISOS . ',gravar');
     Route::get('/solicitacoes', [SolicitacaoController::class, 'index'])->middleware('transporte.processo:' . Processos::SOLICITACOES . ',ver');
     Route::post('/solicitacoes/atendimento', [SolicitacaoController::class, 'atendimento'])->middleware('transporte.processo:' . Processos::SOLICITACOES . ',gravar');
     Route::post('/solicitacoes/processo', [SolicitacaoController::class, 'processo'])->middleware('transporte.processo:' . Processos::SOLICITACOES . ',gravar');
@@ -93,13 +105,22 @@ Route::prefix('transporte-escolar')->group(function () {
     Route::post('/solicitacoes/grupo/{grupo}', [SolicitacaoController::class, 'editarGrupo'])->middleware('transporte.processo:' . Processos::SOLICITACOES . ',gravar');
     Route::post('/solicitacoes/grupo/{grupo}/situacao', [SolicitacaoController::class, 'situacaoGrupo'])->middleware('transporte.processo:' . Processos::SOLICITACOES . ',gravar');
     Route::post('/solicitacoes/oferta', [SolicitacaoController::class, 'oferta'])->middleware('transporte.processo:' . Processos::SOLICITACOES . ',gravar');
+    Route::post('/solicitacoes/oferta/{oferta}/situacao', [SolicitacaoController::class, 'situacaoOferta'])->middleware('transporte.processo:' . Processos::SOLICITACOES . ',gravar');
+    Route::post('/solicitacoes/oferta/{oferta}', [SolicitacaoController::class, 'editarOferta'])->middleware('transporte.processo:' . Processos::SOLICITACOES . ',gravar');
     Route::post('/solicitacoes/{solicitacao}', [SolicitacaoController::class, 'situacao'])->middleware('transporte.processo:' . Processos::SOLICITACOES . ',gravar');
-    Route::get('/solicitacoes/{solicitacao}/proximos', [SolicitacaoController::class, 'proximos'])->middleware('transporte.processo:' . Processos::SOLICITACOES . ',ver');
+    Route::get('/solicitacoes/{solicitacao}/pdf', [SolicitacaoController::class, 'pdf'])->middleware('transporte.processo:' . Processos::SOLICITACOES . ',ver');
     Route::get('/solicitacoes/{solicitacao}/mapa', [SolicitacaoController::class, 'mapa'])->middleware('transporte.processo:' . Processos::SOLICITACOES . ',ver');
+    Route::get('/auditoria', [AuditoriaController::class, 'index'])->middleware('transporte.processo:' . Processos::AUDITORIA . ',ver');
+    Route::get('/auditoria/csv', [AuditoriaController::class, 'csv'])->middleware('transporte.processo:' . Processos::AUDITORIA . ',ver');
     Route::get('/cacs', [CacsController::class, 'index'])->middleware('transporte.processo:' . Processos::CACS . ',ver');
+    Route::get('/cacs/csv', [CacsController::class, 'csv'])->middleware('transporte.processo:' . Processos::CACS . ',ver');
 
     foreach (['empresas' => Processos::EMPRESAS, 'motoristas' => Processos::MOTORISTAS, 'monitores' => Processos::MONITORES, 'veiculos' => Processos::VEICULOS, 'fornecedores' => Processos::FORNECEDORES, 'pontos' => Processos::PONTOS] as $caminho => $processo) {
         Route::get('/' . $caminho, [FrotaController::class, 'index'])->defaults('recurso', $caminho)->middleware('transporte.processo:' . $processo . ',ver');
+        Route::get('/' . $caminho . '/csv', [FrotaController::class, 'csv'])->defaults('recurso', $caminho)->middleware('transporte.processo:' . $processo . ',ver');
         Route::post('/' . $caminho, [FrotaController::class, 'store'])->defaults('recurso', $caminho)->middleware('transporte.processo:' . $processo . ',gravar');
+        if ($caminho !== 'pontos') {
+            Route::post('/' . $caminho . '/{registro}', [FrotaController::class, 'atualizar'])->defaults('recurso', $caminho)->middleware('transporte.processo:' . $processo . ',gravar');
+        }
     }
 });

@@ -22,11 +22,33 @@ final class PortalAberto
         }
 
         $hoje = now()->toDateString();
-        $aberto = DB::table('transporte_escolar.processo_vaga')
-            ->where('ativo', true)
-            ->whereDate('inicio', '<=', $hoje)
-            ->whereDate('fim', '>=', $hoje)
-            ->exists();
+        $consulta = DB::table('transporte_escolar.processo_vaga as p')
+            ->leftJoin('transporte_escolar.processo_grupo as g', 'g.id', '=', 'p.grupo_id')
+            ->where('p.ativo', true)
+            ->where('p.situacao', 'aberto')
+            ->whereDate('p.inicio', '<=', $hoje)
+            ->whereDate('p.fim', '>=', $hoje)
+            ->where(function ($grupo) use ($hoje) {
+                $grupo->whereNull('p.grupo_id')
+                    ->orWhere(function ($aberto) use ($hoje) {
+                        $aberto->where('g.ativo', true)
+                            ->where('g.situacao', 'aberto')
+                            ->whereDate('g.inicio', '<=', $hoje)
+                            ->whereDate('g.fim', '>=', $hoje);
+                    });
+            });
+
+        if (Schema::hasTable('transporte_escolar.processo_vaga_oferta')) {
+            $consulta->join('transporte_escolar.processo_vaga_oferta as o', 'o.processo_id', '=', 'p.id');
+
+            if (Schema::hasColumn('transporte_escolar.processo_vaga_oferta', 'situacao')) {
+                $consulta->where(function ($oferta) {
+                    $oferta->where('o.situacao', 'aberto')->orWhereNull('o.situacao');
+                });
+            }
+        }
+
+        $aberto = $consulta->exists();
 
         return $aberto ? url('/transporte-escolar/familia') : null;
     }

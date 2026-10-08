@@ -2,10 +2,11 @@
 
 @section('transporte')
     <h1><i class="fa fa-bus" aria-hidden="true"></i> {{ $titulo }}</h1>
-    <p class="lead">Nome, CPF, CNPJ e endereço continuam no cadastro de pessoas. Esta tabela guarda só o que o transporte precisa a mais.</p>
+    <p class="lead">A tela mostra {{ \iEducar\Packages\BuritiTransporteEscolar\Support\Pagina::TAMANHO }} registros por vez. A planilha traz a lista inteira, para conferir.</p>
     <div data-painel>
         <div class="barra-dados">
-            <label class="filtro"><i class="fa fa-search" aria-hidden="true"></i><input type="search" data-filtro-tabela placeholder="Buscar nesta lista"></label>
+            <label class="filtro"><i class="fa fa-search" aria-hidden="true"></i><input type="search" data-filtro-tabela placeholder="Buscar nesta página"></label>
+            <a class="botao claro" href="{{ url('/transporte-escolar/'.$recurso.'/csv') }}"><i class="fa fa-download" aria-hidden="true"></i> Exportar</a>
             @if($podeGravar)
                 <button type="button" class="botao" data-abre-modal="novo-registro"><i class="fa fa-plus" aria-hidden="true"></i> Incluir</button>
             @endif
@@ -17,13 +18,13 @@
                         @if($recurso === 'veiculos')
                             <th>Placa</th><th>Descrição</th><th>Passageiros</th><th>Ativo</th><th></th>
                         @elseif($recurso === 'motoristas')
-                            <th>Nome</th><th>CNH</th><th>Categoria</th><th>Vencimento</th><th>Vínculo</th><th></th>
+                            <th>Nome</th><th>Telefone</th><th>E-mail</th><th>Matrícula</th><th>CNH</th><th></th>
                         @elseif($recurso === 'monitores')
-                            <th>Nome</th><th>Turno</th><th>Salário</th><th></th>
+                            <th>Nome</th><th>Telefone</th><th>E-mail</th><th>Matrícula</th><th>Turno</th><th></th>
                         @elseif($recurso === 'empresas')
-                            <th>Nome</th><th>CNPJ</th><th>Observação</th><th></th>
+                            <th>Nome</th><th>CNPJ</th><th>Telefone</th><th>E-mail</th><th></th>
                         @elseif($recurso === 'fornecedores')
-                            <th>Nome</th><th>Observação</th><th></th>
+                            <th>Nome</th><th>Telefone</th><th>E-mail</th><th></th>
                         @else
                             <th>Ponto</th><th>Latitude</th><th>Longitude</th><th>Raio (m)</th><th></th>
                         @endif
@@ -45,41 +46,45 @@
                                 <td>{{ $linha->descricao }}</td>
                                 <td>{{ $linha->passageiros }}</td>
                                 <td>{{ $linha->ativo ? 'Sim' : 'Não' }}</td>
-                                <td><button type="button" class="botao claro" data-abre-modal="ver-{{ $loop->index }}">Ver</button></td>
+                                <td class="acoes"><button type="button" class="icone ver" data-abre-modal="ver-{{ $loop->index }}" aria-label="Ver veículo" title="Ver"><i class="fa fa-eye" aria-hidden="true"></i></button>@if($podeGravar)<button type="button" class="icone editar" data-abre-modal="editar-{{ $linha->id }}" aria-label="Editar veículo" title="Editar"><i class="fa fa-pencil" aria-hidden="true"></i></button>@endif</td>
                             @elseif($recurso === 'motoristas')
                                 <td>{{ $linha->nome }}</td>
+                                <td>{{ $linha->telefone ?: '—' }}</td>
+                                <td>{{ $linha->email ?: '—' }}</td>
+                                <td>{{ $linha->matricula_funcional ?: '—' }}</td>
                                 <td>{{ $linha->cnh ?: '—' }}</td>
-                                <td>{{ $linha->tipo_cnh ?: '—' }}</td>
-                                <td>{{ $linha->vencimento_cnh ? \Illuminate\Support\Carbon::parse($linha->vencimento_cnh)->format('d/m/Y') : '—' }}</td>
-                                <td>{{ $codigos::VINCULO[$linha->vinculo] ?? ($linha->vinculo ?: '—') }}</td>
-                                <td><button type="button" class="botao claro" data-abre-modal="ver-{{ $loop->index }}">Ver</button></td>
+                                <td class="acoes"><button type="button" class="icone ver" data-abre-modal="ver-{{ $loop->index }}" aria-label="Ver motorista" title="Ver"><i class="fa fa-eye" aria-hidden="true"></i></button>@if($podeGravar)<button type="button" class="icone editar" data-abre-modal="editar-{{ $linha->id }}" aria-label="Editar motorista" title="Editar"><i class="fa fa-pencil" aria-hidden="true"></i></button>@endif</td>
                             @elseif($recurso === 'monitores')
                                 <td>{{ $linha->nome }}</td>
+                                <td>{{ $linha->telefone ?: '—' }}</td>
+                                <td>{{ $linha->email ?: '—' }}</td>
+                                <td>{{ $linha->matricula_funcional ?: '—' }}</td>
                                 <td>{{ $linha->turno ?: '—' }}</td>
-                                <td>{{ $linha->salario_mensal === null ? '—' : number_format((float) $linha->salario_mensal, 2, ',', '.') }}</td>
-                                <td><button type="button" class="botao claro" data-abre-modal="ver-{{ $loop->index }}">Ver</button></td>
+                                <td class="acoes"><button type="button" class="icone ver" data-abre-modal="ver-{{ $loop->index }}" aria-label="Ver monitor" title="Ver"><i class="fa fa-eye" aria-hidden="true"></i></button>@if($podeGravar)<button type="button" class="icone editar" data-abre-modal="editar-{{ $linha->id }}" aria-label="Editar monitor" title="Editar"><i class="fa fa-pencil" aria-hidden="true"></i></button>@endif</td>
                             @elseif($recurso === 'empresas')
                                 <td>{{ $linha->nome }}</td>
                                 <td>{{ $linha->cnpj ?: '—' }}</td>
-                                <td>{{ $linha->observacao ?: '—' }}</td>
-                                <td><button type="button" class="botao claro" data-abre-modal="ver-{{ $loop->index }}">Ver</button></td>
+                                <td>{{ $linha->telefone ?: '—' }}</td>
+                                <td>{{ $linha->email ?: '—' }}</td>
+                                <td class="acoes"><button type="button" class="icone ver" data-abre-modal="ver-{{ $loop->index }}" aria-label="Ver empresa" title="Ver"><i class="fa fa-eye" aria-hidden="true"></i></button>@if($podeGravar)<button type="button" class="icone editar" data-abre-modal="editar-{{ $linha->id }}" aria-label="Editar empresa" title="Editar"><i class="fa fa-pencil" aria-hidden="true"></i></button>@endif</td>
                             @elseif($recurso === 'fornecedores')
                                 <td>{{ $linha->nome }}</td>
-                                <td>{{ $linha->observacao ?: '—' }}</td>
-                                <td><button type="button" class="botao claro" data-abre-modal="ver-{{ $loop->index }}">Ver</button></td>
+                                <td>{{ $linha->telefone ?: '—' }}</td>
+                                <td>{{ $linha->email ?: '—' }}</td>
+                                <td class="acoes"><button type="button" class="icone ver" data-abre-modal="ver-{{ $loop->index }}" aria-label="Ver fornecedor" title="Ver"><i class="fa fa-eye" aria-hidden="true"></i></button>@if($podeGravar)<button type="button" class="icone editar" data-abre-modal="editar-{{ $linha->id }}" aria-label="Editar fornecedor" title="Editar"><i class="fa fa-pencil" aria-hidden="true"></i></button>@endif</td>
                             @else
                                 <td>{{ $linha->descricao }}</td>
                                 <td>{{ $linha->latitude ?? '—' }}</td>
                                 <td>{{ $linha->longitude ?? '—' }}</td>
                                 <td>{{ $linha->raio_metros ?? '—' }}</td>
-                                <td class="acao">
+                                <td class="acoes">
                                     @if($podeGravar)
-                                        <button type="button" class="botao" data-abre-modal="ponto-{{ $linha->id }}">Editar</button>
+                                        <button type="button" class="icone editar" data-abre-modal="ponto-{{ $linha->id }}" aria-label="Editar ponto" title="Editar"><i class="fa fa-pencil" aria-hidden="true"></i></button>
                                     @endif
                                     @if($podeExcluir)
                                         <form method="post" action="{{ url('/transporte-escolar/pontos/'.$linha->id.'/excluir') }}">
                                             @csrf
-                                            <button type="submit">Excluir</button>
+                                            <button type="submit" class="icone cancelar" aria-label="Excluir ponto" title="Excluir"><i class="fa fa-trash" aria-hidden="true"></i></button>
                                         </form>
                                     @endif
                                 </td>
@@ -91,6 +96,10 @@
                 </tbody>
             </table>
         </div>
+        @include('transporte-escolar::paginacao', [
+            'url' => url('/transporte-escolar/'.$recurso),
+            'consulta' => [],
+        ])
     </div>
 
     @if($podeGravar)
@@ -104,9 +113,16 @@
                 <input type="hidden" name="recurso" value="{{ $recurso }}">
                 @if(in_array($recurso, ['empresas', 'fornecedores']))
                     <label>CNPJ ou CPF <input name="cnpj" required></label>
+                    <label>Telefone <input name="telefone"></label>
+                    <label>E-mail <input name="email" type="email"></label>
                     <label>Observação <input name="observacao"></label>
                 @elseif($recurso === 'motoristas')
                     <label>CPF <input name="cpf" required></label>
+                    <div class="linha">
+                        <label>Matrícula funcional <input name="matricula_funcional"></label>
+                        <label>Telefone <input name="telefone"></label>
+                    </div>
+                    <label>E-mail <input name="email" type="email"></label>
                     <div class="linha">
                         <label>CNH <input name="cnh"></label>
                         <label>Categoria <input name="tipo_cnh"></label>
@@ -127,6 +143,11 @@
                 @elseif($recurso === 'monitores')
                     <label>CPF <input name="cpf" required></label>
                     <div class="linha">
+                        <label>Matrícula funcional <input name="matricula_funcional"></label>
+                        <label>Telefone <input name="telefone"></label>
+                    </div>
+                    <label>E-mail <input name="email" type="email"></label>
+                    <div class="linha">
                         <label>Turno <input name="turno"></label>
                         <label>Salário mensal <input name="salario_mensal"></label>
                     </div>
@@ -135,30 +156,7 @@
                         <label>Carga horária <input name="carga_horaria"></label>
                     </div>
                 @elseif($recurso === 'veiculos')
-                    <div class="linha">
-                        <label>Descrição <input name="descricao" required></label>
-                        <label>Placa <input name="placa"></label>
-                    </div>
-                    <div class="linha">
-                        <label>RENAVAM <input name="renavam"></label>
-                        <label>Passageiros <input name="passageiros" required></label>
-                    </div>
-                    <label>Tipo Censo <select name="tipo_censo">@foreach($codigos::VEICULO_CENSO as $codigo => $rotulo)<option value="{{ $codigo }}">{{ $rotulo }}</option>@endforeach</select></label>
-                    <label>Malha <select name="malha">@foreach($codigos::MALHA as $codigo => $rotulo)<option value="{{ $codigo }}">{{ $rotulo }}</option>@endforeach</select></label>
-                    <label><input type="checkbox" name="adaptado_pcd" value="1"> Adaptado</label>
-                    <label><input type="checkbox" name="caminho_da_escola" value="1"> Caminho da Escola</label>
-                    <div class="linha">
-                        <label>Consumo km/l <input name="consumo_medio_km_l"></label>
-                        <label>Pneus <input name="qtd_pneus"></label>
-                    </div>
-                    <div class="linha">
-                        <label>IPVA <input type="date" name="ipva_vencimento"></label>
-                        <label>Seguro <input type="date" name="seguro_vencimento"></label>
-                    </div>
-                    <div class="linha">
-                        <label>Licenciamento <input type="date" name="licenciamento_vencimento"></label>
-                        <label>Vistoria <input type="date" name="vistoria_vencimento"></label>
-                    </div>
+                    @include('transporte-escolar::frota.campos-veiculo')
                 @else
                     <label>Descrição do ponto <input name="descricao" required maxlength="70"></label>
                     <div class="linha">
@@ -203,7 +201,7 @@
                     @foreach((array) $linha as $campo => $valor)
                         @continue(in_array($campo, ['id', 'created_at', 'updated_at', 'origem', 'origem_chave', 'ref_idpes'], true) || str_ends_with($campo, '_id'))
                         @php
-                            $rotuloCampo = ['nome' => 'Nome', 'cnpj' => 'CNPJ', 'observacao' => 'Observação', 'cnh' => 'CNH', 'tipo_cnh' => 'Categoria', 'vencimento_cnh' => 'Vencimento da CNH', 'vinculo' => 'Vínculo', 'salario_mensal' => 'Salário', 'turno' => 'Turno', 'encargo_percent' => 'Encargo %', 'carga_horaria' => 'Carga horária', 'placa' => 'Placa', 'descricao' => 'Descrição', 'renavam' => 'RENAVAM', 'chassi' => 'Chassi', 'marca' => 'Marca', 'ano_fabricacao' => 'Ano de fabricação', 'ano_modelo' => 'Ano do modelo', 'passageiros' => 'Passageiros', 'tipo_censo' => 'Tipo no Censo', 'malha' => 'Malha', 'adaptado_pcd' => 'Adaptado', 'exclusivo_escolar' => 'Exclusivo escolar', 'caminho_da_escola' => 'Caminho da Escola', 'consumo_medio_km_l' => 'Consumo km/l', 'qtd_pneus' => 'Pneus', 'ipva_vencimento' => 'IPVA', 'seguro_vencimento' => 'Seguro', 'licenciamento_vencimento' => 'Licenciamento', 'vistoria_vencimento' => 'Vistoria', 'ativo' => 'Ativo', 'latitude' => 'Latitude', 'longitude' => 'Longitude', 'raio_metros' => 'Raio (m)'][$campo] ?? null;
+                            $rotuloCampo = ['nome' => 'Nome', 'cnpj' => 'CNPJ', 'observacao' => 'Observação', 'email' => 'E-mail', 'telefone' => 'Telefone', 'matricula_funcional' => 'Matrícula funcional', 'cnh' => 'CNH', 'tipo_cnh' => 'Categoria', 'vencimento_cnh' => 'Vencimento da CNH', 'vinculo' => 'Vínculo', 'salario_mensal' => 'Salário', 'turno' => 'Turno', 'encargo_percent' => 'Encargo %', 'carga_horaria' => 'Carga horária', 'placa' => 'Placa', 'descricao' => 'Descrição', 'renavam' => 'RENAVAM', 'chassi' => 'Chassi', 'marca' => 'Marca', 'ano_fabricacao' => 'Ano de fabricação', 'ano_modelo' => 'Ano do modelo', 'passageiros' => 'Passageiros', 'tipo_censo' => 'Tipo no Censo', 'malha' => 'Malha', 'adaptado_pcd' => 'Adaptado', 'exclusivo_escolar' => 'Exclusivo escolar', 'caminho_da_escola' => 'Caminho da Escola', 'consumo_medio_km_l' => 'Consumo km/l', 'qtd_pneus' => 'Pneus', 'ipva_vencimento' => 'IPVA', 'seguro_vencimento' => 'Seguro', 'licenciamento_vencimento' => 'Licenciamento', 'vistoria_vencimento' => 'Vistoria', 'ativo' => 'Ativo', 'latitude' => 'Latitude', 'longitude' => 'Longitude', 'raio_metros' => 'Raio (m)'][$campo] ?? null;
                         @endphp
                         @continue($rotuloCampo === null)
                         <div>
@@ -227,4 +225,59 @@
             </div>
         </dialog>
     @endforeach
+    @if($podeGravar && $recurso !== 'pontos')
+        @foreach($linhas as $linha)
+            <dialog class="modal" id="editar-{{ $linha->id }}">
+                <div class="modal-cabeca"><h2>Editar</h2><button type="button" data-fecha-modal aria-label="Fechar">&times;</button></div>
+                <form method="post" action="{{ url('/transporte-escolar/'.$recurso.'/'.$linha->id) }}">
+                    @csrf
+                    @if(in_array($recurso, ['empresas', 'fornecedores'], true))
+                        <label>Telefone <input name="telefone" value="{{ $linha->telefone }}"></label>
+                        <label>E-mail <input name="email" type="email" value="{{ $linha->email }}"></label>
+                        <label>Observação <input name="observacao" value="{{ $linha->observacao }}"></label>
+                    @elseif($recurso === 'motoristas')
+                        <div class="linha">
+                            <label>Matrícula funcional <input name="matricula_funcional" value="{{ $linha->matricula_funcional }}"></label>
+                            <label>Telefone <input name="telefone" value="{{ $linha->telefone }}"></label>
+                        </div>
+                        <label>E-mail <input name="email" type="email" value="{{ $linha->email }}"></label>
+                        <div class="linha">
+                            <label>CNH <input name="cnh" value="{{ $linha->cnh }}"></label>
+                            <label>Categoria <input name="tipo_cnh" value="{{ $linha->tipo_cnh }}"></label>
+                        </div>
+                        <div class="linha">
+                            <label>Habilitação <input type="date" name="dt_habilitacao" value="{{ $linha->dt_habilitacao }}"></label>
+                            <label>Vencimento <input type="date" name="vencimento_cnh" value="{{ $linha->vencimento_cnh }}"></label>
+                        </div>
+                        <label>Vínculo <select name="vinculo">@foreach($codigos::VINCULO as $codigo => $rotulo)<option value="{{ $codigo }}" @selected($linha->vinculo === $codigo)>{{ $rotulo }}</option>@endforeach</select></label>
+                        <div class="linha">
+                            <label>Turno <input name="turno" value="{{ $linha->turno }}"></label>
+                            <label>Salário mensal <input name="salario_mensal" value="{{ $linha->salario_mensal }}"></label>
+                        </div>
+                        <div class="linha">
+                            <label>Encargo % <input name="encargo_percent" value="{{ $linha->encargo_percent }}"></label>
+                            <label>Carga horária <input name="carga_horaria" value="{{ $linha->carga_horaria }}"></label>
+                        </div>
+                    @elseif($recurso === 'monitores')
+                        <div class="linha">
+                            <label>Matrícula funcional <input name="matricula_funcional" value="{{ $linha->matricula_funcional }}"></label>
+                            <label>Telefone <input name="telefone" value="{{ $linha->telefone }}"></label>
+                        </div>
+                        <label>E-mail <input name="email" type="email" value="{{ $linha->email }}"></label>
+                        <div class="linha">
+                            <label>Turno <input name="turno" value="{{ $linha->turno }}"></label>
+                            <label>Salário mensal <input name="salario_mensal" value="{{ $linha->salario_mensal }}"></label>
+                        </div>
+                        <div class="linha">
+                            <label>Encargo % <input name="encargo_percent" value="{{ $linha->encargo_percent }}"></label>
+                            <label>Carga horária <input name="carga_horaria" value="{{ $linha->carga_horaria }}"></label>
+                        </div>
+                    @else
+                        @include('transporte-escolar::frota.campos-veiculo', ['veiculo' => $linha])
+                    @endif
+                    <button type="submit">Atualizar</button>
+                </form>
+            </dialog>
+        @endforeach
+    @endif
 @endsection

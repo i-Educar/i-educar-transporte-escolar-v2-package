@@ -4,6 +4,8 @@ namespace iEducar\Packages\BuritiTransporteEscolar\Http\Controllers;
 
 use iEducar\Packages\BuritiTransporteEscolar\Providers\TransporteEscolarServiceProvider;
 use iEducar\Packages\BuritiTransporteEscolar\Support\AtendimentoSetor;
+use iEducar\Packages\BuritiTransporteEscolar\Support\ComprovantePedido;
+use iEducar\Packages\BuritiTransporteEscolar\Support\NomeExibicao;
 use iEducar\Packages\BuritiTransporteEscolar\Support\PedidoFamilia;
 use iEducar\Packages\BuritiTransporteEscolar\Support\ProcessoVaga;
 use iEducar\Packages\BuritiTransporteEscolar\Support\RegraOferta;
@@ -129,7 +131,42 @@ class FamiliaPortalController
         return view('transporte-escolar::portal.protocolo', [
             'novo' => session('protocolo_novo'),
             'pedido' => null,
+            'resumo' => null,
             'aviso' => null,
+            'token' => null,
+            'atendimento' => $this->atendimento(),
+        ]);
+    }
+
+    public function acompanhar(string $token): View
+    {
+        $this->municipio();
+        $pedido = DB::table('transporte_escolar.solicitacao')->where('acompanhamento', $token)->first();
+
+        return view('transporte-escolar::portal.protocolo', [
+            'novo' => null,
+            'pedido' => null,
+            'resumo' => $pedido === null ? null : $this->publico($pedido),
+            'token' => $token,
+            'aviso' => $pedido === null ? 'Não encontramos este acompanhamento.' : null,
+            'atendimento' => $this->atendimento(),
+        ]);
+    }
+
+    public function confirmar(Request $request, string $token): View
+    {
+        $this->municipio();
+        $pedido = DB::table('transporte_escolar.solicitacao')->where('acompanhamento', $token)->first();
+        $liberado = $pedido !== null
+            && ProtocoloSolicitacao::mesmaData($pedido->nascimento, (string) $request->input('nascimento'))
+            && ComprovantePedido::telefone((string) $pedido->telefone, (string) $request->input('telefone'));
+
+        return view('transporte-escolar::portal.protocolo', [
+            'novo' => null,
+            'pedido' => $liberado ? $this->publico($pedido) : null,
+            'resumo' => $pedido === null ? null : $this->publico($pedido),
+            'token' => $token,
+            'aviso' => $liberado ? null : 'A data de nascimento ou os 4 últimos números do telefone não conferem.',
             'atendimento' => $this->atendimento(),
         ]);
     }
@@ -152,14 +189,18 @@ class FamiliaPortalController
             $pedido !== null,
             $pedido !== null && ProtocoloSolicitacao::mesmaData($pedido->nascimento, $nascimento),
         );
+        $telefoneOk = $pedido !== null && ComprovantePedido::telefone((string) $pedido->telefone, (string) $request->input('telefone'));
+        $liberado = $resposta === 'ok' && $telefoneOk;
 
         return view('transporte-escolar::portal.protocolo', [
             'novo' => null,
-            'pedido' => $resposta === 'ok' ? $pedido : null,
+            'pedido' => $liberado ? $this->publico($pedido) : null,
+            'resumo' => null,
+            'token' => null,
             'atendimento' => $this->atendimento(),
-            'aviso' => match ($resposta) {
-                'invalido' => 'Este protocolo não está completo. Confira os traços e o último número.',
-                'nao_encontrado' => 'Não encontramos um pedido com este protocolo e esta data de nascimento.',
+            'aviso' => match (true) {
+                $resposta === 'invalido' => 'Este protocolo não está completo. Confira os traços e o último número.',
+                !$liberado => 'Não encontramos um pedido com este protocolo, esta data de nascimento e estes 4 números do telefone.',
                 default => null,
             },
         ]);
@@ -174,8 +215,8 @@ class FamiliaPortalController
             ? DB::table('transporte_escolar.solicitacao')->where('protocolo', $protocolo)->first()
             : null;
 
-        if ($pedido === null || !ProtocoloSolicitacao::mesmaData($pedido->nascimento, $nascimento)) {
-            return redirect('/transporte-escolar/familia/protocolo')->with('erro', 'Não encontramos um pedido com este protocolo e esta data de nascimento.');
+        if ($pedido === null || !ProtocoloSolicitacao::mesmaData($pedido->nascimento, $nascimento) || !ComprovantePedido::telefone((string) $pedido->telefone, (string) $request->input('telefone'))) {
+            return redirect('/transporte-escolar/familia/protocolo')->with('erro', 'Não encontramos um pedido com este protocolo, esta data de nascimento e estes 4 números do telefone.');
         }
 
         $proxima = SituacaoPedido::mover($pedido->situacao, 'cancelar', 'familia');
@@ -190,6 +231,25 @@ class FamiliaPortalController
         ]);
 
         return redirect('/transporte-escolar/familia/protocolo')->with('ok', 'Pedido cancelado. Guarde o protocolo ' . $protocolo . '.');
+    }
+
+    private function publico(object $pedido): object
+    {
+        $pedido->aluno_publico = NomeExibicao::exibir((string) $pedido->nome_aluno, false);
+        $pedido->escola_publica = NomeExibicao::exibir((string) $pedido->escola_informada, false);
+
+        if (trim((string) ($pedido->contato_escola ?? '')) === '') {
+            $pedido->contato_escola = (string) DB::table('pmieducar.escola as e')
+                ->leftJoin('cadastro.pessoa as p', 'p.idpes', '=', 'e.ref_idpes_gestor')
+                ->where('e.cod_escola', $pedido->ref_cod_escola)
+                ->value('p.nome');
+        }
+
+        if (trim((string) ($pedido->contato_setor ?? '')) === '') {
+            $pedido->contato_setor = trim((string) DB::table('transporte_escolar.configuracao')->where('chave', 'atendimento_setor')->value('valor')) ?: 'Transporte escolar';
+        }
+
+        return $pedido;
     }
 
     /**
@@ -227,12 +287,17 @@ class FamiliaPortalController
             ->join('cadastro.pessoa as pes', 'pes.idpes', '=', 'e.ref_idpes')
             ->leftJoin('transporte_escolar.processo_grupo as g', 'g.id', '=', 'p.grupo_id')
             ->where('p.ativo', true)
+            ->where('p.situacao', ProcessoVaga::ABERTO)
+            ->where(function ($oferta) {
+                $oferta->where('o.situacao', ProcessoVaga::ABERTO)->orWhereNull('o.situacao');
+            })
             ->whereDate('p.inicio', '<=', $hoje)
             ->whereDate('p.fim', '>=', $hoje)
             ->where(function ($consulta) use ($hoje) {
                 $consulta->whereNull('p.grupo_id')
                     ->orWhere(function ($grupo) use ($hoje) {
                         $grupo->where('g.ativo', true)
+                            ->where('g.situacao', ProcessoVaga::ABERTO)
                             ->whereDate('g.inicio', '<=', $hoje)
                             ->whereDate('g.fim', '>=', $hoje);
                     });

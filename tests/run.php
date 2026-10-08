@@ -12,10 +12,17 @@ use iEducar\Packages\BuritiTransporteEscolar\Support\PdfSimples;
 use iEducar\Packages\BuritiTransporteEscolar\Support\ProtocoloDocumento;
 use iEducar\Packages\BuritiTransporteEscolar\Support\SituacaoDocumento;
 use iEducar\Packages\BuritiTransporteEscolar\Support\AvisoTexto;
+use iEducar\Packages\BuritiTransporteEscolar\Support\ChavePush;
+use iEducar\Packages\BuritiTransporteEscolar\Support\Codigos;
+use iEducar\Packages\BuritiTransporteEscolar\Support\ComprovantePedido;
+use iEducar\Packages\BuritiTransporteEscolar\Support\CpfAnonimizado;
+use iEducar\Packages\BuritiTransporteEscolar\Support\ModeloAviso;
+use iEducar\Packages\BuritiTransporteEscolar\Support\NomeExibicao;
 use iEducar\Packages\BuritiTransporteEscolar\Support\ConsumoReal;
 use iEducar\Packages\BuritiTransporteEscolar\Support\CopiaAnoPlanejador;
 use iEducar\Packages\BuritiTransporteEscolar\Support\DescargaJanela;
 use iEducar\Packages\BuritiTransporteEscolar\Support\DiaLetivo;
+use iEducar\Packages\BuritiTransporteEscolar\Support\LoteViagem;
 use iEducar\Packages\BuritiTransporteEscolar\Support\DiasUteis;
 use iEducar\Packages\BuritiTransporteEscolar\Support\Encargo;
 use iEducar\Packages\BuritiTransporteEscolar\Support\Geocerca;
@@ -34,6 +41,12 @@ use iEducar\Packages\BuritiTransporteEscolar\Support\ResumoNumerico;
 use iEducar\Packages\BuritiTransporteEscolar\Support\SincroniaCenso;
 use iEducar\Packages\BuritiTransporteEscolar\Support\PedidoFamilia;
 use iEducar\Packages\BuritiTransporteEscolar\Support\PortalAberto;
+use iEducar\Packages\BuritiTransporteEscolar\Support\AuditoriaTransporte;
+use iEducar\Packages\BuritiTransporteEscolar\Support\ProcessoEdicao;
+use iEducar\Packages\BuritiTransporteEscolar\Support\ChamadaEvento;
+use iEducar\Packages\BuritiTransporteEscolar\Support\Frequencia;
+use iEducar\Packages\BuritiTransporteEscolar\Support\Pagina;
+use iEducar\Packages\BuritiTransporteEscolar\Support\PercursoTransito;
 use iEducar\Packages\BuritiTransporteEscolar\Support\ProcessoVaga;
 use iEducar\Packages\BuritiTransporteEscolar\Support\ProtocoloSolicitacao;
 use iEducar\Packages\BuritiTransporteEscolar\Support\SituacaoPedido;
@@ -59,11 +72,23 @@ require __DIR__ . '/../src/Support/ConsumoReal.php';
 require __DIR__ . '/../src/Support/Geocerca.php';
 require __DIR__ . '/../src/Support/AvisoTexto.php';
 require __DIR__ . '/../src/Support/DiaLetivo.php';
+require __DIR__ . '/../src/Support/LoteViagem.php';
 require __DIR__ . '/../src/Support/QrCodigo.php';
 require __DIR__ . '/../src/Support/ProtocoloSolicitacao.php';
 require __DIR__ . '/../src/Support/PedidoFamilia.php';
 require __DIR__ . '/../src/Support/SituacaoPedido.php';
+require __DIR__ . '/../src/Support/Frequencia.php';
+require __DIR__ . '/../src/Support/ChamadaEvento.php';
+require __DIR__ . '/../src/Support/ChavePush.php';
+require __DIR__ . '/../src/Support/ComprovantePedido.php';
+require __DIR__ . '/../src/Support/CpfAnonimizado.php';
+require __DIR__ . '/../src/Support/ModeloAviso.php';
+require __DIR__ . '/../src/Support/NomeExibicao.php';
+require __DIR__ . '/../src/Support/Pagina.php';
+require __DIR__ . '/../src/Support/PercursoTransito.php';
 require __DIR__ . '/../src/Support/ProcessoVaga.php';
+require __DIR__ . '/../src/Support/ProcessoEdicao.php';
+require __DIR__ . '/../src/Support/AuditoriaTransporte.php';
 require __DIR__ . '/../src/Support/PortalAberto.php';
 require __DIR__ . '/../src/Support/AtendimentoSetor.php';
 require __DIR__ . '/../src/Support/Coordenada.php';
@@ -97,6 +122,9 @@ $institucional = PermissaoMatriz::paraNivel(2);
 $escola = PermissaoMatriz::paraNivel(4);
 $biblioteca = PermissaoMatriz::paraNivel(8);
 
+ok(array_keys(Codigos::modaisCenso()) === ['Rodoviário', 'Aquaviário', 'Ferroviário'], 'o censo do veículo cobre os três modais');
+ok(Codigos::VEICULO_CENSO[1] === 'Rodoviário - Vans/Kombis' && Codigos::VEICULO_CENSO[7] === 'Aquaviário/Embarcação - Capacidade de até 5 alunos' && Codigos::VEICULO_CENSO[11] === 'Ferroviário - Trem/Metrô', 'os rótulos seguem o formulário padrão');
+ok(count(Codigos::VEICULO_CENSO) === 11 && array_sum(array_map('count', Codigos::modaisCenso())) === 11, 'nenhum código do censo fica de fora');
 ok($institucional[Processos::SETE]['cadastra'] === true, 'institucional grava importação do SETE');
 ok($escola[Processos::SETE]['visualiza'] === false, 'escola não vê importação do SETE');
 ok($escola[Processos::ALUNOS]['cadastra'] === true, 'escola grava aluno da própria rota');
@@ -136,6 +164,20 @@ $km = KmCalculado::quilometros([
     ['latitude' => 0.0, 'longitude' => 1.0],
 ]);
 ok($km > 110 && $km < 112, 'um grau de longitude no equador fica perto de 111 km');
+$ruas = PercursoTransito::dasRuas([
+    'routes' => [[
+        'distance' => 3200,
+        'duration' => 480,
+        'geometry' => ['coordinates' => [[-51.19, -29.16], [-51.18, -29.17], [-51.17, -29.175]]],
+    ]],
+]);
+ok($ruas !== null && $ruas['km'] === 3.2 && $ruas['minutos'] === 8 && count($ruas['pontos']) === 3, 'o percurso pelas ruas traz km e tempo');
+ok(PercursoTransito::dasRuas(['routes' => []]) === null, 'resposta sem rua não vira percurso');
+$direto = PercursoTransito::direto([
+    ['latitude' => -29.16, 'longitude' => -51.19],
+    ['latitude' => -29.17, 'longitude' => -51.18],
+], 40);
+ok($direto['km'] > 0 && $direto['minutos'] > 0 && str_contains(PercursoTransito::gpx($direto['pontos']), '<trkpt'), 'sem rua o percurso liga os pontos e estima o tempo');
 
 $gpx = '<gpx><trk><trkseg><trkpt lat="-12.1" lon="-38.5"></trkpt><trkpt lat="-12.2" lon="-38.4"></trkpt></trkseg></trk></gpx>';
 ok(count(Gpx::coordenadas($gpx)) === 2, 'GPX lê latitude e longitude');
@@ -222,10 +264,55 @@ ok(ConsumoReal::piorQueOMedio(9.0, 10.0) === false, 'consumo dentro da folga nã
 ok(Geocerca::dentro(0.0, 1.0, 0.0, 0.0, 150) === false, 'ponto a um grau fica fora da cerca');
 ok(Geocerca::dentro(0.0, 1.0, 0.0, 0.0, 0) === true, 'raio zero não marca fora');
 ok(AvisoTexto::frase('Ana', 'embarque', 'Rural') === 'Ana embarcou na rota Rural.', 'aviso de embarque');
+ok(NomeExibicao::exibir('Maria Souza', false) === 'Maria S.', 'nome da escola');
+ok(NomeExibicao::exibir('Maria Souza', true) === 'Maria Souza', 'nome do admin');
+ok(ModeloAviso::texto('{aluno} embarcou na rota {rota}.', 'Ana', 'Centro', 'embarcou', 'reserva') === 'Ana embarcou na rota Centro.', 'modelo de aviso');
+ok(ModeloAviso::texto('  ', 'Ana', 'Centro', 'embarcou', 'reserva') === 'reserva', 'modelo vazio usa a frase reserva');
+$parPush = ChavePush::par();
+$autorizacaoPush = ChavePush::autorizacao($parPush['privada'], 'https://fcm.googleapis.com/fcm/send/abc', $parPush['publica']);
+ok(str_starts_with($autorizacaoPush, 'vapid t=') && substr_count($autorizacaoPush, '.') >= 2, 'autorização do push');
+$publicaPush = base64_decode(strtr($parPush['publica'] . str_repeat('=', (4 - strlen($parPush['publica']) % 4) % 4), '-_', '+/'));
+ok(strlen($publicaPush) === 65 && $publicaPush[0] === "\x04", 'chave pública do push');
 ok(DiaLetivo::eLetivo(true, ['e']) === true, 'dia extra do calendário é letivo');
 ok(DiaLetivo::eLetivo(true, []) === false, 'calendário do ano sem este dia não é letivo');
+ok(LoteViagem::sentidos('C', ['I', 'V', 'I']) === ['I', 'V'], 'linha circular abre ida e volta');
+ok(LoteViagem::horario('06:40:00', 'manha') === '06:40', 'o lote usa o horário da primeira parada');
+ok(LoteViagem::horario(null, 'tarde') === '13:00', 'sem horário na parada, a tarde começa às 13h');
+ok(count(LoteViagem::datas(2026, 10, false, [])) === 22, 'sem calendário o lote usa os dias de semana');
+ok(LoteViagem::datas(2026, 10, true, [['dia' => 5, 'mes' => 10, 'tipos' => [null]], ['dia' => 6, 'mes' => 10, 'tipos' => ['n']]]) === ['2026-10-05'], 'com calendário só entra o dia letivo');
 ok(DiasUteis::contar(2026, 2) === 20, 'fevereiro de 2026 tem 20 dias de semana');
-ok(count(QrCodigo::matriz('TE-123456789012345')) === 25, 'código longo sobe para a versão 2 do QR');
+ok(count(QrCodigo::matriz('http://localhost/te/abcdefghij')) === 33, 'o link público cabe no QR');
+$camposPedido = ComprovantePedido::campos('Recebido', '08/10/2026', 'Maria Souza', 'Escola Centro Municipal', 'Manha', 'Ana Gestora', 'Transporte escolar', 'http://localhost/te/abcdefghij');
+$textoPedido = implode(' ', array_map(static fn (array $campo): string => $campo[1], $camposPedido));
+ok(str_contains($textoPedido, 'Maria S.') && !str_contains($textoPedido, 'Maria Souza'), 'comprovante abrevia o aluno');
+ok(str_contains($textoPedido, 'Escola M.') && !str_contains($textoPedido, 'Municipal'), 'comprovante abrevia a unidade');
+ok(ComprovantePedido::telefone('54999990113', '0113') && !ComprovantePedido::telefone('54999990113', '0000'), 'os 4 últimos do telefone conferem');
+$pdfPedido = PdfSimples::impresso([
+    'municipio' => 'Municipio',
+    'titulo' => 'PEDIDO',
+    'protocolo' => 'TE-2026-000001-0',
+    'campos' => $camposPedido,
+    'assinaturas' => ['Escola'],
+    'observacao' => 'Acompanhe pelo QR.',
+    'qr' => QrCodigo::matriz('http://localhost/te/abcdefghij'),
+]);
+ok(!str_contains($pdfPedido, 'Maria Souza') && str_contains($pdfPedido, 're f'), 'o PDF do pedido não leva o nome completo');
+ok(CpfAnonimizado::exibir('12345678901') === '***.***.***-01', 'cpf anonimizado mostra só o fim');
+ok(CpfAnonimizado::exibir('') === 'sem CPF', 'cpf vazio não inventa número');
+$pdfFrequencia = PdfSimples::lista([
+    'municipio' => 'Municipio',
+    'titulo' => 'FREQUENCIA DO TRANSPORTE',
+    'protocolo' => 'V-1',
+    'subtitulo' => 'Linha Centro',
+    'linhas' => [
+        ['cpf' => CpfAnonimizado::exibir('12345678901'), 'presente' => true],
+        ['cpf' => CpfAnonimizado::exibir(null), 'presente' => false],
+    ],
+    'logo' => null,
+]);
+ok(str_contains($pdfFrequencia, '***.***.***-01') && !str_contains($pdfFrequencia, '12345678901') && !str_contains($pdfFrequencia, 'Maria'), 'a frequencia nao leva nome nem CPF inteiro');
+ok(str_contains($pdfFrequencia, 'Frequencia') && str_contains($pdfFrequencia, 'Ausencia') && str_contains($pdfFrequencia, '0.09 0.42 0.30 rg') && str_contains($pdfFrequencia, '0.61 0.17 0.17 rg'), 'status da frequencia tem cor');
+ok(str_contains($pdfFrequencia, 'Documento de controle'), 'a frequencia tem rodape');
 ok(str_contains(QrCodigo::svg('TE-1'), '<svg'), 'o desenho do QR é SVG');
 
 $vazio = CopiaAnoPlanejador::planejar(
@@ -245,7 +332,7 @@ ok($repetido['veiculo_transporte_escolar'] === [3], 'o mesmo código de veículo
 ok(SincroniaCenso::aoDesvincularUltima()['tipo_transporte'] === 0, 'última saída zera o transporte da ficha');
 ok(Gpx::coordenadas('<gpx></gpx>') === [], 'GPX sem ponto não inventa coordenada');
 ok(KmCalculado::minutos(40, 40) === 60, 'tempo estimado usa a velocidade média');
-ok(count(Processos::titulos()) === 21, 'cada tela do menu tem um processo');
+ok(count(Processos::titulos()) === 22, 'cada tela do menu tem um processo');
 
 $protocolo = ProtocoloSolicitacao::montar(2026, 1);
 ok(preg_match('/^TE-2026-000001-\d$/', $protocolo) === 1, 'protocolo traz ano, sequência e dígito');
@@ -347,11 +434,25 @@ $bilhete = PdfSimples::impresso([
 ], 2, true);
 ok(substr_count($bilhete, '/Type /Page /Parent') === 1, 'as duas vias do bilhete cabem na mesma folha');
 ok(str_contains($bilhete, 'Canhoto') && str_contains($bilhete, 'Destaque'), 'a segunda via e o canhoto, com linha de corte');
-ok(ProcessoVaga::proxima('aberto', 'pausar') === 'pausado', 'pausa interrompe um processo aberto');
-ok(ProcessoVaga::proxima('pausado', 'retomar') === 'aberto', 'processo pausado pode ser retomado');
-ok(ProcessoVaga::proxima('pausado', 'bloquear') === 'bloqueado', 'bloqueio fecha mesmo um processo pausado');
-ok(ProcessoVaga::proxima('bloqueado', 'pausar') === null, 'processo bloqueado não pausa sem desbloquear');
-ok(ProcessoVaga::proxima('bloqueado', 'desbloquear') === 'aberto', 'desbloqueio reabre o processo');
+ok(ProcessoVaga::proxima('aberto', 'pausar') === 'pausado', 'pausar tira o processo da família');
+ok(ProcessoVaga::proxima('pausado', 'retomar') === 'aberto', 'retomar devolve o processo à família');
+ok(ProcessoVaga::proxima('bloqueado', 'retomar') === 'aberto', 'o bloqueio antigo retoma pelo mesmo botão');
+ok(ProcessoVaga::recebePedido('aberto', null) === true, 'processo aberto recebe pedido');
+ok(ProcessoVaga::recebePedido('pausado', 'aberto') === false, 'processo pausado não recebe pedido');
+ok(ProcessoVaga::recebePedido('aberto', 'pausado') === false, 'agrupamento pausado não recebe pedido');
+ok(ProcessoVaga::recebePedido('bloqueado', null) === false, 'bloqueio antigo também impede o pedido');
+ok(ProcessoVaga::recebePedido('aberto', 'aberto', 'pausado') === false, 'vaga pausada não recebe pedido');
+ok(ProcessoVaga::proxima('aberto', 'bloquear') === null, 'não há um segundo botão de bloqueio');
+ok(ProcessoEdicao::processo(2026, 2027, 1) !== null, 'ano com pedido da família não muda');
+ok(ProcessoEdicao::processo(2026, 2027, 0) === null, 'ano sem pedido pode mudar');
+ok(ProcessoEdicao::oferta(['processo_id' => 1, 'rota_id' => 1, 'escola' => 2, 'turno' => 'manha', 'vagas' => 10, 'idade_min' => null, 'idade_max' => null, 'series' => [], 'turmas' => []], ['processo_id' => 1, 'rota_id' => 2, 'escola' => 2, 'turno' => 'manha', 'vagas' => 10, 'idade_min' => null, 'idade_max' => null, 'series' => [], 'turmas' => []], 1, 0, 1) !== null, 'rota com pedido não muda');
+ok(ProcessoEdicao::oferta(['processo_id' => 1, 'rota_id' => 1, 'escola' => 2, 'turno' => 'manha', 'vagas' => 10, 'idade_min' => 6, 'idade_max' => 14, 'series' => [], 'turmas' => []], ['processo_id' => 1, 'rota_id' => 1, 'escola' => 2, 'turno' => 'manha', 'vagas' => 10, 'idade_min' => 7, 'idade_max' => 14, 'series' => [], 'turmas' => []], 1, 1, 1) !== null, 'idade com pedido aceito não muda');
+ok(ProcessoEdicao::oferta(['processo_id' => 1, 'rota_id' => 1, 'escola' => 2, 'turno' => 'manha', 'vagas' => 10, 'idade_min' => null, 'idade_max' => null, 'series' => [], 'turmas' => []], ['processo_id' => 1, 'rota_id' => 1, 'escola' => 2, 'turno' => 'manha', 'vagas' => 1, 'idade_min' => null, 'idade_max' => null, 'series' => [], 'turmas' => []], 2, 0, 2) !== null, 'vagas não ficam abaixo dos pedidos');
+ok(AuditoriaTransporte::operacao(false, true) === 'Inclusão' && AuditoriaTransporte::operacao(true, true) === 'Alteração' && AuditoriaTransporte::operacao(true, false) === 'Exclusão', 'a auditoria distingue inclusão, alteração e exclusão');
+ok(AuditoriaTransporte::resumo(['situacao' => 'aberto'], ['situacao' => 'pausado']) === 'situacao: aberto -> pausado', 'o resumo da auditoria mostra o valor anterior e o novo');
+ok(AuditoriaTransporte::campos(['series' => [1, 2]], ['series' => [1]]) === ['series'], 'campo em lista também entra na conferência');
+ok(Pagina::numero(0) === 1 && Pagina::fatia(0, 1)['paginas'] === 1, 'lista vazia continua na primeira página');
+ok(Pagina::fatia(26, 2)['inicio'] === 25 && Pagina::fatia(26, 9)['pagina'] === 2, 'a página não passa do fim da lista');
 ok(Coordenada::motivo('', '') === null, 'ponto sem coordenada ainda pode existir');
 ok(Coordenada::motivo('-30.03', '') !== null, 'latitude sozinha não grava');
 ok(Coordenada::motivo('91', '-51') !== null, 'latitude fora do mapa é recusada');
@@ -380,6 +481,15 @@ ok(GradeCalor::celulas([
     ['latitude' => -30.002, 'longitude' => -51.002],
     ['latitude' => -30.003, 'longitude' => -51.003],
 ])[0]['alunos'] === 3, 'três residências na mesma área formam uma mancha');
+ok(Frequencia::marca(true) === 'Presente' && Frequencia::marca(false) === 'Falta', 'sem embarque a frequência é falta');
+ok(Frequencia::situacao(0, 4) === 'Não frequente' && Frequencia::situacao(1, 4) === 'Frequente', 'quem nunca embarcou no mês não é frequente');
+ok(Frequencia::situacao(0, 0) === 'Sem viagem', 'sem viagem do mês não há frequência');
+$rfid = ChamadaEvento::interpretar(['uuid' => 'evt-1', 'tipo' => 'embarque', 'origem' => 'rfid', 'cartao' => 'C1', 'viagem_id' => 3], ['C1' => 9]);
+ok($rfid['ok'] === true && $rfid['aluno_id'] === 9, 'o cartão RFID aponta o aluno');
+ok(ChamadaEvento::interpretar(['uuid' => 'evt-2', 'tipo' => 'embarque', 'origem' => 'rfid', 'cartao' => 'X', 'viagem_id' => 3], [])['ok'] === false, 'cartão desconhecido não marca');
+ok(ChamadaEvento::viagemDoDispositivo(null, null, 1, 2) === false, 'dispositivo sem pessoa não vê viagem');
+ok(ChamadaEvento::viagemDoDispositivo(4, null, 4, null) === true && ChamadaEvento::viagemDoDispositivo(null, 7, 4, 7) === true, 'motorista ou monitor vê a própria viagem');
+ok(ChamadaEvento::viagemDoDispositivo(4, null, 9, 7) === false, 'a viagem de outro condutor fica de fora');
 ok(str_contains(implode("\n", DocumentoTexto::ordem([
     'municipio' => 'Prefeitura',
     'protocolo' => $protocoloOs,

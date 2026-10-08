@@ -16,26 +16,30 @@ final class ProcessoVaga
 
     public static function rotulo(string $situacao): string
     {
-        return [
-            self::ABERTO => 'Aberto',
-            self::PAUSADO => 'Pausado',
-            self::BLOQUEADO => 'Bloqueado',
-        ][$situacao] ?? 'Aberto';
+        if ($situacao === self::PAUSADO || $situacao === self::BLOQUEADO) {
+            return 'Pausado';
+        }
+
+        return 'Aberto';
     }
 
     /**
-     * Pausa interrompe os pedidos e pode ser retomada.
-     * Bloqueio fecha o processo até um desbloqueio explícito.
+     * Pausar e bloquear têm o mesmo efeito: a família deixa de ver a vaga.
+     * O botão único pausa o processo aberto e retoma o que está pausado.
      */
     public static function proxima(string $atual, string $acao): ?string
     {
-        $atual = $atual === '' ? self::ABERTO : $atual;
+        if ($atual === '' ) {
+            $atual = self::ABERTO;
+        }
+
+        if ($atual === self::BLOQUEADO) {
+            $atual = self::PAUSADO;
+        }
 
         return match ($acao) {
             'pausar' => $atual === self::ABERTO ? self::PAUSADO : null,
             'retomar' => $atual === self::PAUSADO ? self::ABERTO : null,
-            'bloquear' => $atual === self::BLOQUEADO ? null : self::BLOQUEADO,
-            'desbloquear' => $atual === self::BLOQUEADO ? self::ABERTO : null,
             default => null,
         };
     }
@@ -56,6 +60,17 @@ final class ProcessoVaga
         $dia = $hoje->setTime(0, 0);
 
         return $dia >= $abre && $dia <= $fecha;
+    }
+
+    public static function recebePedido(?string $situacaoProcesso, ?string $situacaoGrupo = null, ?string $situacaoOferta = null): bool
+    {
+        foreach ([$situacaoProcesso, $situacaoGrupo, $situacaoOferta] as $situacao) {
+            if ($situacao !== null && $situacao !== '' && $situacao !== self::ABERTO) {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     public static function cabe(int $vagas, int $ocupadas): bool
