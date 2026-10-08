@@ -2,6 +2,7 @@
 
 namespace iEducar\Packages\BuritiTransporteEscolar\Providers;
 
+use iEducar\Packages\BuritiTransporteEscolar\Console\SimulaTransporte;
 use iEducar\Packages\BuritiTransporteEscolar\Http\Middleware\ExigeProcesso;
 use iEducar\Packages\BuritiTransporteEscolar\Support\Acesso;
 use iEducar\Packages\BuritiTransporteEscolar\Support\IdentidadeMunicipio;
@@ -19,8 +20,12 @@ class TransporteEscolarServiceProvider extends ServiceProvider
     {
         $this->loadViewsFrom(__DIR__ . '/../../resources/views', 'transporte-escolar');
 
-        if ($this->app->runningInConsole() && \App\Support\Tenancy\PackageTenant::allows(self::PACKAGE)) {
-            $this->loadMigrationsFrom(__DIR__ . '/../../database/migrations');
+        if ($this->app->runningInConsole()) {
+            $this->commands([SimulaTransporte::class]);
+
+            if (\App\Support\Tenancy\PackageTenant::allows(self::PACKAGE)) {
+                $this->loadMigrationsFrom(__DIR__ . '/../../database/migrations');
+            }
         }
 
         Route::prefix('transporte-escolar/api')->group(function () {

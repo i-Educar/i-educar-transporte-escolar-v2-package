@@ -15,6 +15,7 @@ use iEducar\Packages\BuritiTransporteEscolar\Support\AvisoTexto;
 use iEducar\Packages\BuritiTransporteEscolar\Support\ChavePush;
 use iEducar\Packages\BuritiTransporteEscolar\Support\Codigos;
 use iEducar\Packages\BuritiTransporteEscolar\Support\ComprovantePedido;
+use iEducar\Packages\BuritiTransporteEscolar\Services\SimulaCarga;
 use iEducar\Packages\BuritiTransporteEscolar\Support\CpfAnonimizado;
 use iEducar\Packages\BuritiTransporteEscolar\Support\ModeloAviso;
 use iEducar\Packages\BuritiTransporteEscolar\Support\NomeExibicao;
@@ -82,6 +83,7 @@ require __DIR__ . '/../src/Support/ChamadaEvento.php';
 require __DIR__ . '/../src/Support/ChavePush.php';
 require __DIR__ . '/../src/Support/ComprovantePedido.php';
 require __DIR__ . '/../src/Support/CpfAnonimizado.php';
+require __DIR__ . '/../src/Services/SimulaCarga.php';
 require __DIR__ . '/../src/Support/ModeloAviso.php';
 require __DIR__ . '/../src/Support/NomeExibicao.php';
 require __DIR__ . '/../src/Support/Pagina.php';
@@ -299,6 +301,7 @@ $pdfPedido = PdfSimples::impresso([
 ok(!str_contains($pdfPedido, 'Maria Souza') && str_contains($pdfPedido, 're f'), 'o PDF do pedido não leva o nome completo');
 ok(CpfAnonimizado::exibir('12345678901') === '***.***.***-01', 'cpf anonimizado mostra só o fim');
 ok(CpfAnonimizado::exibir('') === 'sem CPF', 'cpf vazio não inventa número');
+ok(str_contains(SimulaCarga::mensagemSemAlunos(2026), 'ieducar:matriculas'), 'simulação sem aluno pede a carga de matrículas');
 $pdfFrequencia = PdfSimples::lista([
     'municipio' => 'Municipio',
     'titulo' => 'FREQUENCIA DO TRANSPORTE',
