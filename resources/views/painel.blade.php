@@ -10,16 +10,18 @@
     @endphp
     <style>
         .painel-tela { display: grid; gap: 12px; }
-        .painel-kpis { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 10px; margin: 0; align-items: stretch; }
-        .kpi-coluna { display: flex; flex-direction: column; min-width: 0; background: #fff; border: 1px solid var(--linha); border-top: 3px solid var(--cor, var(--azul)); border-radius: 4px; padding: 10px 12px 8px; }
-        .kpi-coluna header { display: flex; align-items: flex-start; gap: 8px; margin: 0; color: var(--cor, var(--azul)); font-size: .8rem; font-weight: 700; line-height: 1.25; }
-        .kpi-coluna header i { width: 28px; height: 28px; border-radius: 4px; display: grid; place-items: center; flex: none; background: color-mix(in srgb, var(--cor) 14%, #fff); }
-        .kpi-coluna .geral { margin: 8px 0 0; font-size: 1.55rem; line-height: 1; color: var(--azul-escuro); }
-        .kpi-coluna .geral small { display: block; margin-top: 4px; color: var(--suave); font-size: .72rem; font-weight: 600; }
-        .kpi-coluna ul { list-style: none; margin: 8px 0 0; padding: 0; overflow: auto; max-height: 148px; }
-        .kpi-coluna li { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; padding: 5px 0; border-top: 1px solid var(--linha); font-size: .78rem; }
-        .kpi-coluna li span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-        .kpi-coluna li strong { flex: none; font-weight: 700; }
+        .painel-kpis { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 12px; margin: 0; align-items: stretch; }
+        .kpi-coluna { display: flex; flex-direction: column; min-width: 0; position: relative; overflow: hidden; background: linear-gradient(180deg, color-mix(in srgb, var(--cor, var(--azul)) 7%, #fff), #fff 72px); border: 1px solid color-mix(in srgb, var(--cor, var(--azul)) 18%, #e6edf2); border-radius: 14px; padding: 14px 14px 10px; box-shadow: 0 10px 28px rgba(21, 34, 43, .05); }
+        .kpi-coluna header { display: flex; align-items: center; gap: 8px; margin: 0; color: var(--suave); font-size: .68rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; line-height: 1.25; }
+        .kpi-coluna header i { width: 32px; height: 32px; border-radius: 10px; display: grid; place-items: center; flex: none; color: var(--cor, var(--azul)); background: #fff; border: 1px solid color-mix(in srgb, var(--cor, var(--azul)) 22%, #e6edf2); box-shadow: 0 4px 10px color-mix(in srgb, var(--cor, var(--azul)) 16%, transparent); }
+        .kpi-coluna .geral { margin: 14px 0 0; font-size: 2rem; font-weight: 800; letter-spacing: -.04em; line-height: .95; color: var(--tinta); font-variant-numeric: tabular-nums; }
+        .kpi-coluna .geral small { display: block; margin-top: 6px; color: var(--cor, var(--azul)); font-size: .66rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+        .kpi-coluna ul { list-style: none; margin: 12px 0 0; padding: 0; overflow: auto; max-height: 168px; }
+        .kpi-coluna li { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 3px 8px; align-items: center; padding: 8px 0; border-top: 1px solid #eef2f5; font-size: .76rem; }
+        .kpi-coluna li span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--suave); }
+        .kpi-coluna li strong { justify-self: end; color: var(--tinta); font-weight: 800; font-variant-numeric: tabular-nums; }
+        .kpi-faixa { grid-column: 1 / -1; height: 4px; border-radius: 99px; background: #eef2f5; overflow: hidden; }
+        .kpi-faixa i { display: block; height: 100%; border-radius: 99px; background: var(--cor, var(--azul)); }
         .painel-miolo { display: grid; grid-template-columns: minmax(0, 1fr) 320px; grid-template-areas: "mapa fila" "contas fila"; gap: 12px; align-items: stretch; }
         .painel-mapa, .painel-contas { margin: 0; }
         .painel-mapa { grid-area: mapa; display: flex; flex-direction: column; gap: 8px; }
@@ -62,6 +64,9 @@
         @media (max-width: 1200px) {
             .painel-kpis { grid-template-columns: repeat(3, minmax(0, 1fr)); }
         }
+        @media (max-width: 720px) {
+            .painel-kpis { grid-template-columns: 1fr; }
+        }
         @media (max-width: 1100px) {
             .painel-miolo { grid-template-columns: 1fr; grid-template-areas: "mapa" "fila" "contas"; }
             .painel-fila { max-height: 420px; }
@@ -80,7 +85,23 @@
                     <p class="geral">{{ $cartao['valor'] }} <small>Total</small></p>
                     <ul>
                         @forelse($cartao['itens'] as $item)
-                            <li><span>{{ $item['rotulo'] }}</span><strong>{{ $item['valor'] }}</strong></li>
+                            @php
+                                $texto = trim((string) $item['valor']);
+                                $parte = preg_match('/^\d+(?:[.,]\d+)?$/', $texto) === 1
+                                    ? (float) str_replace(',', '.', $texto)
+                                    : null;
+                                $tetoCard = is_numeric($cartao['valor']) ? (float) $cartao['valor'] : 0;
+                                $largura = $parte !== null && $tetoCard > 0
+                                    ? min(100, max(4, (int) round($parte / $tetoCard * 100)))
+                                    : null;
+                            @endphp
+                            <li>
+                                <span>{{ $item['rotulo'] }}</span>
+                                <strong>{{ $item['valor'] }}</strong>
+                                @if($largura !== null)
+                                    <span class="kpi-faixa" aria-hidden="true"><i style="width: {{ $largura }}%"></i></span>
+                                @endif
+                            </li>
                         @empty
                             <li><span>Nenhum item neste recorte</span><strong>0</strong></li>
                         @endforelse
