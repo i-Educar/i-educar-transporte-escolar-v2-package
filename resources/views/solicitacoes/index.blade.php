@@ -300,16 +300,29 @@
             .recorte-modos { display: grid; gap: 8px; margin: 8px 0 12px; }
             .recorte-lista { max-height: 240px; overflow: auto; display: grid; gap: 6px; margin-top: 8px; }
             .recorte-grupo { margin: 10px 0 0; font-size: .78rem; font-weight: 700; color: var(--suave); }
-            .historico { display: grid; gap: 10px; margin-top: 4px; }
-            .historico h3, .modal form h3 { margin: 4px 0 0; font-size: .95rem; }
-            .modal form .passo { margin: 4px 0 0; padding-top: 8px; border-top: 1px solid var(--linha); }
+            dialog.modal.pedido { width: min(980px, calc(100% - 32px)); }
+            .resumo { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px 18px; margin: 0; background: #fff; border: 1px solid var(--linha); border-radius: 8px; padding: 14px 16px; }
+            .resumo > div { display: grid; gap: 2px; min-width: 0; }
+            .resumo .largo { grid-column: 1 / -1; }
+            .resumo dt { margin: 0; font-size: .7rem; color: var(--suave); font-weight: 700; letter-spacing: .04em; text-transform: uppercase; }
+            .resumo dd { margin: 0; font-weight: 600; }
+            .resumo .pontos { display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: baseline; }
+            .resumo .pontos p { margin: 0; }
+            .modal-corpo > form.alocar { display: grid; gap: 12px; min-height: auto; height: auto; overflow: visible; flex: none; padding: 14px 16px; background: #fff; border: 1px solid var(--linha); border-radius: 8px; }
+            .modal-corpo > form.alocar h3 { margin: 0; font-size: .95rem; }
+            .modal-corpo > form.alocar .acao { display: flex; justify-content: flex-end; margin: 0; }
+            .historico { display: grid; gap: 8px; }
+            .historico h3 { margin: 0; font-size: .95rem; }
             .avisos { display: grid; gap: 4px; margin: 0; }
             .avisos p { margin: 0; }
             .avisos.ok { color: #17663f; }
             .avisos.alerta { color: #9b2c2c; }
-            .linha-tempo { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
-            .linha-tempo li { background: #fff; border-left: 3px solid #188ad1; border-radius: 6px; padding: 8px 10px; display: grid; gap: 2px; }
+            .linha-tempo { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+            .linha-tempo li { background: #fff; border: 1px solid var(--linha); border-left: 3px solid #188ad1; border-radius: 8px; padding: 8px 10px; display: grid; gap: 2px; }
             .linha-tempo span { color: var(--suave); font-size: .82rem; }
+            @media (max-width: 860px) {
+                .resumo, .linha-tempo { grid-template-columns: 1fr; }
+            }
         </style>
         <script>
             window.escolasDaRota = @json($escolasRota);
@@ -480,39 +493,37 @@
                     : $pedido->telefone);
             $turno = \iEducar\Packages\BuritiTransporteEscolar\Support\Codigos::PERIODO[$pedido->turno] ?? $pedido->turno;
         @endphp
-        <dialog class="modal" id="pedido-{{ $pedido->id }}">
+        <dialog class="modal pedido" id="pedido-{{ $pedido->id }}">
             <div class="modal-cabeca">
-                <h2>{{ $pedido->protocolo }}</h2>
+                <h2>{{ $pedido->protocolo }} · {{ $pedido->nome_aluno }}</h2>
                 <button type="button" data-fecha-modal aria-label="Fechar">&times;</button>
             </div>
             <div class="modal-corpo">
-                <dl class="ficha">
-                    <div><dt>Situação</dt><dd>{{ \iEducar\Packages\BuritiTransporteEscolar\Support\SituacaoPedido::frase($pedido->situacao) }}</dd></div>
+                <dl class="resumo">
+                    <div class="largo"><dt>Situação</dt><dd>{{ \iEducar\Packages\BuritiTransporteEscolar\Support\SituacaoPedido::frase($pedido->situacao) }}</dd></div>
                     <div><dt>Pedido em</dt><dd>{{ \Illuminate\Support\Carbon::parse($pedido->pedido_em)->format('d/m/Y H:i') }}</dd></div>
-                    <div><dt>Aluno</dt><dd>{{ $pedido->nome_aluno }}</dd></div>
                     <div><dt>Nascimento</dt><dd>{{ \Illuminate\Support\Carbon::parse($pedido->nascimento)->format('d/m/Y') }}</dd></div>
-                    <div><dt>Responsável</dt><dd>{{ $pedido->nome_responsavel }}</dd></div>
                     <div><dt>Telefone</dt><dd>{{ $telefone }}</dd></div>
-                    <div class="largo"><dt>Endereço informado</dt><dd>{{ $pedido->endereco }}</dd></div>
-                    <div class="largo" data-proximos="{{ url('/transporte-escolar/solicitacoes/'.$pedido->id.'/proximos') }}">
-                        <dt>Pontos próximos</dt>
-                        <dd>
-                            <p class="lead" style="margin:0;">A consulta usa só o endereço. Nome, telefone e nascimento ficam no i-Educar. A distância aparece ao abrir esta ficha.</p>
-                            <p data-lista-pontos>Calculando a distância até os pontos cadastrados…</p>
-                            <a href="{{ url('/transporte-escolar/solicitacoes/'.$pedido->id.'/mapa') }}" target="_blank" rel="noopener">Abrir mapa detalhado</a>
-                        </dd>
-                    </div>
+                    <div><dt>Responsável</dt><dd>{{ $pedido->nome_responsavel }}</dd></div>
                     <div><dt>Escola</dt><dd>{{ $pedido->escola_informada }}</dd></div>
                     <div><dt>Turno</dt><dd>{{ $turno }}</dd></div>
+                    <div><dt>Série</dt><dd>{{ $pedido->nm_serie ?: '—' }}</dd></div>
+                    <div><dt>Turma</dt><dd>{{ $pedido->nm_turma ?: '—' }}</dd></div>
                     <div><dt>Processo</dt><dd>{{ $pedido->processo ?: '—' }}</dd></div>
                     <div><dt>Rota pedida</dt><dd>{{ $pedido->rota ?: '—' }}</dd></div>
                     @if(!empty($pedido->documentos_em))
-                        <div class="largo"><dt>Inclusão na rota</dt><dd>Documentação conferida. Aluno na rota {{ $pedido->rota_vinculada ?: 'informada' }}.</dd></div>
+                        <div><dt>Rota do aluno</dt><dd>{{ $pedido->rota_vinculada ?: 'informada' }}</dd></div>
                     @endif
-                    <div><dt>Série</dt><dd>{{ $pedido->nm_serie ?: '—' }}</dd></div>
-                    <div><dt>Turma</dt><dd>{{ $pedido->nm_turma ?: '—' }}</dd></div>
+                    <div class="largo"><dt>Endereço</dt><dd>{{ $pedido->endereco }}</dd></div>
+                    <div class="largo" data-proximos="{{ url('/transporte-escolar/solicitacoes/'.$pedido->id.'/proximos') }}">
+                        <dt>Pontos próximos</dt>
+                        <dd class="pontos">
+                            <p data-lista-pontos>Calculando a distância…</p>
+                            <a href="{{ url('/transporte-escolar/solicitacoes/'.$pedido->id.'/mapa') }}" target="_blank" rel="noopener">Abrir mapa</a>
+                        </dd>
+                    </div>
                     @if($pedido->motivo_situacao)
-                        <div class="largo"><dt>Observação da última decisão</dt><dd>{{ $pedido->motivo_situacao }}</dd></div>
+                        <div class="largo"><dt>Observação</dt><dd>{{ $pedido->motivo_situacao }}</dd></div>
                     @endif
                 </dl>
                 @if($pedido->situacao === 'recebida' || ($rede && in_array($pedido->situacao, ['recebida', 'em_analise', 'espera'], true)))
@@ -554,7 +565,7 @@
                         $processoPedido = $processos->firstWhere('id', $pedido->processo_id);
                         $exigidos = \iEducar\Packages\BuritiTransporteEscolar\Support\HistoricoPedido::exigidos($processoPedido->documentos_exigidos ?? null);
                     @endphp
-                    <form method="post" action="{{ url('/transporte-escolar/solicitacoes/'.$pedido->id.'/vincular') }}" data-conferencia data-url="{{ url('/transporte-escolar/solicitacoes/'.$pedido->id.'/matriculas') }}">
+                    <form class="alocar" method="post" action="{{ url('/transporte-escolar/solicitacoes/'.$pedido->id.'/vincular') }}" data-conferencia data-url="{{ url('/transporte-escolar/solicitacoes/'.$pedido->id.'/matriculas') }}">
                         @csrf
                         <input type="hidden" name="aluno_id" value="">
                         <input type="hidden" name="matricula_id" value="">
@@ -562,38 +573,40 @@
                         @if((int) session('conferir') === (int) $pedido->id && session('erro'))
                             <p class="flash erro">{{ session('erro') }}</p>
                         @endif
-                        <h3>Incluir na rota</h3>
-                        <label>Rota
-                            <select name="rota_id" required>
-                                @foreach($rotas->unique('id') as $rota)
-                                    @if((int) $rota->ano === (int) $pedido->ano)
-                                        <option value="{{ $rota->id }}" data-periodo="{{ $rota->periodo }}" data-periodo-rotulo="{{ \iEducar\Packages\BuritiTransporteEscolar\Support\Codigos::PERIODO[$rota->periodo] ?? $rota->periodo }}" @selected((int) $pedido->rota_id === (int) $rota->id)>{{ $rota->ano }} · {{ $rota->descricao }}</option>
-                                    @endif
-                                @endforeach
-                            </select>
-                        </label>
-                        <p class="lead">O turno segue a rota escolhida: <strong data-turno-rotulo>—</strong></p>
-                        <h3 class="passo">Matrícula</h3>
-                        <p class="lead">Pode ficar em branco. Sem matrícula, o aluno entra na rota e o aviso fica em Alunos na rota até ser informado. Turno da turma diferente do da rota também permanece como aviso.</p>
+                        <h3>Conferir documentação e alocar na rota</h3>
+                        <div class="linha">
+                            <label>Rota
+                                <select name="rota_id" required>
+                                    @foreach($rotas->unique('id') as $rota)
+                                        @if((int) $rota->ano === (int) $pedido->ano)
+                                            <option value="{{ $rota->id }}" data-periodo="{{ $rota->periodo }}" data-periodo-rotulo="{{ \iEducar\Packages\BuritiTransporteEscolar\Support\Codigos::PERIODO[$rota->periodo] ?? $rota->periodo }}" @selected((int) $pedido->rota_id === (int) $rota->id)>{{ $rota->ano }} · {{ $rota->descricao }}</option>
+                                        @endif
+                                    @endforeach
+                                </select>
+                            </label>
+                            <label>Turno da rota <input data-turno-rotulo value="—" readonly></label>
+                        </div>
+                        <p class="lead">A matrícula pode ficar em branco. Sem ela, o aluno entra na rota e o aviso fica em Alunos na rota. Turno da turma diferente do da rota também permanece como aviso.</p>
                         <div class="linha">
                             <label>Nome, matrícula ou CPF <input data-q value="{{ $pedido->nome_aluno }}"></label>
-                            <button type="button" class="botao claro" data-buscar>Buscar</button>
+                            <label>Matrícula ativa
+                                <select data-escolha>
+                                    <option value="">Sem matrícula por enquanto</option>
+                                </select>
+                            </label>
                         </div>
-                        <label>Matrícula ativa
-                            <select data-escolha>
-                                <option value="">Sem matrícula por enquanto</option>
-                            </select>
-                        </label>
+                        <p><button type="button" class="botao claro" data-buscar>Buscar matrícula</button></p>
                         <div data-avisos class="avisos"></div>
-                        <h3 class="passo">Documentos</h3>
                         @if($exigidos === [])
                             <label class="opcao"><input type="checkbox" name="documentos" value="1"> Documentação conferida. Este processo não tem lista obrigatória.</label>
                         @else
-                            @foreach($exigidos as $indice => $documento)
-                                <label class="opcao"><input type="checkbox" name="exigido[]" value="{{ $indice }}"> {{ $documento }}</label>
-                            @endforeach
+                            <div class="opcoes">
+                                @foreach($exigidos as $indice => $documento)
+                                    <label class="opcao"><input type="checkbox" name="exigido[]" value="{{ $indice }}"> {{ $documento }}</label>
+                                @endforeach
+                            </div>
                         @endif
-                        <button type="submit">Conferir e incluir na rota</button>
+                        <div class="acao"><button type="submit">Conferir e incluir na rota</button></div>
                     </form>
                 @endif
                 @php
@@ -631,7 +644,7 @@
                 var opcao = rota.options[rota.selectedIndex];
                 var periodo = opcao ? (opcao.getAttribute('data-periodo') || '') : '';
                 turno.value = periodo;
-                turnoRotulo.textContent = opcao ? (opcao.getAttribute('data-periodo-rotulo') || periodo || '—') : '—';
+                turnoRotulo.value = opcao ? (opcao.getAttribute('data-periodo-rotulo') || periodo || '—') : '—';
             }
             function endereco(extra) {
                 return bloco.getAttribute('data-url') + '?' + extra + '&rota_id=' + encodeURIComponent(rota.value || '') + '&turno=' + encodeURIComponent(turno.value || '');
