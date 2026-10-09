@@ -51,15 +51,54 @@
         ])
     </div>
     @foreach($linhas as $linha)
-        <dialog class="modal" id="aud-{{ $linha->id }}">
-            <div class="modal-cabeca"><h2>{{ $linha->operacao }} em {{ $linha->table }}</h2><button type="button" data-fecha-modal aria-label="Fechar">&times;</button></div>
+        <dialog class="modal modal-leitura" id="aud-{{ $linha->id }}">
+            <div class="modal-cabeca">
+                <h2><span class="selo {{ $linha->operacao === 'Exclusão' ? 'alerta' : ($linha->operacao === 'Inclusão' ? 'ok' : 'prazo') }}">{{ $linha->operacao }}</span> {{ $linha->assunto }}</h2>
+                <button type="button" data-fecha-modal aria-label="Fechar">&times;</button>
+            </div>
             <div class="modal-corpo">
-                <p>{{ $linha->resumo ?: 'Sem campo alterado além da data.' }}</p>
-                <div class="linha">
-                    <p><strong>Antes</strong><pre>{{ $linha->antes_texto ?: '—' }}</pre></p>
-                    <p><strong>Depois</strong><pre>{{ $linha->depois_texto ?: '—' }}</pre></p>
-                </div>
+                @php
+                    $quando = \Illuminate\Support\Carbon::parse($linha->date);
+                    $meses = [1 => 'janeiro', 2 => 'fevereiro', 3 => 'março', 4 => 'abril', 5 => 'maio', 6 => 'junho', 7 => 'julho', 8 => 'agosto', 9 => 'setembro', 10 => 'outubro', 11 => 'novembro', 12 => 'dezembro'];
+                @endphp
+                <p class="leitura-quando">{{ $quando->format('d') }} de {{ $meses[(int) $quando->format('n')] }} de {{ $quando->format('Y') }}, às {{ $quando->format('H:i') }}</p>
+                <p class="leitura-frase">{{ $linha->leitura['frase'] }}</p>
+                @if($linha->leitura['linhas'] === [])
+                    <p class="leitura-vazio">Não há informação de conteúdo nesta ação. A mudança ficou só na data de atualização.</p>
+                @else
+                    <table class="leitura-tabela">
+                        <thead>
+                            <tr>
+                                <th>Informação</th>
+                                @if($linha->leitura['modo'] !== 'inclusao')<th>Como estava</th>@endif
+                                @if($linha->leitura['modo'] !== 'exclusao')<th>Como ficou</th>@endif
+                            </tr>
+                        </thead>
+                        <tbody>
+                        @foreach($linha->leitura['linhas'] as $item)
+                            <tr>
+                                <th>{{ $item['rotulo'] }}</th>
+                                @if($linha->leitura['modo'] !== 'inclusao')<td>{{ $item['antes'] }}</td>@endif
+                                @if($linha->leitura['modo'] !== 'exclusao')<td class="leitura-novo">{{ $item['depois'] }}</td>@endif
+                            </tr>
+                        @endforeach
+                        </tbody>
+                    </table>
+                @endif
             </div>
         </dialog>
     @endforeach
+    <style>
+        dialog.modal-leitura { width: min(880px, calc(100% - 32px)); }
+        .leitura-quando { margin: 0; color: var(--suave); font-size: .92rem; }
+        .leitura-frase { margin: 0; font-size: 1.05rem; }
+        .leitura-vazio { margin: 0; background: #fff; border: 1px solid var(--linha); border-radius: 8px; padding: 14px; }
+        .leitura-tabela { width: 100%; border-collapse: collapse; background: #fff; border: 1px solid var(--linha); border-radius: 8px; overflow: hidden; }
+        .leitura-tabela th, .leitura-tabela td { padding: 10px 12px; text-align: left; vertical-align: top; border-bottom: 1px solid var(--linha); }
+        .leitura-tabela thead th { background: var(--azul-claro); color: var(--azul-escuro); font-size: .78rem; letter-spacing: .02em; }
+        .leitura-tabela tbody th { width: 34%; font-weight: 650; color: var(--tinta); }
+        .leitura-tabela td { color: var(--suave); }
+        .leitura-tabela td.leitura-novo { color: var(--tinta); font-weight: 700; background: #f3faf6; }
+        .leitura-tabela tr:last-child th, .leitura-tabela tr:last-child td { border-bottom: 0; }
+    </style>
 @endsection

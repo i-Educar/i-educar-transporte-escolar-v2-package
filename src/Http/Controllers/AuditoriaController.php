@@ -89,8 +89,8 @@ class AuditoriaController
         $linha->operacao = AuditoriaTransporte::operacao($antes !== null, $depois !== null);
         $linha->campos = AuditoriaTransporte::campos($antes, $depois);
         $linha->resumo = AuditoriaTransporte::resumo($antes, $depois);
-        $linha->antes_texto = $antes ? json_encode($antes, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT) : '';
-        $linha->depois_texto = $depois ? json_encode($depois, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT) : '';
+        $linha->assunto = AuditoriaTransporte::assunto((string) $linha->table);
+        $linha->leitura = AuditoriaTransporte::leitura($antes, $depois);
 
         return $linha;
     }

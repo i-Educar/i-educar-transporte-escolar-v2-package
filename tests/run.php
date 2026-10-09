@@ -453,6 +453,11 @@ ok(ProcessoEdicao::oferta(['processo_id' => 1, 'rota_id' => 1, 'escola' => 2, 't
 ok(ProcessoEdicao::oferta(['processo_id' => 1, 'rota_id' => 1, 'escola' => 2, 'turno' => 'manha', 'vagas' => 10, 'idade_min' => null, 'idade_max' => null, 'series' => [], 'turmas' => []], ['processo_id' => 1, 'rota_id' => 1, 'escola' => 2, 'turno' => 'manha', 'vagas' => 1, 'idade_min' => null, 'idade_max' => null, 'series' => [], 'turmas' => []], 2, 0, 2) !== null, 'vagas não ficam abaixo dos pedidos');
 ok(AuditoriaTransporte::operacao(false, true) === 'Inclusão' && AuditoriaTransporte::operacao(true, true) === 'Alteração' && AuditoriaTransporte::operacao(true, false) === 'Exclusão', 'a auditoria distingue inclusão, alteração e exclusão');
 ok(AuditoriaTransporte::resumo(['situacao' => 'aberto'], ['situacao' => 'pausado']) === 'situacao: aberto -> pausado', 'o resumo da auditoria mostra o valor anterior e o novo');
+$leituraAuditoria = AuditoriaTransporte::leitura(['situacao' => 'aberto'], ['situacao' => 'pausado']);
+ok($leituraAuditoria['frase'] === 'O que mudou nesta ação.' && $leituraAuditoria['linhas'][0]['rotulo'] === 'Situação' && $leituraAuditoria['linhas'][0]['antes'] === 'Aberto' && $leituraAuditoria['linhas'][0]['depois'] === 'Pausado', 'a leitura da auditoria fala em situação, não no nome da coluna');
+ok(AuditoriaTransporte::assunto('veiculo') === 'Veículo', 'a auditoria nomeia o cadastro de veículo');
+$inclusaoAuditoria = AuditoriaTransporte::leitura(null, ['placa' => 'ABC1D23', 'created_at' => '2026-10-08 10:00:00']);
+ok($inclusaoAuditoria['modo'] === 'inclusao' && count($inclusaoAuditoria['linhas']) === 1 && $inclusaoAuditoria['linhas'][0]['rotulo'] === 'Placa' && $inclusaoAuditoria['linhas'][0]['depois'] === 'ABC1D23', 'a inclusão esconde a data técnica');
 ok(AuditoriaTransporte::campos(['series' => [1, 2]], ['series' => [1]]) === ['series'], 'campo em lista também entra na conferência');
 ok(Pagina::numero(0) === 1 && Pagina::fatia(0, 1)['paginas'] === 1, 'lista vazia continua na primeira página');
 ok(Pagina::fatia(26, 2)['inicio'] === 25 && Pagina::fatia(26, 9)['pagina'] === 2, 'a página não passa do fim da lista');
