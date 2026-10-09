@@ -132,7 +132,7 @@ matrícula (i-Educar)
                 → exportação para o SETE (fase 4)
 ```
 
-Regra de ouro: um aluno sem matrícula ativa no ano não entra em rota daquele ano. O campo do Censo (`tipo_transporte` e `veiculo_transporte_escolar`) é preenchido a partir da rota, para o Censo não divergir do ônibus.
+Regra de ouro: a matrícula nasce no i-Educar. Sem matrícula ativa no ano, a conferência ainda pode deixar o aluno na rota, com aviso, mas o vínculo em `aluno_rota` e o Censo só são gravados quando essa matrícula existe. O campo do Censo (`tipo_transporte` e `veiculo_transporte_escolar`) é preenchido a partir da rota, para o Censo não divergir do ônibus.
 
 ## To-do
 
@@ -315,16 +315,16 @@ O protocolo leva ano, sequência e um dígito de conferência. A consulta pede t
 
 No mesmo processo, o institucional grava o setor de atendimento: endereço, horário, documentos e coordenadas. A família vê esse bloco, com mapa, só depois que o pedido é aceito.
 
-O institucional agrupa processos do mesmo ano, abre cada processo e publica a vaga com idade em 31 de março, série, turma, escola, rota, turno e quantidade de lugares. Pode editar o processo, pausá-lo ou bloqueá-lo. Pausado ou bloqueado, a família deixa de ver a vaga. A pausa volta com Retomar. O bloqueio volta com Desbloquear. O desenho está em `docs/FLUXOS.md`.
+O institucional agrupa processos do mesmo ano, abre cada processo e publica a vaga com idade em 31 de março, série, turma, escola, rota, turno e quantidade de lugares. As tabelas mostram vagas, ocupadas, disponíveis e a espera. Pode editar o processo, pausá-lo, fechá-lo ou retomá-lo. Pausado ou fechado, a família deixa de ver a vaga. Fechar a oferta manda os pedidos aprovados sem conferência para a lista de espera. O desenho está em `docs/FLUXOS.md`.
 
 
 ## O que o código ainda não faz
 
 - Monitor ligado a uma lista de rotas. O cadastro guarda turno e salário.
 - Envio de SMS ou notificação push. O aviso de embarque é um link. O andamento do pedido fica na página Acompanhar.
-- Aceitar o pedido não inclui o aluno na rota. A secretaria faz isso em Alunos na rota.
+- Aceitar o pedido não inclui o aluno na rota. A inclusão é a conferência, que pode seguir sem matrícula e deixa o aviso até o i-Educar ter matrícula ativa no ano.
 - Não há um pedido por aluno. A mesma pessoa pode abrir outro protocolo enquanto houver vaga.
-- Não há fila de espera com peso ou prioridade. Sem vaga, o pedido não entra.
+- A lista de espera não tem peso nem prioridade.
 
 
 ## O que permanece de fora

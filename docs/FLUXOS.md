@@ -31,7 +31,7 @@ A cor do informe segue o tipo: azul para pedido da família, âmbar para prazo d
 
 ## Processo de vagas
 
-O institucional agrupa os processos que a família vê juntos, abre cada processo no ano letivo e publica a vaga com escola, rota, turno, quantidade, idade em 31 de março, série e turma. Série ou turma em branco significa qualquer uma. O processo pausado sai da página da família. O mesmo botão retoma. Não há exclusão de processo nem de vaga. Se já existe pedido, o ano do processo e a escola, a rota e o turno da vaga permanecem. Se já existe pedido aceito, idade, série e turma também permanecem. As vagas não ficam abaixo dos pedidos que ainda ocupam lugar.
+O institucional agrupa os processos que a família vê juntos, abre cada processo no ano letivo e publica a vaga com escola, rota, turno, quantidade, idade em 31 de março, série e turma. Série ou turma em branco significa qualquer uma. A tabela de processos e a de vagas publicadas mostram o total, as ocupadas, as disponíveis e a lista de espera quando houver. O processo pausado sai da página da família. O mesmo botão retoma. Fechar a vaga publicada encerra a oferta: os pedidos aprovados que ainda não foram conferidos vão para a lista de espera; quem já está na rota permanece. A vaga fechada volta com Retomar. Não há exclusão de processo nem de vaga. Se já existe pedido, o ano do processo e a escola, a rota e o turno da vaga permanecem. Se já existe pedido aceito, idade, série e turma também permanecem. As vagas não ficam abaixo dos pedidos que ainda ocupam lugar.
 
 ```mermaid
 flowchart TD
@@ -40,10 +40,11 @@ flowchart TD
     C --> D{"Situação"}
     D -->|Aberto e no período| E["A família vê a vaga se ainda há lugar e a regra cabe"]
     D -->|Pausado| F["Some da família. O mesmo botão retoma"]
+    D -->|Fechado| G["Pedidos aprovados sem conferência vão para a espera"]
     B --> H["Editar nome, ano, período e agrupamento"]
 ```
 
-Pedido recebido, em análise ou aceito ocupa a vaga. Recusado ou cancelado devolve o lugar. O grupo também pode ser pausado ou bloqueado: se o processo está num grupo, os dois precisam estar abertos e no período.
+Pedido recebido, em análise, aceito ou com documentação conferida ocupa a vaga. Lista de espera, recusa e cancelamento devolvem o lugar. O grupo também pode ser pausado ou bloqueado: se o processo está num grupo, os dois precisam estar abertos e no período.
 
 ## Pedido da família
 
@@ -72,17 +73,24 @@ flowchart TD
     B --> C["Em análise"]
     A --> D["Família cancela"]
     C --> D
-    A --> E["Rede aceita"]
+    A --> E["Rede abre a aprovação"]
     C --> E
+    E --> K{"Ainda há vaga?"}
+    K -->|sim| G["Confirma o aceite"]
+    K -->|não| L["Marca ciência e o pedido vai para a espera"]
     A --> F["Rede recusa"]
     C --> F
-    E --> G["Aceita"]
+    G --> J["Aceito. Família leva os documentos"]
+    L --> M["Lista de espera"]
     F --> H["Recusada"]
     D --> I["Cancelada"]
-    G --> J["Família vê o setor e leva os documentos"]
+    M --> D
+    J --> N["Rede confere documentos e inclui na rota"]
 ```
 
-Pedido já decidido não volta. Aceitar não cria pessoa, matrícula nem aluno na rota. A secretaria inclui o aluno em Alunos transportados.
+Antes de gravar o aceite, a tela informa se a rota ainda tem vaga ou está lotada. Lotada, o pedido só segue depois da ciência e entra na lista de espera. Com vaga, a confirmação aceita o pedido. Pedido já decidido não volta. Aceitar não cria pessoa nem matrícula e ainda não coloca o aluno na rota.
+
+Na conferência, o turno é o da rota escolhida. A matrícula pode ficar em branco: ela é feita no i-Educar. Sem matrícula ativa, o aluno entra na rota e o aviso permanece em Alunos na rota. Turno da turma diferente do da rota também permanece como aviso e não impede a inclusão. O processo pode listar os documentos obrigatórios; sem essa lista, a conferência pede só a confirmação. O histórico do protocolo fica no fim da ficha.
 
 ## Pedido aceito
 
@@ -104,7 +112,7 @@ flowchart TD
     H --> I["O clique do mapa não altera a escola"]
 ```
 
-Coordenada fora do território brasileiro não entra no mapa. A escola com latitude ou longitude inválida fica fora do enquadramento até ser corrigida. Retirar uma parada refaz a ordem das demais.
+Coordenada fora do território brasileiro não entra no mapa. A escola com latitude ou longitude inválida fica fora do enquadramento até ser corrigida. Retirar uma parada refaz a ordem das demais. Ao alocar um veículo com menos lugares do que os alunos da rota, a tela informa quantas viagens são necessárias, o horário de cada uma e o mesmo percurso repetido. A inclusão manual de aluno continua exigindo matrícula já existente no i-Educar e não entra em rota com lista de espera de processo aberto.
 
 ## Cobertura no mapa da rota
 
@@ -150,8 +158,8 @@ O aplicativo ainda não existe. A API que ele vai usar já recebe a marcação n
 
 ## O que estes fluxos ainda não fazem
 
-- Aceitar o pedido não coloca o aluno na rota.
+- Aceitar o pedido não coloca o aluno na rota. A inclusão é a conferência da documentação.
 - Não há limite de um pedido por aluno.
-- Não há fila de espera com prioridade. Sem lugar, o pedido não entra.
+- A lista de espera não tem peso nem prioridade. Ela guarda o pedido analisado quando a rota está lotada ou quando a vaga publicada é fechada.
 - Não há envio de SMS nem notificação de celular.
 - O módulo não envia a prestação ao SiGPC e não gera folha de pagamento.
