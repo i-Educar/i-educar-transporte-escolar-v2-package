@@ -553,15 +553,16 @@ class SolicitacaoController
         $alunoId = (int) $request->input('aluno_id');
         $matriculaId = (int) $request->input('matricula_id');
         $rotaId = (int) $request->input('rota_id');
-        $turno = (string) $request->input('turno');
+        $rotaEscolhida = DB::table('transporte_escolar.rota')->where('id', $rotaId)->first();
+        $turno = (string) ($rotaEscolhida->periodo ?? '');
         $voltar = fn (string $mensagem) => redirect('/transporte-escolar/solicitacoes')->with('erro', $mensagem)->with('conferir', $solicitacao);
 
         if ($alunoId < 1 || $matriculaId < 1) {
             return $voltar('Escolha a matrícula na lista antes de conferir. Só marcar a documentação não inclui o aluno na rota.');
         }
 
-        if (!isset(Codigos::PERIODO[$turno]) || $rotaId < 1) {
-            return $voltar('Escolha a rota e o turno para incluir o aluno.');
+        if ($rotaEscolhida === null || !isset(Codigos::PERIODO[$turno])) {
+            return $voltar('A rota escolhida não tem um turno definido.');
         }
 
         $exigidos = HistoricoPedido::exigidos(

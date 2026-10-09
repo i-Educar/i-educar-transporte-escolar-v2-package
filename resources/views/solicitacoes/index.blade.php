@@ -576,23 +576,18 @@
                             @csrf
                             <input type="hidden" name="aluno_id" value="">
                             <input type="hidden" name="matricula_id" value="">
+                            <input type="hidden" name="turno" value="">
                             <div class="linha">
                                 <label>Rota
                                     <select name="rota_id" required>
                                         @foreach($rotas->unique('id') as $rota)
                                             @if((int) $rota->ano === (int) $pedido->ano)
-                                                <option value="{{ $rota->id }}" @selected((int) $pedido->rota_id === (int) $rota->id)>{{ $rota->ano }} · {{ $rota->descricao }}</option>
+                                                <option value="{{ $rota->id }}" data-periodo="{{ $rota->periodo }}" data-periodo-rotulo="{{ \iEducar\Packages\BuritiTransporteEscolar\Support\Codigos::PERIODO[$rota->periodo] ?? $rota->periodo }}" @selected((int) $pedido->rota_id === (int) $rota->id)>{{ $rota->ano }} · {{ $rota->descricao }}</option>
                                             @endif
                                         @endforeach
                                     </select>
                                 </label>
-                                <label>Turno
-                                    <select name="turno" required>
-                                        @foreach(\iEducar\Packages\BuritiTransporteEscolar\Support\Codigos::PERIODO as $codigo => $rotulo)
-                                            <option value="{{ $codigo }}" @selected($pedido->turno === $codigo)>{{ $rotulo }}</option>
-                                        @endforeach
-                                    </select>
-                                </label>
+                                <p class="lead">Turno da rota: <strong data-turno-rotulo>—</strong></p>
                             </div>
                             <div class="conferencia-caixa">
                                 <strong>Documentos</strong>
@@ -637,7 +632,14 @@
             var matricula = bloco.querySelector('[name=matricula_id]');
             var rota = bloco.querySelector('[name=rota_id]');
             var turno = bloco.querySelector('[name=turno]');
+            var turnoRotulo = bloco.querySelector('[data-turno-rotulo]');
             var achados = [];
+            function aplicarTurno() {
+                var opcao = rota.options[rota.selectedIndex];
+                var periodo = opcao ? (opcao.getAttribute('data-periodo') || '') : '';
+                turno.value = periodo;
+                turnoRotulo.textContent = opcao ? (opcao.getAttribute('data-periodo-rotulo') || periodo || '—') : '—';
+            }
             function endereco(extra) {
                 return bloco.getAttribute('data-url') + '?' + extra + '&rota_id=' + encodeURIComponent(rota.value || '') + '&turno=' + encodeURIComponent(turno.value || '');
             }
@@ -690,8 +692,11 @@
                     .then(function (resposta) { return resposta.json(); })
                     .then(pintar);
             }
-            rota.addEventListener('change', atualizar);
-            turno.addEventListener('change', atualizar);
+            rota.addEventListener('change', function () {
+                aplicarTurno();
+                atualizar();
+            });
+            aplicarTurno();
         });
         @if(session('conferir'))
         var pedidoAberto = document.getElementById('pedido-{{ (int) session('conferir') }}');
