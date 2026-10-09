@@ -6,6 +6,7 @@ use iEducar\Packages\BuritiTransporteEscolar\Support\AtendimentoSetor;
 use iEducar\Packages\BuritiTransporteEscolar\Support\Codigos;
 use iEducar\Packages\BuritiTransporteEscolar\Support\ComprovantePedido;
 use iEducar\Packages\BuritiTransporteEscolar\Support\IdentidadeMunicipio;
+use iEducar\Packages\BuritiTransporteEscolar\Support\LocalizarEndereco;
 use iEducar\Packages\BuritiTransporteEscolar\Support\PdfSimples;
 use iEducar\Packages\BuritiTransporteEscolar\Support\QrCodigo;
 use iEducar\Packages\BuritiTransporteEscolar\Support\PontosProximos;
