@@ -155,7 +155,7 @@ final class CarteirinhaPdf
         }
 
         $qr = $pessoa['qr'] ?? null;
-        $reserva = is_array($qr) && $qr !== [] ? 112 : 0;
+        $faixa = is_array($qr) && $qr !== [] ? 96 : 0;
         $topo = $y + self::CARTAO_A;
         $base = $y + self::RODAPE + 8;
         $altura = $topo - self::CABECA - 8 - $base;
@@ -163,15 +163,15 @@ final class CarteirinhaPdf
         array_push($comandos, ...self::cabecalho($x, $topo, $pessoa['municipio'], 'Dados da rota', '', $brasao));
         array_push($comandos, ...self::grade(
             $x + 10,
-            $base,
-            self::CARTAO_L - 20 - ($reserva > 0 ? $reserva + 8 : 0),
-            $altura,
+            $base + $faixa,
+            self::CARTAO_L - 20,
+            $altura - $faixa,
             $campos,
             2,
         ));
 
-        if ($reserva > 0) {
-            array_push($comandos, ...self::qr($qr, $x + self::CARTAO_L - 10 - $reserva, $base, $reserva, $altura));
+        if ($faixa > 0) {
+            array_push($comandos, ...self::qr($qr, $x + self::CARTAO_L - 10, $base));
         }
 
         array_push($comandos, ...self::rodape($x, $y, 'Dobre na linha tracejada'));
@@ -184,22 +184,17 @@ final class CarteirinhaPdf
      * @param list<list<bool>> $matriz
      * @return list<string>
      */
-    private static function qr(array $matriz, int $x, int $y, int $largura, int $altura): array
+    private static function qr(array $matriz, int $direita, int $base): array
     {
         $n = count($matriz);
-        $modulo = (int) floor(min($largura, $altura - 14) / ($n + 8));
-        $modulo = max(2, $modulo);
-        $lado = $n * $modulo;
+        $modulo = 2;
         $quiet = 4 * $modulo;
-        $caixa = $lado + ($quiet * 2);
-        $ox = $x + (int) (($largura - $caixa) / 2);
-        $oy = $y + (int) (($altura - 12 - $caixa) / 2);
+        $caixa = ($n * $modulo) + ($quiet * 2);
+        $ox = $direita - $caixa;
+        $oy = $base + 12;
         $comandos = [
             '1 1 1 rg',
             $ox . ' ' . $oy . ' ' . $caixa . ' ' . $caixa . ' re f',
-            '0.75 0.82 0.86 RG',
-            '0.6 w',
-            $ox . ' ' . $oy . ' ' . $caixa . ' ' . $caixa . ' re S',
             '0 0 0 rg',
         ];
 
@@ -213,8 +208,9 @@ final class CarteirinhaPdf
             }
         }
 
-        $comandos[] = '0.09 0.32 0.40 rg';
-        $comandos[] = 'BT /F2 7 Tf ' . ($x + 8) . ' ' . ($y + 2) . ' Td (' . self::escapar(self::win('Mapa do setor')) . ') Tj ET';
+        $legenda = 'Mapa do setor';
+        $tx = (int) ($ox + (($caixa - (mb_strlen($legenda) * 3.6)) / 2));
+        $comandos[] = self::texto(1, $tx, $base + 2, 7, $legenda);
 
         return $comandos;
     }
