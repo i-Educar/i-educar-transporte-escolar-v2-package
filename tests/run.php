@@ -463,6 +463,16 @@ $bilhete = PdfSimples::impresso([
 ], 2, true);
 ok(substr_count($bilhete, '/Type /Page /Parent') === 1, 'as duas vias do bilhete cabem na mesma folha');
 ok(str_contains($bilhete, 'Canhoto') && str_contains($bilhete, 'Destaque'), 'a segunda via e o canhoto, com linha de corte');
+$dentro = true;
+preg_match_all('/([0-9.]+) ([0-9.]+) ([0-9.]+) ([0-9.]+) re/', $impresso . "\n" . $bilhete, $retangulos, PREG_SET_ORDER);
+foreach ($retangulos as $retangulo) {
+    $direita = (float) $retangulo[1] + (float) $retangulo[3];
+    $topo = (float) $retangulo[2] + (float) $retangulo[4];
+    if ($direita > 563 || $topo > 810 || (float) $retangulo[1] < 32 || (float) $retangulo[2] < 20) {
+        $dentro = false;
+    }
+}
+ok($dentro, 'o PDF fica dentro da margem da folha');
 ok(ProcessoVaga::proxima('aberto', 'pausar') === 'pausado', 'pausar tira o processo da família');
 ok(ProcessoVaga::proxima('pausado', 'retomar') === 'aberto', 'retomar devolve o processo à família');
 ok(ProcessoVaga::proxima('bloqueado', 'retomar') === 'aberto', 'o bloqueio antigo retoma pelo mesmo botão');
@@ -514,6 +524,12 @@ ok(AptidaoViagem::motivo(null, '2026-12-01', '2026-12-01', '2026-12-01', true, t
 ok(AptidaoViagem::motivo(null, null, null, null, false, false, '2026-10-08') === null, 'viagem sem veículo e sem motorista não exige papel');
 ok(EstoqueSaldo::aplicar(2, 'baixa', 3) === null && EstoqueSaldo::aplicar(2, 'baixa', 1) === 1.0, 'baixa não deixa o lote negativo');
 ok(EstoqueSaldo::aplicar(2, 'contagem', 5) === 5.0 && EstoqueSaldo::diferenca(5, 2) === 3.0, 'contagem troca o saldo e guarda a diferença');
+ok(EstoqueSaldo::inteiro('pneu', 2) && !EstoqueSaldo::inteiro('pneu', 1.5) && EstoqueSaldo::inteiro('oleo', 1.5), 'pneu sai inteiro e óleo aceita fração');
+ok(EstoqueSaldo::texto(4.0) === '4' && EstoqueSaldo::texto(1.5) === '1,5', 'quantidade esconde zero à direita');
+ok(EstoqueSaldo::faixa(0, 2, true) === 'zerado' && EstoqueSaldo::faixa(1, 2, true) === 'abaixo' && EstoqueSaldo::faixa(3, 2, false) === 'inativo', 'faixa do depósito');
+ok(EstoqueSaldo::primeiraValidade([['quantidade' => 2, 'validade' => '2026-12-01'], ['quantidade' => 1, 'validade' => '2026-08-01'], ['quantidade' => 4, 'validade' => null]]) === '2026-08-01', 'o lote com validade mais próxima sai primeiro');
+ok(EstoqueSaldo::recusaBaixa('2026-01-01', 2, '2026-01-01', '2026-10-08') === 'vencido', 'lote vencido não vai para o veículo');
+ok(EstoqueSaldo::recusaBaixa('2026-12-01', 2, '2026-08-01', '2026-10-08') === 'fefo' && EstoqueSaldo::recusaBaixa(null, 2, '2026-08-01', '2026-10-08') === null, 'óleo mais novo espera e pneu sem validade pode sair');
 ok($escola[Processos::GASTOS]['visualiza'] === false && $escola[Processos::VEICULOS]['cadastra'] === false, 'escola consulta a conformidade e não abre o estoque');
 ok($institucional[Processos::VEICULOS]['cadastra'] === true && $institucional[Processos::GASTOS]['cadastra'] === true && $institucional[Processos::CACS]['cadastra'] === false, 'institucional grava frota e gasto; o conselho só lê');
 ok($biblioteca[Processos::RELATORIOS]['visualiza'] === false, 'biblioteca continua sem os indicadores');

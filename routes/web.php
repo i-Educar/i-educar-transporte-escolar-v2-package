@@ -24,6 +24,10 @@ use Illuminate\Support\Facades\Route;
 
 Route::prefix('transporte-escolar')->group(function () {
     Route::get('/', [PainelController::class, 'index'])->middleware('transporte.processo:' . Processos::RAIZ . ',ver');
+    Route::get('/notificacoes/pulso', [\iEducar\Packages\BuritiTransporteEscolar\Http\Controllers\NotificacaoController::class, 'pulso'])->middleware('transporte.processo:' . Processos::RAIZ . ',ver');
+    Route::get('/notificacoes', [\iEducar\Packages\BuritiTransporteEscolar\Http\Controllers\NotificacaoController::class, 'index'])->middleware('transporte.processo:' . Processos::RAIZ . ',ver');
+    Route::get('/notificacoes/{notificacao}', [\iEducar\Packages\BuritiTransporteEscolar\Http\Controllers\NotificacaoController::class, 'show'])->middleware('transporte.processo:' . Processos::RAIZ . ',ver');
+    Route::post('/notificacoes/{notificacao}/lida', [\iEducar\Packages\BuritiTransporteEscolar\Http\Controllers\NotificacaoController::class, 'lida'])->middleware('transporte.processo:' . Processos::RAIZ . ',ver');
 
     Route::get('/rotas', [RotaController::class, 'index'])->middleware('transporte.processo:' . Processos::ROTAS . ',ver');
     Route::post('/rotas', [RotaController::class, 'store'])->middleware('transporte.processo:' . Processos::ROTAS . ',gravar');

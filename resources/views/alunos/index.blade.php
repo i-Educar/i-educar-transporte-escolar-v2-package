@@ -13,38 +13,7 @@
     </form>
 
     <div data-painel>
-        <div class="barra-dados">
-            <label class="filtro"><i class="fa fa-search" aria-hidden="true"></i><input type="search" data-filtro-tabela placeholder="Filtrar a página carregada"></label>
-        </div>
-        <h2>Matrículas</h2>
-        <div class="tabela-wrap">
-            <table>
-                <thead><tr><th>Matrícula</th><th>Aluno</th><th>Escola</th><th>Série</th><th>Turma</th><th>Responsável</th><th></th></tr></thead>
-                <tbody>
-                    @forelse($matriculas as $aluno)
-                        @php($nome = $mostrar($aluno->nome))
-                        <tr data-busca="{{ $aluno->cod_matricula }} {{ $nome }} {{ $aluno->escola }} {{ $aluno->nm_serie }} {{ $aluno->nm_turma }}">
-                            <td>{{ $aluno->cod_matricula }}</td>
-                            <td>{{ $nome }}</td>
-                            <td>{{ $aluno->escola }}</td>
-                            <td>{{ $aluno->nm_serie ?: '—' }}</td>
-                            <td>{{ $aluno->nm_turma ?: '—' }}</td>
-                            <td>{{ $aluno->nome_responsavel ?: '—' }}</td>
-                            <td class="acoes">
-                                <button type="button" class="icone ver" data-abre-modal="detalhe-busca-{{ $aluno->cod_aluno }}" aria-label="Ver detalhes" title="Ver detalhes"><i class="fa fa-eye" aria-hidden="true"></i></button>
-                                @if($rotas->isNotEmpty())<button type="button" class="icone encaminhar" data-abre-modal="vincular-{{ $aluno->cod_aluno }}" aria-label="Vincular" title="Vincular"><i class="fa fa-link" aria-hidden="true"></i></button>@endif
-                            </td>
-                        </tr>
-                    @empty
-                        <tr data-vazio><td colspan="7" class="vazio">Nenhuma matrícula nesta busca.</td></tr>
-                    @endforelse
-                </tbody>
-            </table>
-        </div>
-    </div>
-
-    <div data-painel>
-        <h2>Já vinculados</h2>
+        <h2>Alunos Transportados</h2>
         <div class="barra-dados">
             <label class="filtro"><i class="fa fa-search" aria-hidden="true"></i><input type="search" data-filtro-tabela placeholder="Filtrar a página carregada"></label>
         </div>
@@ -72,12 +41,12 @@
                             </td>
                         </tr>
                     @empty
-                        <tr data-vazio><td colspan="6" class="vazio">Nenhum aluno vinculado.</td></tr>
+                        <tr data-vazio><td colspan="6" class="vazio">Nenhum aluno transportado.</td></tr>
                     @endforelse
                 </tbody>
             </table>
         </div>
-        @include('transporte-escolar::paginacao', ['pagina' => $pagina['pagina'], 'paginas' => $pagina['paginas'], 'total' => $pagina['total'], 'url' => url('/transporte-escolar/alunos'), 'consulta' => ['ano' => $ano]])
+        @include('transporte-escolar::paginacao', ['pagina' => $pagina['pagina'], 'paginas' => $pagina['paginas'], 'total' => $pagina['total'], 'url' => url('/transporte-escolar/alunos'), 'consulta' => ['ano' => $ano, 'q' => $busca]])
     </div>
 
     @foreach($vinculos as $vinculo)
@@ -125,42 +94,4 @@
         </dialog>
     @endforeach
 
-    @foreach($matriculas as $aluno)
-        @php($nome = $mostrar($aluno->nome))
-        <dialog class="modal" id="detalhe-busca-{{ $aluno->cod_aluno }}">
-            <div class="modal-cabeca">
-                <h2>Aluno {{ $nome }}</h2>
-                <button type="button" data-fecha-modal aria-label="Fechar">&times;</button>
-            </div>
-            <dl class="ficha">
-                <dt>Matrícula</dt><dd>{{ $aluno->cod_matricula }}</dd>
-                <dt>Aluno</dt><dd>{{ $nome }}</dd>
-                <dt>Escola</dt><dd>{{ $aluno->escola }}</dd>
-                <dt>Série e turma</dt><dd>{{ $aluno->nm_serie ?: '—' }} · {{ $aluno->nm_turma ?: '—' }}</dd>
-                <dt>Responsável</dt><dd>{{ $aluno->nome_responsavel ?: '—' }}</dd>
-                <dt>Telefone</dt><dd>{{ $aluno->fone ?: '—' }}</dd>
-            </dl>
-        </dialog>
-        <dialog class="modal" id="vincular-{{ $aluno->cod_aluno }}">
-            <div class="modal-cabeca">
-                <h2>Vincular {{ $nome }}</h2>
-                <button type="button" data-fecha-modal aria-label="Fechar">&times;</button>
-            </div>
-            <form method="post" action="{{ url('/transporte-escolar/alunos') }}">
-                @csrf
-                <input type="hidden" name="aluno_id" value="{{ $aluno->cod_aluno }}">
-                <label>Rota
-                    <select name="rota_id" required>
-                        @foreach($rotas as $rota)<option value="{{ $rota->id }}">{{ $rota->descricao }}</option>@endforeach
-                    </select>
-                </label>
-                <label>Turno <input name="turno"></label>
-                <div class="linha">
-                    <label>Latitude da casa <input name="residencia_latitude"></label>
-                    <label>Longitude da casa <input name="residencia_longitude"></label>
-                </div>
-                <button type="submit">Vincular</button>
-            </form>
-        </dialog>
-    @endforeach
 @endsection

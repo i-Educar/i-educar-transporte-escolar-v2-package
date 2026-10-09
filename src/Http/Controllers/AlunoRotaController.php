@@ -18,16 +18,6 @@ class AlunoRotaController
     {
         $ano = (int) $request->input('ano', date('Y'));
         $busca = trim((string) $request->input('q', ''));
-        $matriculas = $this->comContato(RedeConsulta::matriculasAtivas($ano));
-
-        if ($busca !== '') {
-            $matriculas->where(function ($q) use ($busca) {
-                $q->where('p.nome', 'ilike', '%' . $busca . '%')
-                    ->orWhere('m.cod_matricula', ctype_digit($busca) ? (int) $busca : 0)
-                    ->orWhereRaw("regexp_replace(f.cpf::text, '\\D', '', 'g') = ?", [preg_replace('/\D/', '', $busca)]);
-            });
-        }
-
         $ids = RedeConsulta::rotas($ano)->pluck('r.id')->all() ?: [0];
         $vinculos = $this->comContato(
             DB::table('transporte_escolar.aluno_rota as ar')
@@ -47,6 +37,13 @@ class AlunoRotaController
                 ->leftJoin('pmieducar.turma as t', 't.cod_turma', '=', 'mt.ref_cod_turma')
                 ->where('ar.ano', $ano)
                 ->whereIn('r.id', $ids)
+                ->when($busca !== '', function ($consulta) use ($busca) {
+                    $consulta->where(function ($q) use ($busca) {
+                        $q->where('p.nome', 'ilike', '%' . $busca . '%')
+                            ->orWhere('m.cod_matricula', ctype_digit($busca) ? (int) $busca : 0)
+                            ->orWhereRaw("regexp_replace(coalesce(f.cpf::text, ''), '\\D', '', 'g') = ?", [preg_replace('/\D/', '', $busca) ?: '0']);
+                    });
+                })
                 ->select(
                     'ar.ref_cod_aluno',
                     'ar.rota_id',
@@ -71,7 +68,6 @@ class AlunoRotaController
             'ano' => $ano,
             'busca' => $busca,
             'admin' => VisaoRede::escolas() === null,
-            'matriculas' => $busca === '' ? collect() : $matriculas->limit(30)->get(),
             'rotas' => RedeConsulta::rotas($ano)->get(),
             'vinculos' => $vinculos->offset($pagina['inicio'])->limit($pagina['tamanho'])->get(),
             'pagina' => $pagina,

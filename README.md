@@ -2,7 +2,7 @@
 
 Pacote Buriti para o i-Educar 2.12. Funciona quando o pacote `portabilis/i-educar-transport-package` não está instalado: as tabelas ficam no schema `transporte_escolar`, não em `modules`.
 
-Esta versão é a 1.6.0. Cobre as fases 0 a 5, as ondas 1 a 8, o portal da família, o processo de vagas, o PDF de duas vias, o aviso no navegador, a frequência da viagem e o painel na ordem do trabalho. SMS, envio ao SiGPC e folha de pagamento continuam de fora.
+Esta versão é a 1.8.0-beta. Cobre as fases 0 a 5, as ondas 1 a 8, o portal da família, o processo de vagas, o PDF de duas vias, o aviso no navegador, a frequência da viagem, o painel com mapa e a caixa de notificações. SMS, envio ao SiGPC e folha de pagamento continuam de fora. O rótulo beta marca a revisão visual e de fluxos ainda em conferência.
 
 ## O que o núcleo já guarda
 

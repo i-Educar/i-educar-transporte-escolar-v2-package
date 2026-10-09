@@ -2,184 +2,281 @@
 
 namespace iEducar\Packages\BuritiTransporteEscolar\Http\Controllers;
 
+use iEducar\Packages\BuritiTransporteEscolar\Services\CustoMensal;
+use iEducar\Packages\BuritiTransporteEscolar\Services\GerarAvisos;
 use iEducar\Packages\BuritiTransporteEscolar\Services\RedeConsulta;
-use iEducar\Packages\BuritiTransporteEscolar\Support\VisaoRede;
-use Illuminate\Support\Carbon;
+use iEducar\Packages\BuritiTransporteEscolar\Support\Acesso;
+use iEducar\Packages\BuritiTransporteEscolar\Support\Coordenada;
+use iEducar\Packages\BuritiTransporteEscolar\Support\Processos;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\View\View;
 
 class PainelController
 {
+    private const CORES = ['#188ad1', '#0f6b4c', '#b86e00', '#5c4d7a', '#9b2c2c', '#1f6f8b', '#c45c26', '#3d6b4f'];
     public function index(): View
     {
-        $limite = now()->addDays(30)->toDateString();
-        $rotas = RedeConsulta::rotas()->pluck('r.id');
+        $ano = (int) now()->year;
+        $mes = (int) now()->month;
+        $ids = RedeConsulta::rotas($ano)->pluck('id');
+        $vazio = $ids->isEmpty();
+        $podeCusto = Acesso::permite(Processos::GASTOS, 'ver');
+        $custo = $podeCusto ? CustoMensal::fechar($ano, $mes) : null;
+        $categorias = [];
+        $porFonte = ['pnate' => [], 'proprio' => [], 'outros' => []];
 
-        $cnh = DB::table('transporte_escolar.motorista as m')
-            ->join('cadastro.pessoa as p', 'p.idpes', '=', 'm.ref_idpes')
-            ->whereNotNull('m.vencimento_cnh')
-            ->where('m.vencimento_cnh', '<=', $limite)
-            ->orderBy('m.vencimento_cnh')
-            ->get(['p.nome', 'm.vencimento_cnh']);
+        if ($custo !== null) {
+            foreach ($custo['linhas'] as $linha) {
+                $rotulo = (string) $linha['rotulo'];
+                $fonte = in_array($linha['fonte'], ['pnate', 'proprio'], true) ? (string) $linha['fonte'] : 'outros';
+                $valor = (float) $linha['valor'];
 
-        $veiculos = DB::table('transporte_escolar.veiculo')
-            ->where(function ($q) use ($limite) {
-                foreach (['licenciamento_vencimento', 'seguro_vencimento', 'ipva_vencimento', 'vistoria_vencimento'] as $coluna) {
-                    $q->orWhere(function ($inner) use ($coluna, $limite) {
-                        $inner->whereNotNull($coluna)->where($coluna, '<=', $limite);
-                    });
+                if (!isset($categorias[$rotulo])) {
+                    $categorias[$rotulo] = ['rotulo' => $rotulo, 'valor' => 0.0, 'fontes' => []];
                 }
-            })
-            ->orderBy('placa')
-            ->get();
 
-        $lotacao = DB::table('transporte_escolar.rota as r')
-            ->join('transporte_escolar.itinerario as i', 'i.rota_id', '=', 'r.id')
+                $categorias[$rotulo]['valor'] += $valor;
+                $categorias[$rotulo]['fontes'][$fonte] = ($categorias[$rotulo]['fontes'][$fonte] ?? 0) + $valor;
+                $porFonte[$fonte][$rotulo] = ($porFonte[$fonte][$rotulo] ?? 0) + $valor;
+            }
+
+            uasort($categorias, static fn (array $a, array $b): int => $b['valor'] <=> $a['valor']);
+            $categorias = array_slice(array_values($categorias), 0, 8);
+        }
+
+        $mapa = $this->mapa($ids->all());
+        $alunos = $vazio ? 0 : (int) DB::table('transporte_escolar.aluno_rota')->whereIn('rota_id', $ids)->distinct()->count('ref_cod_aluno');
+        $viagens = $vazio ? 0 : (int) DB::table('transporte_escolar.viagem')->whereIn('rota_id', $ids)->whereYear('data', $ano)->whereMonth('data', $mes)->count();
+        $embarques = $vazio ? 0 : (int) DB::table('transporte_escolar.embarque as e')
+            ->join('transporte_escolar.viagem as v', 'v.id', '=', 'e.viagem_id')
+            ->whereIn('v.rota_id', $ids)
+            ->where('e.tipo', 'embarque')
+            ->whereYear('v.data', $ano)
+            ->whereMonth('v.data', $mes)
+            ->count();
+        $veiculos = $vazio ? collect() : DB::table('transporte_escolar.itinerario as i')
             ->join('transporte_escolar.veiculo as v', 'v.id', '=', 'i.veiculo_id')
-            ->leftJoin('transporte_escolar.aluno_rota as ar', 'ar.rota_id', '=', 'r.id')
-            ->when($rotas->isEmpty(), fn ($q) => $q->whereRaw('1 = 0'), fn ($q) => $q->whereIn('r.id', $rotas))
-            ->groupBy('r.id', 'r.descricao', 'r.ano', 'v.id', 'v.placa', 'v.passageiros')
-            ->havingRaw('count(distinct ar.ref_cod_aluno) > v.passageiros')
-            ->get([
-                'r.descricao',
-                'r.ano',
-                'v.placa',
-                'v.passageiros',
-                DB::raw('count(distinct ar.ref_cod_aluno) as alunos'),
-            ]);
+            ->whereIn('i.rota_id', $ids)
+            ->distinct()
+            ->get(['v.id', 'v.placa', 'v.descricao', 'v.passageiros']);
+        $escolasAtendidas = $vazio ? collect() : DB::table('transporte_escolar.rota_escola as re')
+            ->join('pmieducar.escola as e', 'e.cod_escola', '=', 're.ref_cod_escola')
+            ->join('cadastro.pessoa as p', 'p.idpes', '=', 'e.ref_idpes')
+            ->whereIn('re.rota_id', $ids)
+            ->groupBy('e.cod_escola', 'p.nome', 'e.latitude', 'e.longitude')
+            ->orderBy('p.nome')
+            ->get(['e.cod_escola', 'p.nome', 'e.latitude', 'e.longitude']);
+        $viagensRota = $vazio ? collect() : DB::table('transporte_escolar.viagem as v')
+            ->join('transporte_escolar.rota as r', 'r.id', '=', 'v.rota_id')
+            ->whereIn('v.rota_id', $ids)
+            ->whereYear('v.data', $ano)
+            ->whereMonth('v.data', $mes)
+            ->groupBy('r.descricao')
+            ->orderByDesc(DB::raw('count(*)'))
+            ->selectRaw('r.descricao, count(*) as viagens')
+            ->get();
+        $comTracado = count(array_filter($mapa['rotas'], static fn (array $rota): bool => $rota['pontos'] !== []));
+        $media = $ids->count() > 0 ? round($alunos / $ids->count(), 1) : 0;
+        $avisos = $this->fila();
+        $porTom = array_count_values(array_column($avisos, 'tom'));
+        $pedidos = Acesso::permite(Processos::SOLICITACOES, 'ver') ? $this->pedidos() : null;
 
-        $avisos = $this->avisos($cnh, $veiculos, $lotacao);
+        return view('transporte-escolar::painel', [
+            'ano' => $ano,
+            'mes' => $mes,
+            'cartoes' => [
+                ['tom' => 'azul', 'icone' => 'fa-road', 'valor' => $ids->count(), 'rotulo' => 'Rotas em ' . $ano, 'itens' => array_map(static fn (array $rota): array => ['rotulo' => $rota['nome'], 'valor' => $rota['alunos'] . ' alunos'], $mapa['rotas'])],
+                ['tom' => 'destaque', 'icone' => 'fa-users', 'valor' => $alunos, 'rotulo' => 'Alunos na rota', 'itens' => [
+                    ['rotulo' => 'Média por rota', 'valor' => str_replace('.', ',', (string) $media)],
+                    ['rotulo' => 'Com traçado', 'valor' => $comTracado],
+                    ['rotulo' => 'Sem traçado', 'valor' => max(0, $ids->count() - $comTracado)],
+                ]],
+                ['tom' => 'verde', 'icone' => 'fa-clock-o', 'valor' => $viagens, 'rotulo' => 'Viagens no mês', 'itens' => array_merge(
+                    [['rotulo' => 'Embarques', 'valor' => $embarques]],
+                    $viagensRota->map(static fn ($rota): array => ['rotulo' => (string) $rota->descricao, 'valor' => (int) $rota->viagens])->all(),
+                )],
+                ['tom' => 'ambar', 'icone' => 'fa-bus', 'valor' => $veiculos->count(), 'rotulo' => 'Veículos em linha', 'itens' => $veiculos->map(static fn ($veiculo): array => ['rotulo' => (string) ($veiculo->placa ?: $veiculo->descricao), 'valor' => (int) $veiculo->passageiros . ' lugares'])->all()],
+                ['tom' => 'roxo', 'icone' => 'fa-university', 'valor' => $escolasAtendidas->count(), 'rotulo' => 'Escolas atendidas', 'itens' => $escolasAtendidas->map(static function ($escola): array {
+                    $noMapa = Coordenada::noTerritorio($escola->latitude === null ? null : (string) $escola->latitude, $escola->longitude === null ? null : (string) $escola->longitude) === null
+                        && $escola->latitude !== null
+                        && $escola->longitude !== null;
 
-        if (Schema::hasColumn('transporte_escolar.motorista', 'curso_escolar_validade')) {
-            $cursos = DB::table('transporte_escolar.motorista as m')
-                ->join('cadastro.pessoa as p', 'p.idpes', '=', 'm.ref_idpes')
-                ->whereNotNull('m.curso_escolar_validade')
-                ->where('m.curso_escolar_validade', '<=', $limite)
-                ->orderBy('m.curso_escolar_validade')
-                ->get(['p.nome', 'm.curso_escolar_validade']);
+                    return ['rotulo' => (string) $escola->nome, 'valor' => $noMapa ? 'No mapa' : 'Sem ponto'];
+                })->all()],
+                ['tom' => 'alerta', 'icone' => 'fa-inbox', 'valor' => $pedidos ?? $mapa['lotadas'], 'rotulo' => $pedidos !== null ? 'Pedidos em análise' : 'Rotas acima da lotação', 'itens' => array_values(array_filter([
+                    $pedidos !== null ? ['rotulo' => 'Pedidos em análise', 'valor' => $pedidos] : null,
+                    ['rotulo' => 'Rotas lotadas', 'valor' => $mapa['lotadas']],
+                    ['rotulo' => 'Prazos', 'valor' => (int) ($porTom['prazo'] ?? 0)],
+                    ['rotulo' => 'Lotação', 'valor' => (int) ($porTom['lotacao'] ?? 0)],
+                    ['rotulo' => 'Serviços', 'valor' => (int) ($porTom['servico'] ?? 0)],
+                    ['rotulo' => 'Pedidos na fila', 'valor' => (int) ($porTom['pedido'] ?? 0)],
+                ]))],
+            ],
+            'podeCusto' => $podeCusto,
+            'custo' => $custo,
+            'categorias' => $categorias,
+            'porFonte' => $porFonte,
+            'teto' => $categorias === [] ? 1 : max(array_column($categorias, 'valor')),
+            'mapa' => $mapa,
+            'avisos' => $avisos,
+        ]);
+    }
 
-            foreach ($cursos as $item) {
-                $avisos[] = [
-                    'icone' => 'fa-id-card',
-                    'texto' => 'Curso escolar de ' . $item->nome . ' vence em ' . Carbon::parse($item->curso_escolar_validade)->format('d/m/Y') . '.',
-                    'url' => '/transporte-escolar/motoristas',
-                    'chave' => 'frota',
-                    'tom' => 'prazo',
-                ];
-            }
+    private function pedidos(): int
+    {
+        $escolas = \iEducar\Packages\BuritiTransporteEscolar\Support\VisaoRede::escolas();
+        $consulta = DB::table('transporte_escolar.solicitacao')->whereIn('situacao', ['recebida', 'em_analise']);
+
+        if ($escolas === []) {
+            $consulta->whereRaw('1 = 0');
+        } elseif (is_array($escolas)) {
+            $consulta->whereIn('ref_cod_escola', $escolas);
         }
 
-        if (Schema::hasTable('transporte_escolar.autorizacao_veiculo')) {
-            $autorizacoes = DB::table('transporte_escolar.autorizacao_veiculo as a')
-                ->join('transporte_escolar.veiculo as v', 'v.id', '=', 'a.veiculo_id')
-                ->where('a.validade', '<=', $limite)
-                ->orderBy('a.validade')
-                ->get(['v.placa', 'v.descricao', 'a.validade', 'a.orgao']);
-
-            foreach ($autorizacoes as $item) {
-                $avisos[] = [
-                    'icone' => 'fa-check-square-o',
-                    'texto' => 'Autorização ' . ($item->orgao === 'ciretran' ? 'CIRETRAN' : 'DETRAN') . ' de ' . ($item->placa ?: $item->descricao) . ' vence em ' . Carbon::parse($item->validade)->format('d/m/Y') . '.',
-                    'url' => '/transporte-escolar/conformidade',
-                    'chave' => 'frota',
-                    'tom' => 'prazo',
-                ];
-            }
-        }
-
-        return view('transporte-escolar::painel', compact('avisos'));
+        return (int) $consulta->count();
     }
 
     /**
-     * @param \Illuminate\Support\Collection<int, object> $cnh
-     * @param \Illuminate\Support\Collection<int, object> $veiculos
-     * @param \Illuminate\Support\Collection<int, object> $lotacao
-     * @return list<array{icone: string, texto: string, url: string, chave: string, tom: string}>
+     * @param list<int> $rotas
+     * @return array{escolas: list<array{lat: float, lng: float, nome: string}>, rotas: list<array{id: int, nome: string, cor: string, alunos: int, km: float, tempo: ?int, veiculos: list<string>, motoristas: list<string>, pontos: list<array{lat: float, lng: float, nome: string, tipo: string}>}>, lotadas: int}
      */
-    private function avisos($cnh, $veiculos, $lotacao): array
+    private function mapa(array $rotas): array
     {
-        $avisos = [];
+        $escolas = [];
 
-        foreach ($cnh as $item) {
-            $avisos[] = [
-                'icone' => 'fa-id-card',
-                'texto' => 'CNH de ' . $item->nome . ' vence em ' . Carbon::parse($item->vencimento_cnh)->format('d/m/Y') . '.',
-                'url' => '/transporte-escolar/motoristas',
-                'chave' => 'frota',
-                'tom' => 'prazo',
+        foreach (RedeConsulta::escolas()->get() as $escola) {
+            if (Coordenada::noTerritorio($escola->latitude === null ? null : (string) $escola->latitude, $escola->longitude === null ? null : (string) $escola->longitude) !== null) {
+                continue;
+            }
+
+            $escolas[] = [
+                'lat' => (float) $escola->latitude,
+                'lng' => (float) $escola->longitude,
+                'nome' => (string) $escola->nome,
             ];
         }
 
-        foreach ($veiculos as $veiculo) {
-            $avisos[] = [
-                'icone' => 'fa-bus',
-                'texto' => 'Veículo ' . ($veiculo->placa ?: $veiculo->descricao) . ' com documento a vencer em 30 dias.',
-                'url' => '/transporte-escolar/veiculos',
-                'chave' => 'frota',
-                'tom' => 'prazo',
+        if ($rotas === []) {
+            return ['escolas' => $escolas, 'rotas' => [], 'lotadas' => 0];
+        }
+
+        $cadastro = DB::table('transporte_escolar.rota')->whereIn('id', $rotas)->orderBy('descricao')->get(['id', 'descricao', 'km_pav', 'km_npav', 'km_calculado', 'tempo_estimado_min']);
+        $equipe = [];
+
+        foreach (DB::table('transporte_escolar.itinerario as i')
+            ->join('transporte_escolar.veiculo as v', 'v.id', '=', 'i.veiculo_id')
+            ->leftJoin('transporte_escolar.motorista as m', 'm.id', '=', 'v.motorista_id')
+            ->leftJoin('cadastro.pessoa as p', 'p.idpes', '=', 'm.ref_idpes')
+            ->whereIn('i.rota_id', $rotas)
+            ->whereNotNull('i.veiculo_id')
+            ->get(['i.rota_id', 'v.placa', 'v.descricao as veiculo', 'p.nome as motorista']) as $item) {
+            $nomeVeiculo = trim((string) ($item->placa ?: $item->veiculo));
+            $equipe[$item->rota_id]['veiculos'][$nomeVeiculo] = $nomeVeiculo;
+
+            if ($item->motorista) {
+                $equipe[$item->rota_id]['motoristas'][(string) $item->motorista] = (string) $item->motorista;
+            }
+        }
+        $alunos = DB::table('transporte_escolar.aluno_rota')->whereIn('rota_id', $rotas)->selectRaw('rota_id, count(*) as alunos')->groupBy('rota_id')->pluck('alunos', 'rota_id');
+        $lugares = DB::table('transporte_escolar.itinerario as i')
+            ->join('transporte_escolar.veiculo as v', 'v.id', '=', 'i.veiculo_id')
+            ->whereIn('i.rota_id', $rotas)
+            ->selectRaw('i.rota_id, min(v.passageiros) as lugares')
+            ->groupBy('i.rota_id')
+            ->pluck('lugares', 'rota_id');
+        $paradas = DB::table('transporte_escolar.itinerario as i')
+            ->join('transporte_escolar.ponto as p', 'p.id', '=', 'i.ponto_id')
+            ->whereIn('i.rota_id', $rotas)
+            ->whereNotNull('p.latitude')
+            ->whereNotNull('p.longitude')
+            ->orderBy('i.rota_id')
+            ->orderBy('i.seq')
+            ->limit(800)
+            ->get(['i.rota_id', 'i.tipo', 'p.latitude', 'p.longitude', 'p.descricao']);
+        $porRota = [];
+
+        foreach ($paradas as $parada) {
+            if (Coordenada::noTerritorio((string) $parada->latitude, (string) $parada->longitude) !== null) {
+                continue;
+            }
+
+            $porRota[$parada->rota_id][] = [
+                'lat' => (float) $parada->latitude,
+                'lng' => (float) $parada->longitude,
+                'nome' => (string) $parada->descricao,
+                'tipo' => (string) $parada->tipo,
             ];
         }
 
-        foreach ($lotacao as $item) {
-            $avisos[] = [
-                'icone' => 'fa-users',
-                'texto' => $item->descricao . ' (' . $item->ano . '): ' . $item->alunos . ' alunos para ' . $item->passageiros . ' lugares.',
-                'url' => '/transporte-escolar/alunos?ano=' . $item->ano,
-                'chave' => 'alunos',
-                'tom' => 'lotacao',
+        $linhas = [];
+        $lotadas = 0;
+
+        foreach ($cadastro as $indice => $rota) {
+            $quantidade = (int) ($alunos[$rota->id] ?? 0);
+            $capacidade = isset($lugares[$rota->id]) ? (int) $lugares[$rota->id] : null;
+
+            if ($capacidade !== null && $quantidade > $capacidade) {
+                $lotadas++;
+            }
+
+            $km = (float) $rota->km_pav + (float) $rota->km_npav;
+            $linhas[] = [
+                'id' => (int) $rota->id,
+                'nome' => (string) $rota->descricao,
+                'cor' => self::CORES[$indice % count(self::CORES)],
+                'alunos' => $quantidade,
+                'km' => round($km > 0 ? $km : (float) $rota->km_calculado, 1),
+                'tempo' => $rota->tempo_estimado_min === null ? null : (int) $rota->tempo_estimado_min,
+                'veiculos' => array_values($equipe[$rota->id]['veiculos'] ?? []),
+                'motoristas' => array_values($equipe[$rota->id]['motoristas'] ?? []),
+                'pontos' => $porRota[$rota->id] ?? [],
             ];
         }
 
-        $escolas = VisaoRede::escolas();
-        $pedidos = DB::table('transporte_escolar.solicitacao')->whereIn('situacao', ['recebida', 'em_analise']);
+        return ['escolas' => $escolas, 'rotas' => $linhas, 'lotadas' => $lotadas];
+    }
 
-        if ($escolas === []) {
-            $pedidos->whereRaw('1 = 0');
-        } elseif (is_array($escolas)) {
-            $pedidos->whereIn('ref_cod_escola', $escolas);
+    /**
+     * @return list<object>
+     */
+    private function fila(): array
+    {
+        if (!Schema::hasTable('transporte_escolar.notificacao')) {
+            return [];
         }
 
-        $abertos = (int) $pedidos->count();
+        GerarAvisos::sincronizar();
+        $usuario = (int) Auth::id();
+        $menus = [];
+        $mapa = [
+            'frota' => Processos::VEICULOS,
+            'alunos' => Processos::ALUNOS,
+            'solicitacoes' => Processos::SOLICITACOES,
+            'gastos' => Processos::GASTOS,
+        ];
 
-        if ($abertos > 0) {
-            $avisos[] = [
-                'icone' => 'fa-inbox',
-                'texto' => $abertos === 1 ? '1 pedido da família aguarda análise.' : $abertos . ' pedidos da família aguardam análise.',
-                'url' => '/transporte-escolar/solicitacoes',
-                'chave' => 'solicitacoes',
-                'tom' => 'pedido',
-            ];
+        foreach ($mapa as $menu => $processo) {
+            if (Acesso::permite($processo, 'ver')) {
+                $menus[] = $menu;
+            }
         }
 
-        $ordens = (int) DB::table('transporte_escolar.ordem_servico')
-            ->whereIn('situacao', ['solicitada', 'autorizada', 'em_execucao'])
-            ->count();
-
-        if ($ordens > 0) {
-            $avisos[] = [
-                'icone' => 'fa-wrench',
-                'texto' => $ordens === 1 ? '1 ordem de serviço ainda não foi concluída.' : $ordens . ' ordens de serviço ainda não foram concluídas.',
-                'url' => '/transporte-escolar/ordens',
-                'chave' => 'gastos',
-                'tom' => 'servico',
-            ];
+        if ($menus === []) {
+            return [];
         }
 
-        $bilhetes = (int) DB::table('transporte_escolar.abastecimento')
-            ->whereIn('situacao', ['solicitado', 'autorizado'])
-            ->count();
-
-        if ($bilhetes > 0) {
-            $avisos[] = [
-                'icone' => 'fa-tint',
-                'texto' => $bilhetes === 1 ? '1 bilhete de abastecimento aguarda confirmação.' : $bilhetes . ' bilhetes de abastecimento aguardam confirmação.',
-                'url' => '/transporte-escolar/bilhetes',
-                'chave' => 'gastos',
-                'tom' => 'servico',
-            ];
-        }
-
-        return $avisos;
+        return DB::table('transporte_escolar.notificacao as n')
+            ->leftJoin('transporte_escolar.notificacao_leitura as l', function ($join) use ($usuario) {
+                $join->on('l.notificacao_id', '=', 'n.id')->where('l.ref_usuario', $usuario);
+            })
+            ->where('n.chave', 'like', GerarAvisos::escopo() . ':%')
+            ->whereIn('n.menu', $menus)
+            ->where('n.ativa', true)
+            ->orderByDesc('n.updated_at')
+            ->limit(12)
+            ->get(['n.id', 'n.titulo', 'n.texto', 'n.url', 'n.tom', 'n.icone', 'l.lida_em'])
+            ->all();
     }
 }

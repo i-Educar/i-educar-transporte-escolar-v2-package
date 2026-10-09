@@ -3,7 +3,7 @@
 @section('transporte')
     @php
         $meses = [1 => 'Janeiro', 2 => 'Fevereiro', 3 => 'Março', 4 => 'Abril', 5 => 'Maio', 6 => 'Junho', 7 => 'Julho', 8 => 'Agosto', 9 => 'Setembro', 10 => 'Outubro', 11 => 'Novembro', 12 => 'Dezembro'];
-        $base = url('/transporte-escolar/relatorios/csv') . '?ano=' . $ano . '&mes=' . $mes;
+        $base = $csvBase . '?ano=' . $ano . '&mes=' . $mes;
         $hoje = now()->toDateString();
         $limite = now()->addDays(30)->toDateString();
         $cobertura = $alunos > 0 ? (int) round($embarcados / $alunos * 100) : 0;
@@ -19,36 +19,62 @@
         $consumoAlerta = collect($consumo)->where('alerta', true)->count();
         $divergencias = $censoSemRota->count() + $rotaSemCenso->count();
         $totalMes = $podeCusto && $custo ? $custo['pnate'] + $custo['proprio'] + $custo['outros'] : 0;
+        $rotasRurais = collect($porRota)->where('tipo', 'Rural');
+        $alunosRurais = (int) $rotasRurais->sum('alunos');
+        $kmRural = round((float) $rotasRurais->sum('realizado'), 1);
+        $licencasVencidas = $frota->filter(fn ($veiculo) => $veiculo->licenciamento_vencimento && \Illuminate\Support\Carbon::parse($veiculo->licenciamento_vencimento)->toDateString() < $hoje)->count();
+        $opcoes = [
+            ['id' => 'indicadores', 'nome' => 'Indicadores', 'frase' => 'Cobertura, preventiva e km do mês', 'icone' => 'fa-bar-chart', 'cor' => '#1f4e66', 'planilha' => 'resumo', 'arquivo' => 'Resumo'],
+            ['id' => 'rotas', 'nome' => 'Rotas', 'frase' => 'Lista, embarque e zona rural', 'icone' => 'fa-road', 'cor' => '#188ad1', 'planilha' => 'rotas', 'arquivo' => 'Rotas'],
+            ['id' => 'motoristas', 'nome' => 'Motoristas', 'frase' => 'CNH vencida e a vencer', 'icone' => 'fa-id-card', 'cor' => '#b86e00', 'planilha' => 'cnh', 'arquivo' => 'CNH'],
+            ['id' => 'frota', 'nome' => 'Frota', 'frase' => 'Licenciamento de cada veículo', 'icone' => 'fa-bus', 'cor' => '#5c4d7a', 'planilha' => 'frota', 'arquivo' => 'Frota'],
+            ['id' => 'consumo', 'nome' => 'Consumo', 'frase' => 'Km por litro e litros por 100 km', 'icone' => 'fa-tint', 'cor' => '#0f6b4c', 'planilha' => 'consumo', 'arquivo' => 'Consumo'],
+            ['id' => 'censo', 'nome' => 'Censo', 'frase' => 'Ficha e rota que não batem', 'icone' => 'fa-exchange', 'cor' => '#9b2c2c', 'planilha' => 'censo', 'arquivo' => 'Censo'],
+            ['id' => 'cruzamento', 'nome' => 'Escola e zona', 'frase' => 'Escola, turno e zona da rota', 'icone' => 'fa-th', 'cor' => '#0e7490', 'planilha' => null, 'arquivo' => null],
+            ['id' => 'vagas-rota', 'nome' => 'Vagas', 'frase' => 'Lugares publicados e alunos', 'icone' => 'fa-ticket', 'cor' => '#1f6f8b', 'planilha' => null, 'arquivo' => null],
+        ];
+        if ($podeCusto) {
+            $opcoes[] = ['id' => 'custo', 'nome' => 'Custo do mês', 'frase' => 'PNATE, próprio e outras fontes', 'icone' => 'fa-money', 'cor' => '#5c4d7a', 'planilha' => 'categoria', 'arquivo' => 'Por categoria'];
+        }
     @endphp
-    <h1><i class="fa fa-file-text-o" aria-hidden="true"></i> Relatórios · {{ $ano }}</h1>
-    <p class="lead">Os números seguem as rotas que este perfil pode ver. Cada grupo abre o detalhe abaixo, e a planilha usa o mesmo recorte.</p>
+    <h1><i class="fa fa-bar-chart" aria-hidden="true"></i> Relatórios · {{ $ano }}</h1>
+    <p class="lead">Uma leitura só, no recorte deste perfil. O conselho vê a mesma tela, sem gravar e sem calcular o Ideges.</p>
 
     <section class="painel-grupo">
-        <div class="barra-dados">
-            <form method="get" class="acao">
-                <label>Ano <input name="ano" value="{{ $ano }}" size="6"></label>
-                <label>Mês do custo
-                    <select name="mes">
-                        @foreach($meses as $numero => $nome)
-                            <option value="{{ $numero }}" @selected($mes === $numero)>{{ $nome }}</option>
-                        @endforeach
-                    </select>
-                </label>
-                <button type="submit">Atualizar</button>
-            </form>
-            <div class="acao">
-                <a class="botao claro" href="{{ $base }}&planilha=resumo"><i class="fa fa-download" aria-hidden="true"></i> Resumo</a>
-                <a class="botao claro" href="{{ $base }}&planilha=rotas"><i class="fa fa-download" aria-hidden="true"></i> Rotas</a>
-                <a class="botao claro" href="{{ $base }}&planilha=motoristas"><i class="fa fa-download" aria-hidden="true"></i> Motoristas</a>
-                <a class="botao claro" href="{{ $base }}&planilha=censo"><i class="fa fa-download" aria-hidden="true"></i> Censo</a>
-                <a class="botao claro" href="{{ $base }}&planilha=consumo"><i class="fa fa-download" aria-hidden="true"></i> Consumo</a>
-                @if($podeCusto)
-                    <a class="botao claro" href="{{ $base }}&planilha=custo"><i class="fa fa-download" aria-hidden="true"></i> Custo</a>
-                    <a class="botao" href="{{ url('/transporte-escolar/relatorios/dossie?ano='.$ano.'&mes='.$mes) }}"><i class="fa fa-folder-open" aria-hidden="true"></i> Dossiê</a>
-                @endif
-            </div>
-        </div>
+        <form method="get" class="acao">
+            <label>Ano <input name="ano" value="{{ $ano }}" size="6"></label>
+            <label>Mês do custo
+                <select name="mes">
+                    @foreach($meses as $numero => $nome)
+                        <option value="{{ $numero }}" @selected($mes === $numero)>{{ $nome }}</option>
+                    @endforeach
+                </select>
+            </label>
+            <button type="submit">Atualizar</button>
+        </form>
     </section>
+
+    <div class="opcoes-relatorio">
+        @foreach($opcoes as $opcao)
+            <article class="opcao-relatorio" style="--cor: {{ $opcao['cor'] }}">
+                <span class="marca-opcao"><i class="fa {{ $opcao['icone'] }}" aria-hidden="true"></i></span>
+                <strong>{{ $opcao['nome'] }}</strong>
+                <p>{{ $opcao['frase'] }}</p>
+                <div class="acao">
+                    <a class="botao claro" href="#{{ $opcao['id'] }}">Ver</a>
+                    @if($opcao['planilha'])
+                        <a class="botao claro" href="{{ $base }}&planilha={{ $opcao['planilha'] }}"><i class="fa fa-download" aria-hidden="true"></i> {{ $opcao['arquivo'] }}</a>
+                    @endif
+                    @if($opcao['id'] === 'custo')
+                        <a class="botao claro" href="{{ $base }}&planilha=custo"><i class="fa fa-download" aria-hidden="true"></i> Lançamentos</a>
+                        @if($podeDossie)
+                            <a class="botao" href="{{ url('/transporte-escolar/relatorios/dossie?ano='.$ano.'&mes='.$mes) }}">Dossiê</a>
+                        @endif
+                    @endif
+                </div>
+            </article>
+        @endforeach
+    </div>
 
     @include('transporte-escolar::relatorios.graficos')
 
@@ -60,6 +86,7 @@
             <a class="kpi destaque" href="#rotas"><span class="marca-kpi"><i class="fa fa-list-ol" aria-hidden="true"></i></span><span><strong>{{ $alunos }}</strong><em>Alunos na lista</em></span></a>
             <a class="kpi verde" href="#rotas"><span class="marca-kpi"><i class="fa fa-sign-in" aria-hidden="true"></i></span><span><strong>{{ $embarcados }}</strong><em>Com embarque</em></span></a>
             <a class="kpi azul" href="#rotas"><span class="marca-kpi"><i class="fa fa-clock-o" aria-hidden="true"></i></span><span><strong>{{ $viagens }}</strong><em>Viagens · {{ $cobertura }}% embarcaram</em></span></a>
+            <a class="kpi ambar" href="#rotas"><span class="marca-kpi"><i class="fa fa-tree" aria-hidden="true"></i></span><span><strong>{{ $alunosRurais }}</strong><em>Em rota rural · {{ number_format($kmRural, 1, ',', '.') }} km</em></span></a>
         </div>
     </section>
 
@@ -130,6 +157,27 @@
     @if($podeCusto && $custo)
         <section class="painel-grupo" data-painel>
             <div class="barra-dados">
+                <h2><i class="fa fa-balance-scale" aria-hidden="true"></i> Categorias de {{ $meses[$mes] }}</h2>
+            </div>
+            <div class="tabela-wrap">
+                <table>
+                    <thead><tr><th>Categoria</th><th>Fonte</th><th>Valor</th></tr></thead>
+                    <tbody>
+                        @forelse($categorias as $linha)
+                            <tr>
+                                <td>{{ $linha['rotulo'] }}</td>
+                                <td><span class="selo">{{ $fontes[$linha['fonte']] ?? $linha['fonte'] }}</span></td>
+                                <td>R$ {{ number_format($linha['valor'], 2, ',', '.') }}</td>
+                            </tr>
+                        @empty
+                            <tr data-vazio><td colspan="3" class="vazio">Nada entrou no custo deste mês.</td></tr>
+                        @endforelse
+                    </tbody>
+                </table>
+            </div>
+        </section>
+        <section class="painel-grupo" data-painel>
+            <div class="barra-dados">
                 <h2><i class="fa fa-list" aria-hidden="true"></i> Lançamentos de {{ $meses[$mes] }}</h2>
             </div>
             <div class="tabela-wrap">
@@ -174,6 +222,31 @@
                             </tr>
                         @empty
                             <tr data-vazio><td colspan="4" class="vazio">Nenhum motorista neste recorte.</td></tr>
+                        @endforelse
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <section class="painel-grupo" id="frota" data-painel>
+            <div class="barra-dados">
+                <h2><i class="fa fa-bus" aria-hidden="true"></i> Frota ativa</h2>
+                <label class="filtro"><i class="fa fa-search" aria-hidden="true"></i><input type="search" data-filtro-tabela placeholder="Buscar placa"></label>
+            </div>
+            <p class="lead">{{ $licencasVencidas }} com licenciamento vencido. A lista de 30 dias continua ao lado.</p>
+            <div class="tabela-wrap">
+                <table>
+                    <thead><tr><th>Veículo</th><th>Licenciamento</th><th>Situação</th></tr></thead>
+                    <tbody>
+                        @forelse($frota as $veiculo)
+                            @php $vence = $veiculo->licenciamento_vencimento ? \Illuminate\Support\Carbon::parse($veiculo->licenciamento_vencimento)->toDateString() : null; @endphp
+                            <tr data-busca="{{ $veiculo->placa }} {{ $veiculo->descricao }}">
+                                <td>{{ $veiculo->placa ?: $veiculo->descricao }}</td>
+                                <td>{{ $vence ? \Illuminate\Support\Carbon::parse($vence)->format('d/m/Y') : '—' }}</td>
+                                <td><span class="selo {{ $vence === null ? '' : ($vence < $hoje ? 'alerta' : ($vence <= $limite ? 'prazo' : 'ok')) }}">{{ $vence === null ? 'Sem data' : ($vence < $hoje ? 'Vencido' : ($vence <= $limite ? 'A vencer' : 'Em dia')) }}</span></td>
+                            </tr>
+                        @empty
+                            <tr data-vazio><td colspan="3" class="vazio">Nenhum veículo ativo neste recorte.</td></tr>
                         @endforelse
                     </tbody>
                 </table>

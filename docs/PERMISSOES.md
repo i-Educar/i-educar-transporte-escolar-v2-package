@@ -75,7 +75,7 @@ A escola não vê viagem de rota que não passa por ela. O código `TE-` mais o 
 | Processo | Tela | Institucional | Escola |
 | --- | --- | --- | --- |
 | 880151 | Relatórios e planilha | Consulta a rede, inclusive o custo | Consulta só as suas rotas, sem o bloco de custo |
-| 880152 | Painel do CACS | Só leitura | Sem menu |
+| 880152 | Mesma tela de relatórios | Só leitura, com o bloco de custo | Sem menu |
 
 O dossiê mensal usa a mesma permissão de gastos, não a de relatório.
 
@@ -109,10 +109,13 @@ Não há processo novo. A tela Tipos de usuário continua valendo o que já est�
 
 | Tela | Processo | Institucional (níveis 1 e 2) | Escola (nível 4) | Biblioteca (nível 8) |
 | --- | --- | --- | --- | --- |
-| Gráficos em Relatórios | 880151, só leitura | Vê a rede, inclusive o gasto por fonte | Vê as próprias rotas, sem o bloco de gasto | Sem menu |
-| Gráficos no CACS | 880152, só leitura | Vê, não grava | Sem menu | Sem menu |
+| Gráficos em Relatórios | 880151 ou 880152, só leitura | Vê a rede, inclusive o gasto por fonte | Vê as próprias rotas, sem o bloco de gasto. O conselho não tem menu na escola | Sem menu |
 | Conformidade da frota | 880113 Veículos | Grava autorização e checklist | Consulta, não grava | Sem menu |
 | Curso do motorista | 880111 Motoristas | Grava a validade | Consulta | Sem menu |
 | Estoque da frota | 880150 Gastos | Grava item, entrada, baixa e contagem | Sem menu | Sem menu |
+
+## Caixa de notificações
+
+Não há processo novo. A lista e o sino usam o processo 880100, o mesmo do painel. Quem vê o painel vê o sino. Cada aviso ainda respeita o menu de origem: frota, alunos na rota, pedidos ou gastos. A escola não lê ordem, bilhete nem estoque. A leitura vale só para o usuário que abriu o detalhe e tira o aviso da contagem do sino. A fila do painel continua enquanto a condição existir.
 
 A viagem nova (880140) continua podendo ser gravada pela escola nas rotas dela. O bloqueio por papel vencido vale para os dois perfis que gravam viagem: sem autorização vigente, sem licenciamento, sem CNH ou sem curso, a viagem não abre. O poli-institucional segue vendo todos os menus pelo núcleo. O conselho não ganhou botão de gravar.

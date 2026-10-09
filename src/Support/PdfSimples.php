@@ -8,6 +8,9 @@ namespace iEducar\Packages\BuritiTransporteEscolar\Support;
  */
 final class PdfSimples
 {
+    private const MARGEM = 32;
+
+    private const LARGURA = 531;
     /**
      * @param list<string> $linhas
      */
@@ -67,9 +70,9 @@ final class PdfSimples
     private static function duasVias(array $doc, bool $logo): string
     {
         $comandos = array_merge(
-            self::metade($doc, $logo, 804, 'Via 1', 'Arquivo', 452),
-            self::tesoura(421),
-            self::metade($doc, $logo, 392, 'Via 2', 'Canhoto', 28),
+            self::metade($doc, $logo, 808, 'Via 1', 'Arquivo', 456),
+            self::tesoura(420),
+            self::metade($doc, $logo, 392, 'Via 2', 'Canhoto', 40),
         );
 
         return implode("\n", $comandos);
@@ -81,25 +84,27 @@ final class PdfSimples
      */
     private static function metade(array $doc, bool $logo, int $faixa, string $via, string $papel, int $rodape): array
     {
-        $comandos = self::cabecalho($doc, $logo, $faixa, $via);
-        $comandos[] = '0.75 0.78 0.82 RG';
-        $comandos[] = '0.6 w';
-        $comandos[] = '28 ' . ($rodape - 8) . ' 539 ' . ($faixa - $rodape + 34) . ' re S';
-        $y = $faixa - 22;
+        $topo = $faixa;
+        $base = $rodape - 8;
+        $comandos = ['q', self::MARGEM . ' ' . $base . ' ' . self::LARGURA . ' ' . ($topo - $base) . ' re W n'];
+        array_push($comandos, ...self::cabecalho($doc, $logo, $topo - 30, $via));
+        $y = $topo - 42;
         $qr = $doc['qr'] ?? null;
-        $limite = $rodape + (is_array($qr) ? 86 : 36);
+        $limite = $rodape + (is_array($qr) ? 78 : 28);
         $coluna = 0;
+        $interno = self::LARGURA - 16;
+        $meia = (int) floor(($interno - 8) / 2);
 
         foreach ($doc['campos'] as $campo) {
-            $largo = mb_strlen((string) $campo[1]) > 42;
-            $largura = $largo || $coluna === 1 ? 519 : 254;
-            $x = $coluna === 0 ? 36 : 301;
+            $largo = mb_strlen((string) $campo[1]) > 36;
+            $largura = $largo ? $interno : $meia;
+            $x = $largo || $coluna === 0 ? self::MARGEM + 8 : self::MARGEM + 8 + $meia + 8;
 
             if ($largo && $coluna === 1) {
                 $y -= 32;
                 $coluna = 0;
-                $x = 36;
-                $largura = 519;
+                $x = self::MARGEM + 8;
+                $largura = $interno;
             }
 
             if ($y - 28 < $limite) {
@@ -116,11 +121,11 @@ final class PdfSimples
         }
 
         if ($doc['observacao'] !== '' && $y - 22 >= $limite) {
-            array_push($comandos, ...self::caixa(36, $y - 22, 519, 22, 'Observacao', $doc['observacao']));
+            array_push($comandos, ...self::caixa(self::MARGEM + 8, $y - 22, self::LARGURA - 16, 22, 'Observacao', $doc['observacao']));
             $y -= 28;
         }
 
-        $xAssinatura = 36;
+        $xAssinatura = self::MARGEM + 8;
 
         foreach ($doc['assinaturas'] as $assinatura) {
             if ($y < $limite) {
@@ -130,21 +135,26 @@ final class PdfSimples
             $comandos[] = '0.45 0.50 0.55 RG';
             $comandos[] = $xAssinatura . ' ' . ($y - 16) . ' m ' . ($xAssinatura + 150) . ' ' . ($y - 16) . ' l S';
             $comandos[] = '0.28 0.34 0.40 rg';
-            $comandos[] = self::texto($xAssinatura, $y - 26, 7, $assinatura);
+            $comandos[] = self::texto($xAssinatura, $y - 26, 7, self::cortar($assinatura, 146, 7));
             $xAssinatura += 175;
 
-            if ($xAssinatura > 430) {
-                $xAssinatura = 36;
+            if ($xAssinatura > self::MARGEM + self::LARGURA - 160) {
+                $xAssinatura = self::MARGEM + 8;
                 $y -= 34;
             }
         }
 
         $comandos[] = '0.28 0.34 0.40 rg';
-        $comandos[] = self::texto(36, $rodape, 7, 'Transporte escolar  |  i-Educar  |  ' . $via . '  |  ' . $papel . '  |  Documento de controle, sem valor fiscal');
+        $comandos[] = self::texto(self::MARGEM + 8, $rodape, 7, self::cortar('Transporte escolar  |  i-Educar  |  ' . $via . '  |  ' . $papel . '  |  Documento de controle, sem valor fiscal', self::LARGURA - 90, 7));
 
         if (is_array($qr) && $qr !== []) {
-            array_push($comandos, ...self::qr($qr, 470, $rodape + 12, 2));
+            array_push($comandos, ...self::qr($qr, self::MARGEM + self::LARGURA - 58, $rodape + 10, 2));
         }
+
+        $comandos[] = 'Q';
+        $comandos[] = '0.75 0.78 0.82 RG';
+        $comandos[] = '0.8 w';
+        $comandos[] = self::MARGEM . ' ' . $base . ' ' . self::LARGURA . ' ' . ($topo - $base) . ' re S';
 
         return $comandos;
     }
@@ -178,40 +188,50 @@ final class PdfSimples
      */
     private static function paginaLista(array $doc, array $linhas, int $pagina, int $total, bool $logo): array
     {
-        $comandos = self::cabecalho($doc, $logo, 800, $pagina . '/' . $total);
+        $tabelaX = self::MARGEM + 8;
+        $tabelaL = self::LARGURA - 16;
+        $comandos = ['q', self::MARGEM . ' 36 ' . self::LARGURA . ' 774 re W n'];
+        array_push($comandos, ...self::cabecalho($doc, $logo, 774, $pagina . '/' . $total));
         $comandos[] = '0.28 0.34 0.40 rg';
-        $comandos[] = self::texto(36, 772, 9, $doc['subtitulo']);
+        $comandos[] = self::texto($tabelaX, 744, 9, self::cortar($doc['subtitulo'], $tabelaL, 9));
         $comandos[] = '0.91 0.94 0.96 rg';
-        $comandos[] = '28 748 539 16 re f';
+        $comandos[] = $tabelaX . ' 722 ' . $tabelaL . ' 16 re f';
         $comandos[] = '0.22 0.33 0.42 rg';
-        $comandos[] = self::textoFonte(2, 36, 752, 8, 'No');
-        $comandos[] = self::textoFonte(2, 70, 752, 8, 'CPF');
-        $comandos[] = self::textoFonte(2, 230, 752, 8, 'Status');
-        $y = 728;
+        $comandos[] = self::textoFonte(2, $tabelaX + 8, 726, 8, 'No');
+        $comandos[] = self::textoFonte(2, $tabelaX + 48, 726, 8, 'CPF');
+        $comandos[] = self::textoFonte(2, $tabelaX + 210, 726, 8, 'Status');
+        $y = 704;
 
         if ($linhas === []) {
             $comandos[] = '0.36 0.42 0.48 rg';
-            $comandos[] = self::texto(36, $y, 9, 'Nenhum aluno vinculado a esta rota.');
+            $comandos[] = self::texto($tabelaX + 8, $y, 9, 'Nenhum aluno vinculado a esta rota.');
+            $y -= 18;
         }
 
         foreach ($linhas as $indice => $linha) {
             if ($indice % 2 === 0) {
                 $comandos[] = '0.97 0.98 0.99 rg';
-                $comandos[] = '28 ' . ($y - 4) . ' 539 16 re f';
+                $comandos[] = ($tabelaX + 0.6) . ' ' . ($y - 4) . ' ' . ($tabelaL - 1.2) . ' 16 re f';
             }
 
             $comandos[] = '0.14 0.20 0.24 rg';
-            $comandos[] = self::texto(36, $y, 9, (string) (($pagina - 1) * 32 + $indice + 1));
-            $comandos[] = self::textoFonte(2, 70, $y, 9, (string) $linha['cpf']);
-            array_push($comandos, ...self::status($linha['presente'], 230, $y - 2));
-            $y -= 20;
+            $comandos[] = self::texto($tabelaX + 8, $y, 9, (string) (($pagina - 1) * 32 + $indice + 1));
+            $comandos[] = self::textoFonte(2, $tabelaX + 48, $y, 9, self::cortar((string) $linha['cpf'], 150, 9, true));
+            array_push($comandos, ...self::status($linha['presente'], $tabelaX + 210, $y - 2));
+            $y -= 18;
         }
 
+        $altura = 722 - ($y + 4) + 16;
         $comandos[] = '0.75 0.78 0.82 RG';
         $comandos[] = '0.6 w';
-        $comandos[] = '28 36 m 567 36 l S';
+        $comandos[] = $tabelaX . ' ' . ($y + 4) . ' ' . $tabelaL . ' ' . $altura . ' re S';
+        $comandos[] = $tabelaX . ' 722 m ' . ($tabelaX + $tabelaL) . ' 722 l S';
+        $comandos[] = 'Q';
+        $comandos[] = '0.75 0.78 0.82 RG';
+        $comandos[] = '0.8 w';
+        $comandos[] = self::MARGEM . ' 36 ' . self::LARGURA . ' 774 re S';
         $comandos[] = '0.36 0.42 0.48 rg';
-        $comandos[] = self::texto(36, 22, 7, 'Transporte escolar  |  i-Educar  |  Frequencia da viagem  |  CPF abreviado  |  Documento de controle, sem valor fiscal');
+        $comandos[] = self::texto(self::MARGEM + 8, 22, 7, self::cortar('Transporte escolar  |  i-Educar  |  Frequencia da viagem  |  CPF abreviado  |  Documento de controle, sem valor fiscal', self::LARGURA - 16, 7));
 
         return $comandos;
     }
@@ -272,27 +292,21 @@ final class PdfSimples
      */
     private static function cabecalho(array $doc, bool $logo, int $base, string $via): array
     {
-        $x = $logo ? 64 : 36;
+        $x = $logo ? self::MARGEM + 36 : self::MARGEM + 10;
+        $barra = self::LARGURA - 2;
         $comandos = [
             '0.278 0.447 0.561 rg',
-            '28 ' . $base . ' 539 26 re f',
+            (self::MARGEM + 1) . ' ' . $base . ' ' . $barra . ' 28 re f',
         ];
 
         if ($logo) {
-            $comandos[] = 'q 20 0 0 20 34 ' . ($base + 3) . ' cm /Im1 Do Q';
+            $comandos[] = 'q 18 0 0 18 ' . (self::MARGEM + 8) . ' ' . ($base + 5) . ' cm /Im1 Do Q';
         }
 
         $comandos[] = '1 1 1 rg';
-        $comandos[] = self::textoFonte(2, $x, $base + 14, 8, $doc['municipio']);
-        $comandos[] = self::texto($x, $base + 4, 7, $doc['titulo']);
-        $comandos[] = self::textoFonte(2, 500, $base + 8, 8, $via);
-        $comandos[] = '0.96 0.97 0.98 rg';
-        $comandos[] = '430 ' . ($base - 20) . ' 137 16 re f';
-        $comandos[] = '0.75 0.78 0.82 RG';
-        $comandos[] = '430 ' . ($base - 20) . ' 137 16 re S';
-        $comandos[] = '0.14 0.20 0.24 rg';
-        $comandos[] = self::texto(434, $base - 16, 6, 'No');
-        $comandos[] = self::textoFonte(2, 448, $base - 16, 8, $doc['protocolo']);
+        $comandos[] = self::textoFonte(2, $x, $base + 15, 8, self::cortar($doc['municipio'], 280, 8, true));
+        $comandos[] = self::texto($x, $base + 5, 7, self::cortar($doc['titulo'], 300, 7));
+        $comandos[] = self::textoFonte(2, self::MARGEM + self::LARGURA - 150, $base + 10, 8, self::cortar($via . '   ' . $doc['protocolo'], 140, 8, true));
 
         return $comandos;
     }
@@ -393,15 +407,26 @@ final class PdfSimples
 
         return [
             '0.93 0.95 0.96 rg',
-            $x . ' ' . ($y + $altura - 10) . ' ' . $largura . ' 10 re f',
+            ($x + 0.6) . ' ' . ($y + $altura - 9.4) . ' ' . ($largura - 1.2) . ' 8.8 re f',
             '0.75 0.78 0.82 RG',
-            '0.4 w',
+            '0.6 w',
             $x . ' ' . $y . ' ' . $largura . ' ' . $altura . ' re S',
             '0.35 0.42 0.48 rg',
-            self::texto($x + 4, $y + $altura - 8, 6, mb_strtoupper($rotulo)),
+            self::texto($x + 4, $y + $altura - 8, 6, self::cortar(mb_strtoupper($rotulo), $largura - 8, 6)),
             '0.10 0.14 0.18 rg',
-            self::textoFonte(2, $x + 4, $y + 4, 8, mb_substr($valor, 0, $largura > 300 ? 90 : 42)),
+            self::textoFonte(2, $x + 4, $y + 4, 8, self::cortar($valor, $largura - 8, 8, true)),
         ];
+    }
+
+    private static function cortar(string $texto, int $largura, int $tamanho, bool $negrito = false): string
+    {
+        $maximo = max(1, (int) floor($largura / ($tamanho * ($negrito ? 0.56 : 0.5))));
+
+        if (mb_strlen($texto) <= $maximo) {
+            return $texto;
+        }
+
+        return rtrim(mb_substr($texto, 0, $maximo - 1)) . '.';
     }
 
     /**

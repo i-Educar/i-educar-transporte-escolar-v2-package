@@ -1,28 +1,33 @@
 # Fluxos
 
-A família não entra no menu do i-Educar. O institucional prepara a rede, abre o processo e publica a vaga. A escola encaminha o pedido da própria escola. A rede aceita ou recusa. O dia da rota, a frota e a conta ficam nas telas da equipe, na ordem do painel.
+A família não entra no menu do i-Educar. O institucional prepara a rede, abre o processo e publica a vaga. A escola encaminha o pedido da própria escola. A rede aceita ou recusa. O dia da rota, a frota e a conta ficam nas telas da equipe.
 
-## Ordem do trabalho
+## Módulos
 
-O painel em `/transporte-escolar` segue esta ordem. Cada etapa tem uma cor. O ícone abre a tela; o nome aparece ao passar o mouse.
+A barra lateral em `/transporte-escolar` agrupa as telas por função. O nome fica sempre visível.
+
+| Módulo | O que a equipe faz |
+| --- | --- |
+| Início | Painel do dia e notificações internas |
+| Cadastros | Empresas, veículos, motoristas, monitores, pontos, rotas e normas |
+| Atendimento | Cópia do ano, pedidos da família e alunos transportados |
+| Operação | Viagens, pacote offline, aviso à família e modelos de aviso |
+| Frota | Conformidade, ordens de serviço, bilhetes, estoque e gastos |
+| Contas | SETE, relatórios e auditoria |
+
+O painel mostra indicadores em coluna, o mapa das rotas e a fila de atenção. Ida e volta com os mesmos pontos viram um traçado. O clique na rota mostra tempo, distância, alunos, veículos e motoristas. Relatórios e o painel do conselho são a mesma tela: quem tem o processo 880151 ou o 880152 abre os mesmos indicadores, no recorte do próprio perfil.
 
 ```mermaid
-flowchart LR
-    A["1 Preparar a rede"] --> B["2 Abrir o ano"]
-    B --> C["3 Rodar o dia"]
-    C --> D["4 Cuidar da frota"]
-    D --> E["5 Prestar contas"]
+flowchart TD
+    A["Condição ainda existe"] --> B["Aviso ativo na fila do painel"]
+    B --> C["Leitura do usuário"]
+    C --> D["Sai da contagem do sino"]
+    D --> B
+    B --> E["A condição deixa de existir"]
+    E --> F["O aviso sai da fila"]
 ```
 
-| Etapa | Cor | O que a equipe faz |
-| --- | --- | --- |
-| 1 Preparar a rede | Azul | Empresas, veículos, motoristas, monitores, pontos, rotas e normas |
-| 2 Abrir o ano | Azul claro | Cópia do ano, pedidos da família e alunos na rota |
-| 3 Rodar o dia | Verde | Viagens, pacote offline e aviso à família |
-| 4 Cuidar da frota | Âmbar | Ordens de serviço, bilhetes e gastos |
-| 5 Prestar contas | Roxo | SETE, relatórios e CACS |
-
-O card de informes usa a mesma lógica de cor: azul para pedido da família, âmbar para prazo de CNH ou documento, vermelho para lotação acima dos lugares e verde para ordem ou bilhete ainda aberto.
+A cor do informe segue o tipo: azul para pedido da família, âmbar para prazo de CNH ou documento, vermelho para lotação acima dos lugares e verde para ordem ou bilhete ainda aberto.
 
 ## Processo de vagas
 
@@ -77,7 +82,7 @@ flowchart TD
     G --> J["Família vê o setor e leva os documentos"]
 ```
 
-Pedido já decidido não volta. Aceitar não cria pessoa, matrícula nem aluno na rota. A secretaria inclui o aluno em Alunos na rota.
+Pedido já decidido não volta. Aceitar não cria pessoa, matrícula nem aluno na rota. A secretaria inclui o aluno em Alunos transportados.
 
 ## Pedido aceito
 

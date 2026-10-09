@@ -23,7 +23,7 @@ class RelatorioController
         $mes = (int) $request->input('mes', date('n'));
         $mes = $mes < 1 || $mes > 12 ? (int) date('n') : $mes;
         $dados = $this->dados($ano);
-        $podeCusto = Acesso::permite(Processos::GASTOS, 'ver');
+        $podeCusto = Acesso::permite(Processos::GASTOS, 'ver') || Acesso::permite(Processos::CACS, 'ver');
         $custo = $podeCusto ? CustoMensal::fechar($ano, $mes) : null;
         $totalGasto = $custo === null ? 0.0 : $custo['pnate'] + $custo['proprio'] + $custo['outros'];
 
@@ -37,6 +37,9 @@ class RelatorioController
             'custoAluno' => $dados['alunos'] > 0 ? round($totalGasto / $dados['alunos'], 2) : 0.0,
             'custoKm' => $dados['realizado']['total'] > 0 ? round($totalGasto / $dados['realizado']['total'], 2) : 0.0,
             'fontes' => ['pnate' => 'PNATE', 'proprio' => 'Recurso próprio', 'outros' => 'Outras fontes'],
+            'categorias' => $custo === null ? [] : $this->categorias($custo['linhas']),
+            'csvBase' => url($request->is('transporte-escolar/cacs*') ? '/transporte-escolar/cacs/csv' : '/transporte-escolar/relatorios/csv'),
+            'podeDossie' => Acesso::permite(Processos::GASTOS, 'ver'),
         ]);
     }
 
@@ -48,8 +51,8 @@ class RelatorioController
         $planilha = (string) $request->input('planilha', 'resumo');
         $dados = $this->dados($ano);
 
-        if ($planilha === 'custo') {
-            abort_unless(Acesso::permite(Processos::GASTOS, 'ver'), 403);
+        if (in_array($planilha, ['custo', 'categoria'], true)) {
+            abort_unless(Acesso::permite(Processos::GASTOS, 'ver') || Acesso::permite(Processos::CACS, 'ver'), 403);
         }
 
         $saida = fopen('php://temp', 'w+');
@@ -61,7 +64,7 @@ class RelatorioController
 
         return response($conteudo, 200, [
             'Content-Type' => 'text/csv; charset=UTF-8',
-            'Content-Disposition' => 'attachment; filename="transporte-' . $planilha . '-' . $ano . '.csv"',
+            'Content-Disposition' => 'attachment; filename="' . ($request->is('transporte-escolar/cacs*') ? 'cacs' : 'transporte') . '-' . $planilha . '-' . $ano . '.csv"',
         ]);
     }
 
@@ -138,6 +141,7 @@ class RelatorioController
             'porRota' => $this->porRota($rotas, $ano),
             'parados' => $this->parados($frota['veiculos']),
             'consumo' => $this->consumo($ano, $frota['veiculos']),
+            'frota' => $this->frota($frota['veiculos']),
         ];
     }
 
@@ -213,7 +217,7 @@ class RelatorioController
             return;
         }
 
-        if ($planilha === 'motoristas') {
+        if ($planilha === 'motoristas' || $planilha === 'cnh') {
             fputcsv($saida, ['nome', 'cnh', 'vencimento'], ';');
 
             foreach ($dados['motoristas'] as $motorista) {
@@ -247,6 +251,27 @@ class RelatorioController
             return;
         }
 
+        if ($planilha === 'frota') {
+            fputcsv($saida, ['placa', 'descricao', 'licenciamento'], ';');
+
+            foreach ($dados['frota'] as $veiculo) {
+                fputcsv($saida, [$veiculo->placa, $veiculo->descricao, $veiculo->licenciamento_vencimento], ';');
+            }
+
+            return;
+        }
+
+        if ($planilha === 'categoria') {
+            $custo = CustoMensal::fechar($ano, $mes);
+            fputcsv($saida, ['mes', 'categoria', 'fonte', 'valor'], ';');
+
+            foreach ($this->categorias($custo['linhas']) as $linha) {
+                fputcsv($saida, [$mes, $linha['rotulo'], $linha['fonte'], number_format($linha['valor'], 2, '.', '')], ';');
+            }
+
+            return;
+        }
+
         if ($planilha === 'custo') {
             $custo = CustoMensal::fechar($ano, $mes);
             fputcsv($saida, ['mes', 'rotulo', 'fonte', 'valor'], ';');
@@ -269,6 +294,41 @@ class RelatorioController
         fputcsv($saida, ['alunos na lista', '', '', '', $dados['alunos']], ';');
         fputcsv($saida, ['alunos com embarque', '', '', '', $dados['embarcados']], ';');
         fputcsv($saida, ['viagens', '', '', '', $dados['viagens']], ';');
+    }
+
+    /**
+     * @param list<int>|null $ids
+     */
+    private function frota(?array $ids)
+    {
+        $consulta = DB::table('transporte_escolar.veiculo')->where('ativo', true)->orderBy('placa');
+
+        if (is_array($ids)) {
+            $consulta->whereIn('id', $ids === [] ? [0] : $ids);
+        }
+
+        return $consulta->get(['placa', 'descricao', 'licenciamento_vencimento']);
+    }
+
+    /**
+     * @param list<array{rotulo: string, fonte: string, valor: float}> $linhas
+     * @return list<array{rotulo: string, fonte: string, valor: float}>
+     */
+    private function categorias(array $linhas): array
+    {
+        $grupos = [];
+
+        foreach ($linhas as $linha) {
+            $chave = $linha['rotulo'] . '|' . $linha['fonte'];
+
+            if (!isset($grupos[$chave])) {
+                $grupos[$chave] = ['rotulo' => $linha['rotulo'], 'fonte' => $linha['fonte'], 'valor' => 0.0];
+            }
+
+            $grupos[$chave]['valor'] += $linha['valor'];
+        }
+
+        return array_values($grupos);
     }
 
     private function porRota($rotas, int $ano): array
