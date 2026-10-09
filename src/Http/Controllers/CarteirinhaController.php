@@ -92,19 +92,20 @@ class CarteirinhaController
         abort_if($linhas->count() > 400, 422, 'Há mais de 400 alunos nesse recorte. Filtre a lista antes de emitir.');
         $frota = $this->frota($linhas->pluck('rota_id')->all());
         $responsaveis = ResponsaveisAluno::mapa($linhas->pluck('ref_cod_aluno')->all());
-        $horarios = $this->horarios($linhas->pluck('rota_id')->all(), $linhas->pluck('ponto_id')->filter()->all());
+        $inicios = $this->inicioRotas($linhas->pluck('rota_id')->all());
         $municipio = IdentidadeMunicipio::rotulo();
+        $setor = $this->setor();
         $pessoas = [];
 
         foreach ($linhas as $linha) {
             $veiculo = $frota[(int) $linha->rota_id] ?? null;
             $bloco = $responsaveis[(int) $linha->ref_cod_aluno] ?? ['ieducar' => [], 'transporte' => ['nome' => '', 'telefone' => '']];
-            $nomes = array_map(static fn (array $item): string => trim($item['papel'] . ': ' . $item['nome'] . ($item['telefone'] !== '' ? ' ' . $item['telefone'] : '')), $bloco['ieducar']);
+            $nomes = array_map(static fn (array $item): string => trim($item['nome'] . ($item['telefone'] !== '' ? '  ' . $item['telefone'] : '')), $bloco['ieducar']);
 
             if ($bloco['transporte']['nome'] !== '') {
-                $nomes[] = trim('Transporte: ' . $bloco['transporte']['nome'] . ($bloco['transporte']['telefone'] !== '' ? ' ' . $bloco['transporte']['telefone'] : ''));
+                $nomes[] = trim($bloco['transporte']['nome'] . ($bloco['transporte']['telefone'] !== '' ? '  ' . $bloco['transporte']['telefone'] : ''));
             }
-            $hora = $horarios[(int) $linha->rota_id . ':' . (int) $linha->ponto_id] ?? null;
+            $hora = $inicios[(int) $linha->rota_id] ?? '';
             $pessoas[] = [
                 'papel' => 'Aluno',
                 'nome' => (string) $linha->nome,
@@ -113,8 +114,8 @@ class CarteirinhaController
                 'linhas' => [
                     ['Nascimento', DataTela::dia($linha->data_nasc)],
                     ['CPF', $this->cpf($linha->cpf)],
-                    ['Responsável', implode(' · ', $nomes)],
-                    ['Telefone', (string) ($linha->fone ?: '')],
+                    ['Responsáveis', implode("\n", $nomes)],
+                    ['Setor de transporte', $setor],
                 ],
                 'verso' => [
                     ['Rota', (string) $linha->descricao],
@@ -126,7 +127,7 @@ class CarteirinhaController
                     ['Veículo', $veiculo['veiculo'] ?? ''],
                     ['Motorista', $veiculo['motorista'] ?? ''],
                     ['Embarque', (string) ($linha->ponto ?: '')],
-                    ['Horário', $hora ? substr((string) $hora, 0, 5) : ''],
+                    ['Horário', $hora],
                 ],
             ];
         }
@@ -226,15 +227,13 @@ class CarteirinhaController
 
     /**
      * @param list<int> $rotas
-     * @param list<int> $pontos
-     * @return array<string, string>
+     * @return array<int, string>
      */
-    private function horarios(array $rotas, array $pontos): array
+    private function inicioRotas(array $rotas): array
     {
         $rotas = array_values(array_unique(array_filter(array_map('intval', $rotas))));
-        $pontos = array_values(array_unique(array_filter(array_map('intval', $pontos))));
 
-        if ($rotas === [] || $pontos === []) {
+        if ($rotas === []) {
             return [];
         }
 
@@ -242,15 +241,28 @@ class CarteirinhaController
 
         foreach (DB::table('transporte_escolar.itinerario')
             ->whereIn('rota_id', $rotas)
-            ->whereIn('ponto_id', $pontos)
             ->whereNotNull('hora')
             ->orderBy('seq')
-            ->get(['rota_id', 'ponto_id', 'hora']) as $linha) {
-            $chave = (int) $linha->rota_id . ':' . (int) $linha->ponto_id;
-            $mapa[$chave] ??= (string) $linha->hora;
+            ->get(['rota_id', 'hora']) as $linha) {
+            $mapa[(int) $linha->rota_id] ??= substr((string) $linha->hora, 0, 5);
         }
 
         return $mapa;
+    }
+
+    private function setor(): string
+    {
+        $linhas = DB::table('transporte_escolar.configuracao')
+            ->whereIn('chave', ['atendimento_setor', 'atendimento_endereco', 'atendimento_horario'])
+            ->pluck('valor', 'chave');
+        $partes = array_values(array_filter([
+            trim((string) ($linhas['atendimento_setor'] ?? '')) ?: 'Transporte escolar',
+            trim((string) ($linhas['atendimento_endereco'] ?? '')),
+            trim((string) ($linhas['atendimento_horario'] ?? '')) !== '' ? 'Atendimento: ' . trim((string) $linhas['atendimento_horario']) : '',
+            'Dúvidas e ocorrências: fale com o setor de transporte escolar.',
+        ], static fn (string $parte): bool => $parte !== ''));
+
+        return implode("\n", $partes);
     }
 
     /**

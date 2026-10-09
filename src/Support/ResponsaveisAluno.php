@@ -25,7 +25,7 @@ final class ResponsaveisAluno
             return $mapa;
         }
 
-        $fone = static fn (string $coluna): string => "(select trim(to_char(ddd, 'FM999')) || ' ' || fone::text from cadastro.fone_pessoa where idpes = {$coluna} order by tipo desc limit 1)";
+        $fone = static fn (string $coluna): string => "(select string_agg(trim(to_char(ddd, 'FM999')) || ' ' || fone::text, ', ' order by tipo desc) from cadastro.fone_pessoa where idpes = {$coluna})";
 
         foreach (DB::table('pmieducar.aluno as a')
             ->join('cadastro.fisica as f', 'f.idpes', '=', 'a.ref_idpes')

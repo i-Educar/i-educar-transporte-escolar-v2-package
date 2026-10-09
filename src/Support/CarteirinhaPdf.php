@@ -230,15 +230,27 @@ final class CarteirinhaPdf
         $fileiras = (int) ceil($total / $colunas);
         $folga = 4;
         $celulaL = (int) floor(($largura - (($colunas - 1) * $folga)) / $colunas);
-        $celulaA = (int) floor(($altura - (($fileiras - 1) * $folga)) / $fileiras);
+        $pesos = [];
+
+        foreach ($campos as $campo) {
+            $pesos[] = max(1, substr_count((string) $campo[1], "\n") + 1);
+        }
+
+        $soma = array_sum($pesos);
+        $livre = $altura - (($fileiras - 1) * $folga);
         $comandos = [];
+        $topo = $y + $altura;
 
         foreach ($campos as $indice => $campo) {
             $coluna = $indice % $colunas;
-            $fileira = intdiv($indice, $colunas);
+            $celulaA = max(16, (int) floor($livre * $pesos[$indice] / max(1, $soma)));
             $cx = $x + ($coluna * ($celulaL + $folga));
-            $cy = $y + $altura - (($fileira + 1) * $celulaA) - ($fileira * $folga);
-            array_push($comandos, ...self::celula($cx, $cy, $celulaL, max(16, $celulaA), (string) $campo[0], (string) $campo[1]));
+            $cy = $topo - $celulaA;
+            array_push($comandos, ...self::celula($cx, $cy, $celulaL, $celulaA, (string) $campo[0], (string) $campo[1]));
+
+            if ($coluna === $colunas - 1 || $indice === $total - 1) {
+                $topo -= $celulaA + $folga;
+            }
         }
 
         return $comandos;
@@ -250,7 +262,13 @@ final class CarteirinhaPdf
     private static function celula(int $x, int $y, int $largura, int $altura, string $rotulo, string $valor): array
     {
         $valor = trim($valor) === '' ? '-' : $valor;
-        $linhas = self::quebrar($valor, max(8, (int) floor(($largura - ($altura < 26 ? 86 : 12)) / 4.6)));
+        $larguraTexto = max(8, (int) floor(($largura - 12) / 4.2));
+        $linhas = [];
+
+        foreach (preg_split("/\n/", $valor) ?: ['-'] as $bloco) {
+            array_push($linhas, ...self::quebrar(trim((string) $bloco), $larguraTexto));
+        }
+
         $comandos = [
             '0.945 0.965 0.972 rg',
             $x . ' ' . $y . ' ' . $largura . ' ' . $altura . ' re f',
@@ -259,6 +277,22 @@ final class CarteirinhaPdf
             $x . ' ' . $y . ' ' . $largura . ' ' . $altura . ' re S',
         ];
 
+        if (count($linhas) > 1 || $altura >= 26) {
+            $comandos[] = '0.22 0.40 0.48 rg';
+            $comandos[] = self::texto(1, $x + 6, $y + $altura - 9, 6, self::cortar(mb_strtoupper($rotulo), $largura - 12, 6));
+            $comandos[] = '0.08 0.14 0.18 rg';
+            $topo = $y + $altura - 18;
+            $visiveis = array_slice($linhas, 0, max(1, (int) floor(($topo - $y) / 8)));
+
+            foreach ($visiveis as $indice => $linha) {
+                $comandos[] = self::texto(count($linhas) > 1 ? 1 : 2, $x + 6, $topo - ($indice * 8), 7, $linha);
+            }
+
+            return $comandos;
+        }
+
+        $linhas = self::quebrar($valor, max(8, (int) floor(($largura - 86) / 4.6)));
+
         if ($altura < 26) {
             $comandos[] = '0.22 0.40 0.48 rg';
             $comandos[] = self::texto(1, $x + 6, $y + 5, 6, self::cortar(mb_strtoupper($rotulo), 74, 6));
@@ -266,15 +300,6 @@ final class CarteirinhaPdf
             $comandos[] = self::texto(2, $x + 82, $y + 4, 8, $linhas[0]);
 
             return $comandos;
-        }
-
-        $comandos[] = '0.22 0.40 0.48 rg';
-        $comandos[] = self::texto(1, $x + 6, $y + $altura - 11, 6, self::cortar(mb_strtoupper($rotulo), $largura - 12, 6));
-        $comandos[] = '0.08 0.14 0.18 rg';
-        $comandos[] = self::texto(2, $x + 6, $y + (isset($linhas[1]) ? 13 : 6), 8, $linhas[0]);
-
-        if (isset($linhas[1])) {
-            $comandos[] = self::texto(2, $x + 6, $y + 3, 8, $linhas[1]);
         }
 
         return $comandos;
