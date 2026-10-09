@@ -36,6 +36,16 @@ class DocumentoController
         return response()->file($arquivo);
     }
 
+    public function logoBuriti(): BinaryFileResponse
+    {
+        $arquivo = dirname(__DIR__, 3) . '/resources/img/logo-buriti.png';
+
+        return response()->file($arquivo, [
+            'Content-Type' => 'image/png',
+            'Cache-Control' => 'public, max-age=604800',
+        ]);
+    }
+
     public function ordens(): View
     {
         return view('transporte-escolar::documentos.ordens', [

@@ -300,10 +300,11 @@
         .modal select:focus, .modal input:focus, .modal textarea:focus { outline: 2px solid rgba(24, 138, 209, .28); border-color: #188ad1; }
         footer.rodape-fixo { position: fixed; left: 248px; right: 0; bottom: 0; z-index: 25; height: var(--rodape-altura); background: var(--nav); color: var(--nav-texto); border-top: 3px solid var(--destaque); box-shadow: 0 -8px 18px rgba(21, 34, 43, .16); }
         .rodape { height: 100%; padding: 0 18px; display: flex; align-items: center; justify-content: space-between; gap: 16px; }
-        .rodape-dev { display: flex; align-items: center; gap: 10px; min-width: 0; }
-        .rodape-selo { font-size: 11px; letter-spacing: .08em; text-transform: uppercase; font-weight: 700; color: #8aa0ad; }
-        .rodape-dev a { color: #fff; font-size: 1.05rem; font-weight: 700; text-decoration: none; }
+        .rodape-dev { display: flex; align-items: center; min-width: 0; }
+        .rodape-dev a { display: inline-flex; align-items: center; gap: 10px; min-width: 0; color: #fff; font-size: 1.05rem; font-weight: 700; letter-spacing: .04em; text-decoration: none; }
         .rodape-dev a:hover { text-decoration: underline; }
+        .rodape-dev img { width: 34px; height: 34px; object-fit: contain; flex: none; }
+        .rodape-dev .by { font-weight: 600; letter-spacing: 0; text-transform: none; color: #c5d4dc; }
         .rodape-sistema { color: #8aa0ad; font-size: .82rem; text-align: right; }
         @media (max-width: 1100px) {
             .mesa, .numeros { grid-template-columns: 1fr; }
@@ -466,8 +467,10 @@
             <footer class="rodape-fixo">
                 <div class="rodape">
                     <div class="rodape-dev">
-                        <span class="rodape-selo">Desenvolvimento</span>
-                        <a href="https://github.com/JaderGabriel" target="_blank" rel="noopener">Buriti · Jader Gabriel</a>
+                        <a href="https://buriti.dev.br/public/" target="_blank" rel="noopener">
+                            <img src="{{ url('/transporte-escolar/logo-buriti') }}" alt="" width="34" height="34">
+                            BURI-TI <span class="by">by</span> Jader Gabriel
+                        </a>
                     </div>
                     <span class="rodape-sistema">{{ $municipio }} · Transporte escolar · {{ date('Y') }}</span>
                 </div>

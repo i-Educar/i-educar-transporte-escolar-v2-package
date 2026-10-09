@@ -40,6 +40,7 @@ class TransporteEscolarServiceProvider extends ServiceProvider
         Route::get('/transporte-escolar/avisos/sw.js', [\iEducar\Packages\BuritiTransporteEscolar\Http\Controllers\NotificacaoPublicaController::class, 'worker']);
 
         Route::middleware(['web'])->group(function () {
+            Route::get('/transporte-escolar/logo-buriti', [\iEducar\Packages\BuritiTransporteEscolar\Http\Controllers\DocumentoController::class, 'logoBuriti']);
             Route::get('/transporte-escolar/marca', [\iEducar\Packages\BuritiTransporteEscolar\Http\Controllers\DocumentoController::class, 'marca']);
             Route::get('/transporte-escolar/aviso/{token}', [\iEducar\Packages\BuritiTransporteEscolar\Http\Controllers\AvisoController::class, 'publico']);
             Route::get('/transporte-escolar/familia', [\iEducar\Packages\BuritiTransporteEscolar\Http\Controllers\FamiliaPortalController::class, 'inicio']);
