@@ -300,9 +300,9 @@
             .recorte-modos { display: grid; gap: 8px; margin: 8px 0 12px; }
             .recorte-lista { max-height: 240px; overflow: auto; display: grid; gap: 6px; margin-top: 8px; }
             .recorte-grupo { margin: 10px 0 0; font-size: .78rem; font-weight: 700; color: var(--suave); }
-            .conferencia, .historico { display: grid; gap: 10px; margin-top: 8px; }
-            .conferencia h3, .historico h3 { margin: 0; font-size: 1rem; }
-            .conferencia-caixa { background: #fff; border: 1px solid var(--linha); border-radius: 8px; padding: 12px; display: grid; gap: 8px; }
+            .historico { display: grid; gap: 10px; margin-top: 4px; }
+            .historico h3, .modal form h3 { margin: 4px 0 0; font-size: .95rem; }
+            .modal form .passo { margin: 4px 0 0; padding-top: 8px; border-top: 1px solid var(--linha); }
             .avisos { display: grid; gap: 4px; margin: 0; }
             .avisos p { margin: 0; }
             .avisos.ok { color: #17663f; }
@@ -554,54 +554,47 @@
                         $processoPedido = $processos->firstWhere('id', $pedido->processo_id);
                         $exigidos = \iEducar\Packages\BuritiTransporteEscolar\Support\HistoricoPedido::exigidos($processoPedido->documentos_exigidos ?? null);
                     @endphp
-                    <section class="conferencia" data-conferencia data-url="{{ url('/transporte-escolar/solicitacoes/'.$pedido->id.'/matriculas') }}">
-                        <h3>Conferir documentação e incluir na rota</h3>
+                    <form method="post" action="{{ url('/transporte-escolar/solicitacoes/'.$pedido->id.'/vincular') }}" data-conferencia data-url="{{ url('/transporte-escolar/solicitacoes/'.$pedido->id.'/matriculas') }}">
+                        @csrf
+                        <input type="hidden" name="aluno_id" value="">
+                        <input type="hidden" name="matricula_id" value="">
+                        <input type="hidden" name="turno" value="">
                         @if((int) session('conferir') === (int) $pedido->id && session('erro'))
                             <p class="flash erro">{{ session('erro') }}</p>
                         @endif
-                        <div class="conferencia-caixa">
-                            <p class="lead">A matrícula pode ficar em branco. Sem ela, o aluno entra na rota e o aviso permanece na lista até ser informado. Se o turno da turma for outro, o aviso também permanece.</p>
-                            <div class="linha">
-                                <label>Nome, matrícula ou CPF <input data-q value="{{ $pedido->nome_aluno }}"></label>
-                                <p><button type="button" class="botao claro" data-buscar>Buscar matrícula</button></p>
-                            </div>
-                            <label>Matrícula encontrada
-                                <select data-escolha required>
-                                    <option value="">Nenhuma matrícula escolhida</option>
-                                </select>
-                            </label>
-                            <div data-avisos class="avisos"></div>
+                        <h3>Incluir na rota</h3>
+                        <label>Rota
+                            <select name="rota_id" required>
+                                @foreach($rotas->unique('id') as $rota)
+                                    @if((int) $rota->ano === (int) $pedido->ano)
+                                        <option value="{{ $rota->id }}" data-periodo="{{ $rota->periodo }}" data-periodo-rotulo="{{ \iEducar\Packages\BuritiTransporteEscolar\Support\Codigos::PERIODO[$rota->periodo] ?? $rota->periodo }}" @selected((int) $pedido->rota_id === (int) $rota->id)>{{ $rota->ano }} · {{ $rota->descricao }}</option>
+                                    @endif
+                                @endforeach
+                            </select>
+                        </label>
+                        <p class="lead">O turno segue a rota escolhida: <strong data-turno-rotulo>—</strong></p>
+                        <h3 class="passo">Matrícula</h3>
+                        <p class="lead">Pode ficar em branco. Sem matrícula, o aluno entra na rota e o aviso fica em Alunos na rota até ser informado. Turno da turma diferente do da rota também permanece como aviso.</p>
+                        <div class="linha">
+                            <label>Nome, matrícula ou CPF <input data-q value="{{ $pedido->nome_aluno }}"></label>
+                            <button type="button" class="botao claro" data-buscar>Buscar</button>
                         </div>
-                        <form method="post" action="{{ url('/transporte-escolar/solicitacoes/'.$pedido->id.'/vincular') }}">
-                            @csrf
-                            <input type="hidden" name="aluno_id" value="">
-                            <input type="hidden" name="matricula_id" value="">
-                            <input type="hidden" name="turno" value="">
-                            <div class="linha">
-                                <label>Rota
-                                    <select name="rota_id" required>
-                                        @foreach($rotas->unique('id') as $rota)
-                                            @if((int) $rota->ano === (int) $pedido->ano)
-                                                <option value="{{ $rota->id }}" data-periodo="{{ $rota->periodo }}" data-periodo-rotulo="{{ \iEducar\Packages\BuritiTransporteEscolar\Support\Codigos::PERIODO[$rota->periodo] ?? $rota->periodo }}" @selected((int) $pedido->rota_id === (int) $rota->id)>{{ $rota->ano }} · {{ $rota->descricao }}</option>
-                                            @endif
-                                        @endforeach
-                                    </select>
-                                </label>
-                                <p class="lead">Turno da rota: <strong data-turno-rotulo>—</strong></p>
-                            </div>
-                            <div class="conferencia-caixa">
-                                <strong>Documentos</strong>
-                                @if($exigidos === [])
-                                    <label class="opcao"><input type="checkbox" name="documentos" value="1"> Este processo não tem rol obrigatório. A documentação foi conferida.</label>
-                                @else
-                                    @foreach($exigidos as $indice => $documento)
-                                        <label class="opcao"><input type="checkbox" name="exigido[]" value="{{ $indice }}"> {{ $documento }}</label>
-                                    @endforeach
-                                @endif
-                            </div>
-                            <button type="submit">Conferir e incluir na rota</button>
-                        </form>
-                    </section>
+                        <label>Matrícula ativa
+                            <select data-escolha>
+                                <option value="">Sem matrícula por enquanto</option>
+                            </select>
+                        </label>
+                        <div data-avisos class="avisos"></div>
+                        <h3 class="passo">Documentos</h3>
+                        @if($exigidos === [])
+                            <label class="opcao"><input type="checkbox" name="documentos" value="1"> Documentação conferida. Este processo não tem lista obrigatória.</label>
+                        @else
+                            @foreach($exigidos as $indice => $documento)
+                                <label class="opcao"><input type="checkbox" name="exigido[]" value="{{ $indice }}"> {{ $documento }}</label>
+                            @endforeach
+                        @endif
+                        <button type="submit">Conferir e incluir na rota</button>
+                    </form>
                 @endif
                 @php
                     $gravados = isset($historicos) ? $historicos->get($pedido->id, collect())->all() : [];
@@ -671,7 +664,7 @@
                         achados.forEach(function (item, indice) {
                             var opcao = document.createElement('option');
                             opcao.value = String(indice);
-                            opcao.textContent = item.rotulo + (item.ok ? ' · sem divergência' : ' · com divergência');
+                            opcao.textContent = item.rotulo;
                             escolha.appendChild(opcao);
                         });
                     });
