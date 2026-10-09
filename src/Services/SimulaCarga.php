@@ -2,9 +2,12 @@
 
 namespace iEducar\Packages\BuritiTransporteEscolar\Services;
 
+use iEducar\Packages\BuritiTransporteEscolar\Support\AvisoTexto;
+use iEducar\Packages\BuritiTransporteEscolar\Support\ModeloAviso;
 use iEducar\Packages\BuritiTransporteEscolar\Support\ProtocoloSolicitacao;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 
 final class SimulaCarga
@@ -24,7 +27,7 @@ final class SimulaCarga
     }
 
     /**
-     * @return array{alunos_ano: int, vinculados: int, rotas: int, viagens: int}
+     * @return array{alunos_ano: int, vinculados: int, rotas: int, viagens: int, avisos: int, notificacoes: int, informes: int, pedidos: int, ocorrencias: int}
      */
     public static function executar(int $ano): array
     {
@@ -61,13 +64,20 @@ final class SimulaCarga
         }
 
         self::processo($ano, $escolas);
-        self::pedidos($ano, $escolas[0] ?? null);
+        $pedidos = self::pedidos($ano, $escolas[0] ?? null);
+        $lotacao = self::lotacao($ano, $empresa, $motoristas[0]);
+        $chamada = self::chamada($ano);
 
         return [
             'alunos_ano' => self::alunosDoAno($ano),
-            'vinculados' => $vinculados,
-            'rotas' => count($escolas),
+            'vinculados' => $vinculados + $lotacao['vinculados'],
+            'rotas' => count($escolas) + $lotacao['rotas'],
             'viagens' => $viagens,
+            'avisos' => $chamada['avisos'],
+            'notificacoes' => $chamada['notificacoes'],
+            'informes' => self::informes($empresa),
+            'pedidos' => $pedidos,
+            'ocorrencias' => self::ocorrencias($ano) + self::servicos($onibus, $oficina, $posto) + self::contrato($ano, $empresa) + self::offline(),
         ];
     }
 
@@ -213,9 +223,9 @@ final class SimulaCarga
     /**
      * @return array{id: int, veiculo: int, motorista: int, monitor: int, hora: string}
      */
-    private static function rota(int $ano, object $escola, int $empresa, int $veiculo, int $motorista, int $monitor): array
+    private static function rota(int $ano, object $escola, int $empresa, int $veiculo, int $motorista, int $monitor, ?string $chave = null): array
     {
-        $chave = 'simula-rota-' . $escola->cod_escola;
+        $chave ??= 'simula-rota-' . $escola->cod_escola;
         $id = DB::table('transporte_escolar.rota')->where('origem_chave', $chave)->where('ano', $ano)->value('id');
         $base = self::coordenada($escola);
         $hora = '06:40:00';
@@ -471,37 +481,460 @@ final class SimulaCarga
         }
     }
 
-    private static function pedidos(int $ano, ?object $escola): void
+    private static function pedidos(int $ano, ?object $escola): int
     {
-        if ($escola === null || DB::table('transporte_escolar.solicitacao')->where('ano', $ano)->where('endereco', 'Simulação de transporte, 10')->exists()) {
-            return;
+        if ($escola === null) {
+            return 0;
         }
 
-        $sequencia = (int) DB::table('transporte_escolar.solicitacao')->where('ano', $ano)->max('sequencia');
+        $catalogo = [
+            ['Ana Simulada', 'recebida', 'Simulação de transporte, 10', null],
+            ['Bruno Simulado', 'em_analise', 'Simulação de transporte, 11', null],
+            ['Carla Simulada', 'deferida', 'Simulação de transporte, 20', 'Pedido simulado aceito para a linha da manhã.'],
+            ['Diego Simulado', 'indeferida', 'Simulação de transporte, 21', 'Endereço simulado fora da área da linha.'],
+            ['Elisa Simulada', 'cancelada', 'Simulação de transporte, 22', 'Família simulada cancelou o pedido.'],
+            ['Fabio Simulado', 'recebida', 'Simulação de transporte, 23', null],
+        ];
+        $criados = 0;
         $agora = now();
 
-        foreach ([
-            ['Ana Simulada', 'recebida'],
-            ['Bruno Simulado', 'em_analise'],
-        ] as $indice => [$nome, $situacao]) {
-            $numero = $sequencia + $indice + 1;
-            DB::table('transporte_escolar.solicitacao')->insert([
+        foreach ($catalogo as $indice => [$nome, $situacao, $endereco, $motivo]) {
+            if (DB::table('transporte_escolar.solicitacao')->where('ano', $ano)->where('endereco', $endereco)->exists()) {
+                continue;
+            }
+
+            $numero = (int) DB::table('transporte_escolar.solicitacao')->where('ano', $ano)->max('sequencia') + 1;
+            $linha = [
                 'ano' => $ano,
                 'sequencia' => $numero,
                 'protocolo' => ProtocoloSolicitacao::montar($ano, $numero),
                 'nome_aluno' => $nome,
-                'nascimento' => '2016-04-02',
+                'nascimento' => '2016-04-0' . (($indice % 9) + 1),
                 'nome_responsavel' => 'Responsável simulado',
                 'telefone' => '5499999001' . $indice,
-                'endereco' => 'Simulação de transporte, 1' . $indice,
+                'endereco' => $endereco,
                 'turno' => 'manha',
                 'escola_informada' => $escola->nome,
                 'ref_cod_escola' => $escola->cod_escola,
                 'situacao' => $situacao,
+                'motivo_situacao' => $motivo,
                 'pedido_em' => $agora,
                 'atualizado_em' => $agora,
+            ];
+
+            if (Schema::hasColumn('transporte_escolar.solicitacao', 'acompanhamento')) {
+                $linha['acompanhamento'] = 'simula' . str_pad((string) ($indice + 1), 4, '0', STR_PAD_LEFT);
+                $linha['contato_escola'] = $situacao === 'deferida' ? 'Escola simulada, secretaria, ramal 201' : null;
+                $linha['contato_setor'] = $situacao === 'deferida' ? 'Setor de transporte, 8h às 14h' : null;
+            }
+
+            DB::table('transporte_escolar.solicitacao')->insert($linha);
+            $criados++;
+        }
+
+        return $criados;
+    }
+
+    /**
+     * @return array{vinculados: int, rotas: int}
+     */
+    private static function lotacao(int $ano, int $empresa, int $motorista): array
+    {
+        $escola = self::escolas($ano)[0] ?? null;
+
+        if ($escola === null) {
+            return ['vinculados' => 0, 'rotas' => 0];
+        }
+
+        $veiculo = self::veiculo('simula-kombi', 'SIM0C03', 'Kombi simulada', 1, 4, 9, $empresa, $motorista);
+        $chave = 'simula-rota-lotacao-' . $escola->cod_escola;
+        $nova = DB::table('transporte_escolar.rota')->where('origem_chave', $chave)->where('ano', $ano)->doesntExist();
+        $monitor = (int) DB::table('transporte_escolar.monitor')->where('origem_chave', 'simula-monitor-1')->value('id');
+        $rota = self::rota($ano, (object) [
+            'cod_escola' => $escola->cod_escola,
+            'nome' => 'Lotação ' . $escola->nome,
+            'latitude' => $escola->latitude,
+            'longitude' => $escola->longitude,
+        ], $empresa, $veiculo, $motorista, $monitor, $chave);
+
+        if ($rota['id'] < 1) {
+            return ['vinculados' => 0, 'rotas' => 0];
+        }
+
+        DB::table('transporte_escolar.rota')->where('id', $rota['id'])->where('origem_chave', $chave)->update([
+            'descricao' => Str::limit('Linha simulada lotada ' . $escola->cod_escola, 80, ''),
+        ]);
+
+        $antes = (int) DB::table('transporte_escolar.aluno_rota')->where('rota_id', $rota['id'])->count();
+        $escolaLotada = clone $escola;
+        $vinculados = self::vincular($ano, $escolaLotada, $rota);
+        $ocupacao = $antes + $vinculados;
+
+        if ($ocupacao > 4) {
+            DB::table('transporte_escolar.veiculo')->where('id', $veiculo)->where('origem_chave', 'simula-kombi')->update(['passageiros' => 4]);
+        } elseif ($ocupacao > 1) {
+            DB::table('transporte_escolar.veiculo')->where('id', $veiculo)->where('origem_chave', 'simula-kombi')->update(['passageiros' => $ocupacao - 1]);
+        }
+
+        return ['vinculados' => $vinculados, 'rotas' => $nova ? 1 : 0];
+    }
+
+    /**
+     * @return array{avisos: int, notificacoes: int}
+     */
+    private static function chamada(int $ano): array
+    {
+        $avisos = 0;
+        $notificacoes = 0;
+        $rotas = DB::table('transporte_escolar.rota')->where('ano', $ano)->where('origem_chave', 'like', 'simula-rota-%')->orderBy('id')->limit(2)->pluck('id');
+
+        foreach ($rotas as $rota) {
+            $viagens = DB::table('transporte_escolar.viagem')
+                ->where('rota_id', $rota)
+                ->where('sentido', 'I')
+                ->whereNotNull('km_final')
+                ->orderBy('data')
+                ->limit(3)
+                ->get(['id', 'data']);
+            $alunos = DB::table('transporte_escolar.aluno_rota')->where('rota_id', $rota)->orderBy('id')->limit(6)->get(['ref_cod_aluno', 'id']);
+
+            foreach ($alunos as $indice => $aluno) {
+                if (Schema::hasColumn('transporte_escolar.aluno_rota', 'cartao') && DB::table('transporte_escolar.aluno_rota')->where('id', $aluno->id)->whereNull('cartao')->exists()) {
+                    $cartao = 'SIM' . str_pad((string) $aluno->id, 6, '0', STR_PAD_LEFT);
+                    if (DB::table('transporte_escolar.aluno_rota')->where('cartao', $cartao)->doesntExist()) {
+                        DB::table('transporte_escolar.aluno_rota')->where('id', $aluno->id)->update(['cartao' => $cartao]);
+                    }
+                }
+
+                foreach ($viagens as $viagem) {
+                    self::marcar($viagem->id, (int) $aluno->ref_cod_aluno, 'embarque', $viagem->data . ' 06:45:00', $indice === 0);
+                    if ($indice < 4) {
+                        self::marcar($viagem->id, (int) $aluno->ref_cod_aluno, 'desembarque', $viagem->data . ' 07:05:00', false);
+                    }
+                }
+            }
+
+            if (Schema::hasColumn('transporte_escolar.viagem', 'km_trilha')) {
+                DB::table('transporte_escolar.viagem')
+                    ->where('rota_id', $rota)
+                    ->whereNotNull('km_final')
+                    ->whereNull('km_trilha')
+                    ->update(['km_trilha' => 8.2]);
+            }
+        }
+
+        $embarques = DB::table('transporte_escolar.embarque as e')
+            ->join('transporte_escolar.viagem as v', 'v.id', '=', 'e.viagem_id')
+            ->join('transporte_escolar.rota as r', 'r.id', '=', 'v.rota_id')
+            ->where('r.ano', $ano)
+            ->where('r.origem_chave', 'like', 'simula-rota-%')
+            ->where('e.fila_uuid', 'like', 'simula-%')
+            ->orderBy('e.id')
+            ->limit(12)
+            ->get(['e.id', 'e.ref_cod_aluno', 'e.tipo', 'e.fora_da_cerca', 'r.descricao']);
+
+        foreach ($embarques as $indice => $embarque) {
+            if (!Schema::hasTable('transporte_escolar.aviso_familia') || DB::table('transporte_escolar.aviso_familia')->where('embarque_id', $embarque->id)->exists()) {
+                continue;
+            }
+
+            $nome = (string) DB::table('pmieducar.aluno as a')
+                ->join('cadastro.pessoa as p', 'p.idpes', '=', 'a.ref_idpes')
+                ->where('a.cod_aluno', $embarque->ref_cod_aluno)
+                ->value('p.nome');
+            $modelo = Schema::hasTable('transporte_escolar.notificacao_modelo')
+                ? DB::table('transporte_escolar.notificacao_modelo')->where('codigo', $embarque->tipo)->first(['titulo', 'corpo'])
+                : null;
+            $texto = ModeloAviso::texto(
+                (string) ($modelo->corpo ?? ''),
+                $nome,
+                (string) $embarque->descricao,
+                $embarque->tipo === 'desembarque' ? 'desembarcou' : 'embarcou',
+                AvisoTexto::frase($nome, (string) $embarque->tipo, (string) $embarque->descricao)
+            );
+
+            if ($embarque->fora_da_cerca) {
+                $extra = Schema::hasTable('transporte_escolar.notificacao_modelo')
+                    ? (string) DB::table('transporte_escolar.notificacao_modelo')->where('codigo', 'fora_cerca')->value('corpo')
+                    : '';
+                $texto .= ' ' . ($extra !== '' ? $extra : 'O embarque ficou fora da cerca do ponto.');
+            }
+
+            $aviso = (int) DB::table('transporte_escolar.aviso_familia')->insertGetId([
+                'embarque_id' => $embarque->id,
+                'ref_cod_aluno' => $embarque->ref_cod_aluno,
+                'token' => 'simula-aviso-' . $embarque->id,
+                'texto' => $texto,
+                'lido_em' => $indice % 3 === 0 ? now() : null,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+            $avisos++;
+            $notificacoes += self::notificar((int) $embarque->ref_cod_aluno, $aviso, (string) ($modelo->titulo ?? 'Transporte escolar'), $texto, $indice % 2 === 0);
+        }
+
+        return ['avisos' => $avisos, 'notificacoes' => $notificacoes];
+    }
+
+    private static function marcar(int $viagem, int $aluno, string $tipo, string $quando, bool $fora): void
+    {
+        $uuid = 'simula-' . $tipo . '-' . $viagem . '-' . $aluno;
+
+        if (DB::table('transporte_escolar.embarque')->where('fila_uuid', $uuid)->exists()
+            || DB::table('transporte_escolar.embarque')->where('viagem_id', $viagem)->where('ref_cod_aluno', $aluno)->where('tipo', $tipo)->exists()) {
+            return;
+        }
+
+        DB::table('transporte_escolar.embarque')->insert([
+            'viagem_id' => $viagem,
+            'ref_cod_aluno' => $aluno,
+            'tipo' => $tipo,
+            'ocorrido_em' => $quando,
+            'fora_da_cerca' => $fora,
+            'fila_uuid' => $uuid,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+    }
+
+    private static function notificar(int $aluno, int $aviso, string $titulo, string $corpo, bool $entregue): int
+    {
+        if (!Schema::hasTable('transporte_escolar.notificacao_inscricao')) {
+            return 0;
+        }
+
+        $token = 'simula-push-' . $aluno;
+        $inscricao = DB::table('transporte_escolar.notificacao_inscricao')->where('token', $token)->value('id');
+
+        if ($inscricao === null) {
+            $inscricao = DB::table('transporte_escolar.notificacao_inscricao')->insertGetId([
+                'token' => $token,
+                'ref_cod_aluno' => $aluno,
+                'endpoint' => 'https://simula.invalid/push/' . $aluno,
+                'chave_p256dh' => 'simula',
+                'chave_auth' => 'simula',
+                'ativo' => true,
+                'created_at' => now(),
+                'updated_at' => now(),
             ]);
         }
+
+        if (DB::table('transporte_escolar.notificacao_fila')->where('aviso_id', $aviso)->where('inscricao_id', $inscricao)->exists()) {
+            return 0;
+        }
+
+        DB::table('transporte_escolar.notificacao_fila')->insert([
+            'inscricao_id' => $inscricao,
+            'aviso_id' => $aviso,
+            'titulo' => $titulo,
+            'corpo' => $corpo,
+            'entregue_em' => $entregue ? now() : null,
+            'created_at' => now(),
+        ]);
+
+        return 1;
+    }
+
+    private static function informes(int $empresa): int
+    {
+        $gravados = 0;
+        $seguro = now()->addDays(10)->toDateString();
+        $vistoria = now()->addDays(18)->toDateString();
+
+        $gravados += DB::table('transporte_escolar.veiculo')->where('origem_chave', 'simula-onibus')->whereNull('seguro_vencimento')->update(['seguro_vencimento' => $seguro]);
+        $gravados += DB::table('transporte_escolar.veiculo')->where('origem_chave', 'simula-van')->whereNull('vistoria_vencimento')->update(['vistoria_vencimento' => $vistoria]);
+
+        if (DB::table('transporte_escolar.motorista')->where('origem_chave', 'simula-motorista-prazo')->doesntExist()) {
+            self::motorista('simula-motorista-prazo', 'Motorista simulado Prazo', 'M', $empresa, 'MOT-S03');
+            DB::table('transporte_escolar.motorista')->where('origem_chave', 'simula-motorista-prazo')->update([
+                'vencimento_cnh' => now()->addDays(12)->toDateString(),
+            ]);
+            $gravados++;
+        }
+
+        return $gravados;
+    }
+
+    private static function ocorrencias(int $ano): int
+    {
+        $viagem = DB::table('transporte_escolar.viagem as v')
+            ->join('transporte_escolar.rota as r', 'r.id', '=', 'v.rota_id')
+            ->where('r.ano', $ano)
+            ->where('r.origem_chave', 'like', 'simula-rota-%')
+            ->where('v.sentido', 'I')
+            ->whereNotNull('v.km_final')
+            ->orderBy('v.data')
+            ->value('v.id');
+
+        if ($viagem === null) {
+            return 0;
+        }
+
+        $gravadas = 0;
+
+        foreach ([
+            'simula-oc-atraso' => 'Simulação: a linha saiu 15 minutos depois do horário.',
+            'simula-oc-pneu' => 'Simulação: calibragem de pneu no retorno.',
+            'simula-oc-aluno' => 'Simulação: um aluno não estava no ponto e a linha seguiu.',
+        ] as $uuid => $texto) {
+            if (DB::table('transporte_escolar.ocorrencia')->where('fila_uuid', $uuid)->exists()) {
+                continue;
+            }
+
+            DB::table('transporte_escolar.ocorrencia')->insert([
+                'viagem_id' => $viagem,
+                'texto' => $texto,
+                'ocorrido_em' => now(),
+                'fila_uuid' => $uuid,
+            ]);
+            $gravadas++;
+        }
+
+        return $gravadas;
+    }
+
+    private static function servicos(int $onibus, int $oficina, int $posto): int
+    {
+        $gravados = 0;
+
+        if (Schema::hasColumn('transporte_escolar.ordem_servico', 'situacao')
+            && DB::table('transporte_escolar.ordem_servico')->where('descricao', 'Simulação: freio dianteiro')->doesntExist()) {
+            DB::table('transporte_escolar.ordem_servico')->insert([
+                'veiculo_id' => $onibus,
+                'fornecedor_id' => $oficina,
+                'preventiva' => false,
+                'descricao' => 'Simulação: freio dianteiro',
+                'valor' => 480,
+                'data' => now()->toDateString(),
+                'fonte' => 'proprio',
+                'protocolo' => 'OS-SIMULA-000002-0',
+                'situacao' => 'solicitada',
+                'solicitante' => 'Simulação ordem',
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+            $gravados++;
+        }
+
+        if (Schema::hasColumn('transporte_escolar.abastecimento', 'situacao')
+            && DB::table('transporte_escolar.abastecimento')->where('solicitante', 'Simulação bilhete')->doesntExist()) {
+            DB::table('transporte_escolar.abastecimento')->insert([
+                'veiculo_id' => $onibus,
+                'fornecedor_id' => $posto,
+                'data' => now()->toDateString(),
+                'litros' => 0,
+                'valor' => 0,
+                'km' => 1200,
+                'fonte' => 'pnate',
+                'protocolo' => 'AB-SIMULA-000002-0',
+                'situacao' => 'solicitado',
+                'litros_autorizados' => 45,
+                'posto' => 'Posto simulado',
+                'motorista' => 'Motorista simulado',
+                'solicitante' => 'Simulação bilhete',
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+            $gravados++;
+        }
+
+        $gasto = DB::table('transporte_escolar.gasto')->where('descricao', 'Simulação: seguro do ônibus')->value('id');
+
+        if ($gasto !== null && Schema::hasTable('transporte_escolar.comprovante')
+            && DB::table('transporte_escolar.comprovante')->where('nome', 'Simulação: apólice')->doesntExist()) {
+            DB::table('transporte_escolar.comprovante')->insert([
+                'gasto_id' => $gasto,
+                'nome' => 'Simulação: apólice',
+                'caminho' => 'transporte-escolar/comprovantes/simula-apolice.txt',
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+            $gravados++;
+        }
+
+        return $gravados;
+    }
+
+    private static function contrato(int $ano, int $empresa): int
+    {
+        $gravados = 0;
+
+        if (DB::table('transporte_escolar.contrato')->where('descricao', 'Contrato simulado de transporte')->doesntExist()) {
+            DB::table('transporte_escolar.contrato')->insert([
+                'empresa_id' => $empresa,
+                'descricao' => 'Contrato simulado de transporte',
+                'valor_mensal' => 18000,
+                'inicio' => $ano . '-01-01',
+                'fim' => $ano . '-12-31',
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+            $gravados++;
+        }
+
+        $mes = (int) date('n');
+
+        foreach (['pnate' => 25000, 'proprio' => 8000] as $fonte => $valor) {
+            if (DB::table('transporte_escolar.parcela_recurso')->where('ano', $ano)->where('mes', $mes)->where('fonte', $fonte)->exists()) {
+                continue;
+            }
+
+            DB::table('transporte_escolar.parcela_recurso')->insert([
+                'ano' => $ano,
+                'mes' => $mes,
+                'fonte' => $fonte,
+                'valor' => $valor,
+                'saldo_informado' => $valor,
+            ]);
+            $gravados++;
+        }
+
+        return $gravados;
+    }
+
+    private static function offline(): int
+    {
+        $motorista = DB::table('transporte_escolar.motorista')->where('origem_chave', 'simula-motorista-1')->value('id');
+        $dispositivo = DB::table('transporte_escolar.dispositivo')->where('token', 'simula-dispositivo-1')->value('id');
+
+        if ($dispositivo === null) {
+            $dispositivo = DB::table('transporte_escolar.dispositivo')->insertGetId([
+                'nome' => 'Tablet simulado da linha',
+                'token' => 'simula-dispositivo-1',
+                'motorista_id' => $motorista,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+        }
+
+        $gravados = 0;
+        $dia = now()->toDateString();
+
+        if (DB::table('transporte_escolar.fila_pendente')->where('dispositivo_id', $dispositivo)->where('dia', $dia)->doesntExist()) {
+            DB::table('transporte_escolar.fila_pendente')->insert([
+                'dispositivo_id' => $dispositivo,
+                'dia' => $dia,
+                'quantidade' => 3,
+                'updated_at' => now(),
+            ]);
+            $gravados++;
+        }
+
+        if (DB::table('transporte_escolar.fila_evento')->where('uuid', 'simula-evento-embarque')->doesntExist()) {
+            DB::table('transporte_escolar.fila_evento')->insert([
+                'dispositivo_id' => $dispositivo,
+                'uuid' => 'simula-evento-embarque',
+                'tipo' => 'embarque',
+                'payload' => json_encode(['origem' => 'simula', 'tipo' => 'embarque'], JSON_THROW_ON_ERROR),
+                'ocorrido_em' => now(),
+                'aplicado_em' => null,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+            $gravados++;
+        }
+
+        return $gravados;
     }
 
     private static function configuracao(): void
