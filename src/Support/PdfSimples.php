@@ -90,7 +90,8 @@ final class PdfSimples
         array_push($comandos, ...self::cabecalho($doc, $logo, $topo - 30, $via));
         $y = $topo - 42;
         $qr = $doc['qr'] ?? null;
-        $limite = $rodape + (is_array($qr) ? 78 : 28);
+        $qrLado = is_array($qr) && $qr !== [] ? count($qr) * 2 : 0;
+        $limite = $rodape + ($qrLado > 0 ? $qrLado + 18 : 28);
         $coluna = 0;
         $interno = self::LARGURA - 16;
         $meia = (int) floor(($interno - 8) / 2);
@@ -145,10 +146,10 @@ final class PdfSimples
         }
 
         $comandos[] = '0.28 0.34 0.40 rg';
-        $comandos[] = self::texto(self::MARGEM + 8, $rodape, 7, self::cortar('Transporte escolar  |  i-Educar  |  ' . $via . '  |  ' . $papel . '  |  Documento de controle, sem valor fiscal', self::LARGURA - 90, 7));
+        $comandos[] = self::texto(self::MARGEM + 8, $rodape, 7, self::cortar('Transporte escolar  |  i-Educar  |  ' . $via . '  |  ' . $papel . '  |  Documento de controle, sem valor fiscal', self::LARGURA - ($qrLado > 0 ? $qrLado + 22 : 16), 7));
 
-        if (is_array($qr) && $qr !== []) {
-            array_push($comandos, ...self::qr($qr, self::MARGEM + self::LARGURA - 58, $rodape + 10, 2));
+        if ($qrLado > 0) {
+            array_push($comandos, ...self::qr($qr, self::MARGEM + self::LARGURA - $qrLado - 8, $rodape + 8, 2));
         }
 
         $comandos[] = 'Q';

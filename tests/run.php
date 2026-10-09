@@ -472,7 +472,7 @@ $bilhete = PdfSimples::impresso([
 ok(substr_count($bilhete, '/Type /Page /Parent') === 1, 'as duas vias do bilhete cabem na mesma folha');
 ok(str_contains($bilhete, 'Canhoto') && str_contains($bilhete, 'Destaque'), 'a segunda via e o canhoto, com linha de corte');
 $dentro = true;
-preg_match_all('/([0-9.]+) ([0-9.]+) ([0-9.]+) ([0-9.]+) re/', $impresso . "\n" . $bilhete, $retangulos, PREG_SET_ORDER);
+preg_match_all('/([0-9.]+) ([0-9.]+) ([0-9.]+) ([0-9.]+) re/', $impresso . "\n" . $bilhete . "\n" . $pdfPedido, $retangulos, PREG_SET_ORDER);
 foreach ($retangulos as $retangulo) {
     $direita = (float) $retangulo[1] + (float) $retangulo[3];
     $topo = (float) $retangulo[2] + (float) $retangulo[4];

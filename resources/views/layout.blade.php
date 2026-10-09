@@ -749,7 +749,7 @@
                         .then(function (resposta) { return resposta.json(); })
                         .then(function (dados) {
                             if (!dados.ok) {
-                                destino.textContent = dados.aviso || 'Não foi possível calcular a distância.';
+                                destino.textContent = dados.aviso || dados.message || 'Não foi possível calcular a distância.';
                                 return;
                             }
                             if (!dados.pontos.length) {

@@ -129,6 +129,7 @@ Route::prefix('transporte-escolar')->group(function () {
     Route::post('/solicitacoes/oferta/{oferta}', [SolicitacaoController::class, 'editarOferta'])->middleware('transporte.processo:' . Processos::SOLICITACOES . ',gravar');
     Route::post('/solicitacoes/{solicitacao}', [SolicitacaoController::class, 'situacao'])->middleware('transporte.processo:' . Processos::SOLICITACOES . ',gravar');
     Route::get('/solicitacoes/{solicitacao}/pdf', [SolicitacaoController::class, 'pdf'])->middleware('transporte.processo:' . Processos::SOLICITACOES . ',ver');
+    Route::get('/solicitacoes/{solicitacao}/proximos', [SolicitacaoController::class, 'proximos'])->middleware('transporte.processo:' . Processos::SOLICITACOES . ',ver');
     Route::get('/solicitacoes/{solicitacao}/mapa', [SolicitacaoController::class, 'mapa'])->middleware('transporte.processo:' . Processos::SOLICITACOES . ',ver');
     Route::get('/auditoria', [AuditoriaController::class, 'index'])->middleware('transporte.processo:' . Processos::AUDITORIA . ',ver');
     Route::get('/auditoria/csv', [AuditoriaController::class, 'csv'])->middleware('transporte.processo:' . Processos::AUDITORIA . ',ver');
