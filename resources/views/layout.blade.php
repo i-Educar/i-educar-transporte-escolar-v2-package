@@ -66,8 +66,9 @@
         @media (max-width: 720px) { .busca-grade, .tema-card ul { grid-template-columns: 1fr; } }
         .barra-acoes { display: flex; align-items: center; gap: 8px; }
         .hamburguer { display: none; align-items: center; justify-content: center; width: 36px; height: 36px; background: #fff; color: var(--tinta); border: 1px solid var(--linha); border-radius: 4px; cursor: pointer; }
-        .voltar { display: inline-flex; align-items: center; gap: 8px; color: var(--azul); text-decoration: none; border: 1px solid var(--linha); border-radius: 4px; padding: 7px 10px; white-space: nowrap; background: #fff; }
-        .voltar:hover { background: var(--azul-claro); }
+        .acao-topo { display: inline-flex; align-items: center; justify-content: center; flex: 0 0 auto; width: 40px; height: 40px; padding: 0; border: 1px solid #e7f2ff; border-radius: 4px; background: #fff; color: #0072ff; line-height: 1; text-decoration: none; cursor: pointer; font-size: 16px; }
+        .acao-topo:hover, .acao-topo[aria-expanded="true"] { background: #e7f2ff; color: #0b555d; }
+        .acao-topo svg { display: block; width: 22px; height: 22px; }
         main { padding: 18px 20px 28px; flex: 1; }
         .flash { border-radius: 12px; padding: 12px 14px; margin: 0 0 16px; }
         .flash.ok { background: var(--ok-fundo); color: var(--ok); }
@@ -104,8 +105,7 @@
         .tom-pedido { color: #188ad1; }
         .tom-lotacao { color: #9b2c2c; }
         .tom-servico { color: #0f6b4c; }
-        .sino { position: relative; display: inline-flex; align-items: center; justify-content: center; width: 36px; height: 36px; border-radius: 4px; border: 1px solid var(--linha); background: #fff; color: var(--tinta); cursor: pointer; font-size: 15px; }
-        .sino:hover, .sino[aria-expanded="true"] { background: var(--azul-claro); }
+        .sino { position: relative; }
         .sino-contagem { position: absolute; top: 4px; right: 4px; min-width: 16px; height: 16px; padding: 0 4px; border-radius: 999px; background: #f3c15b; color: #24323c; font-size: .68rem; font-weight: 800; line-height: 16px; }
         .gaveta { position: absolute; top: calc(100% + 8px); right: 0; width: min(380px, calc(100vw - 24px)); background: #fff; color: var(--tinta); border: 1px solid var(--linha); border-radius: 4px; box-shadow: 0 12px 28px rgba(21, 34, 43, .16); z-index: 50; }
         .gaveta header, .gaveta footer { display: flex; justify-content: space-between; align-items: center; padding: 10px 12px; }
@@ -409,12 +409,20 @@
                     <strong>{{ $paginaAtual }}</strong>
                 </nav>
                 <div class="barra-acoes">
-                    <button type="button" class="voltar" data-abre-modal="busca-comandos"><i class="fa fa-search" aria-hidden="true"></i> Buscar</button>
-                    <a class="voltar" href="{{ url('/transporte-escolar') }}"><i class="fa fa-home" aria-hidden="true"></i> Início</a>
-                    <a class="voltar" href="{{ route('home') }}"><i class="fa fa-arrow-left" aria-hidden="true"></i> i-Educar</a>
+                    <button type="button" class="acao-topo" data-abre-modal="busca-comandos" title="Buscar" aria-label="Buscar"><i class="fa fa-search" aria-hidden="true"></i></button>
+                    <a class="acao-topo" href="{{ url('/transporte-escolar') }}" title="Início" aria-label="Início"><i class="fa fa-home" aria-hidden="true"></i></a>
+                    <a class="acao-topo" href="{{ route('home') }}" title="Voltar ao i-Educar" aria-label="Voltar ao i-Educar">
+                        <svg viewBox="0 0 16 16" width="22" height="22" aria-hidden="true">
+                            <path fill="#0072ff" d="M13.12,10,8.06,1.22,2.88,10l.65.39.32-.53a1.93,1.93,0,0,1,1.57-.77A1.78,1.78,0,0,1,7.29,10.7H8.71a1.77,1.77,0,0,1,1.86-1.62,2,2,0,0,1,1.78,1.1h0l.11.2ZM10.57,8.32A2.58,2.58,0,0,0,8,10.22,2.6,2.6,0,0,0,5.42,8.31a2.84,2.84,0,0,0-.72.1L8.05,2.74l3.28,5.68A2.68,2.68,0,0,0,10.57,8.32Z"/>
+                            <polygon fill="#8314f7" points="7.04 5.32 8.98 5.32 8.01 3.73 7.04 5.32"/>
+                            <rect fill="#8314f7" x="2.87" y="11.57" width="0.77" height="3.21"/>
+                            <rect fill="#8314f7" x="12.36" y="11.57" width="0.77" height="3.21"/>
+                            <rect fill="#8314f7" x="7.63" y="11.57" width="0.77" height="1.89"/>
+                        </svg>
+                    </a>
                     @if(!empty($menuTransporte['painel']))
                         <div class="pos-sino">
-                            <button type="button" class="sino" id="sino" aria-expanded="false" aria-controls="gaveta-avisos" aria-label="Notificações">
+                            <button type="button" class="acao-topo sino" id="sino" aria-expanded="false" aria-controls="gaveta-avisos" title="Notificações" aria-label="Notificações">
                                 <i class="fa fa-bell" aria-hidden="true"></i>
                                 <span class="sino-contagem" id="sino-contagem" hidden>0</span>
                             </button>
