@@ -158,16 +158,26 @@
             <h2>Processos</h2>
             <div class="tabela-wrap" style="margin-bottom:16px;">
             <table>
-                <thead><tr><th>Ano</th><th>Processo</th><th>Agrupamento</th><th>Início</th><th>Fim</th><th>Situação</th><th></th></tr></thead>
+                <thead><tr><th>Ano</th><th>Processo</th><th>Agrupamento</th><th>Início</th><th>Fim</th><th>Vagas</th><th>Ocupadas</th><th>Disponíveis</th><th>Espera</th><th>Situação</th><th></th></tr></thead>
                 <tbody>
                 @foreach($processos as $processo)
-                    @php $situacaoProcesso = $processo->situacao ?? 'aberto'; @endphp
+                    @php
+                        $situacaoProcesso = $processo->situacao ?? 'aberto';
+                        $ofertasProcesso = $ofertas->where('processo_id', $processo->id);
+                        $vagasProcesso = (int) $ofertasProcesso->sum('vagas');
+                        $ocupadasProcesso = (int) $ofertasProcesso->sum(fn ($oferta) => (int) (optional($usoOferta->get($oferta->id))->ocupadas ?? 0));
+                        $esperaProcesso = (int) $ofertasProcesso->sum(fn ($oferta) => (int) (optional($usoOferta->get($oferta->id))->espera ?? 0));
+                    @endphp
                     <tr data-busca="{{ $processo->ano }} {{ $processo->nome }} {{ $processo->grupo }}">
                         <td>{{ $processo->ano }}</td>
                         <td>{{ $processo->nome }}</td>
                         <td>{{ $processo->grupo ?: '—' }}</td>
                         <td>{{ \Illuminate\Support\Carbon::parse($processo->inicio)->format('d/m/Y') }}</td>
                         <td>{{ \Illuminate\Support\Carbon::parse($processo->fim)->format('d/m/Y') }}</td>
+                        <td>{{ $vagasProcesso }}</td>
+                        <td>{{ $ocupadasProcesso }}</td>
+                        <td>{{ max(0, $vagasProcesso - $ocupadasProcesso) }}</td>
+                        <td>{{ $esperaProcesso > 0 ? $esperaProcesso : '—' }}</td>
                         <td>{{ \iEducar\Packages\BuritiTransporteEscolar\Support\ProcessoVaga::rotulo($situacaoProcesso) }}</td>
                         <td class="acoes">
                             <button type="button" class="icone editar" data-abre-modal="editar-processo-{{ $processo->id }}" aria-label="Editar processo" title="Editar"><i class="fa fa-pencil" aria-hidden="true"></i></button>
@@ -212,21 +222,31 @@
             <h2>Vagas publicadas</h2>
             <div class="tabela-wrap" style="margin-bottom:16px;">
             <table>
-                <thead><tr><th>Processo</th><th>Escola</th><th>Rota</th><th>Turno</th><th>Vagas</th><th>Idade</th><th>Situação</th><th></th></tr></thead>
+                <thead><tr><th>Processo</th><th>Escola</th><th>Rota</th><th>Turno</th><th>Vagas</th><th>Ocupadas</th><th>Disponíveis</th><th>Espera</th><th>Idade</th><th>Situação</th><th></th></tr></thead>
                 <tbody>
                 @foreach($ofertas as $oferta)
-                    @php $situacaoOferta = $oferta->situacao ?? 'aberto'; @endphp
+                    @php
+                        $situacaoOferta = $oferta->situacao ?? 'aberto';
+                        $ocupadasOferta = (int) (optional($usoOferta->get($oferta->id))->ocupadas ?? 0);
+                        $esperaOferta = (int) (optional($usoOferta->get($oferta->id))->espera ?? 0);
+                    @endphp
                     <tr>
                         <td>{{ $oferta->processo }}</td>
                         <td>{{ $oferta->escola }}</td>
                         <td>{{ $oferta->rota }}</td>
                         <td>{{ \iEducar\Packages\BuritiTransporteEscolar\Support\Codigos::PERIODO[$oferta->turno] ?? $oferta->turno }}</td>
                         <td>{{ $oferta->vagas }}</td>
+                        <td>{{ $ocupadasOferta }}</td>
+                        <td>{{ max(0, (int) $oferta->vagas - $ocupadasOferta) }}</td>
+                        <td>{{ $esperaOferta > 0 ? $esperaOferta : '—' }}</td>
                         <td>{{ $oferta->idade_min === null && $oferta->idade_max === null ? 'Qualquer' : ($oferta->idade_min ?? '…') . ' a ' . ($oferta->idade_max ?? '…') }}</td>
                         <td>{{ \iEducar\Packages\BuritiTransporteEscolar\Support\ProcessoVaga::rotulo($situacaoOferta) }}</td>
                         <td class="acoes">
                             <button type="button" class="icone ver" data-abre-modal="ver-oferta-{{ $oferta->id }}" aria-label="Ver vaga" title="Ver"><i class="fa fa-eye" aria-hidden="true"></i></button>
                             <button type="button" class="icone editar" data-abre-modal="editar-oferta-{{ $oferta->id }}" aria-label="Editar vaga" title="Editar"><i class="fa fa-pencil" aria-hidden="true"></i></button>
+                            @if($situacaoOferta !== 'fechado')
+                                <button type="button" class="icone cancelar" data-abre-modal="fechar-oferta-{{ $oferta->id }}" aria-label="Fechar vagas" title="Fechar vagas"><i class="fa fa-lock" aria-hidden="true"></i></button>
+                            @endif
                             @include('transporte-escolar::solicitacoes.situacao', ['alvo' => 'oferta', 'id' => $oferta->id, 'situacao' => $situacaoOferta])
                         </td>
                     </tr>
@@ -294,6 +314,18 @@
                         <button type="submit"><i class="fa fa-check" aria-hidden="true"></i> Gravar vaga</button>
                     </form>
                 </dialog>
+                @if(($oferta->situacao ?? 'aberto') !== 'fechado')
+                    <dialog class="modal" id="fechar-oferta-{{ $oferta->id }}">
+                        <div class="modal-cabeca"><h2>Fechar vagas · {{ $oferta->rota }}</h2><button type="button" data-fecha-modal aria-label="Fechar">&times;</button></div>
+                        <form method="post" action="{{ url('/transporte-escolar/solicitacoes/oferta/'.$oferta->id.'/situacao') }}">
+                            @csrf
+                            <input type="hidden" name="acao" value="fechar">
+                            <p class="lead">Os pedidos aprovados desta vaga, ainda sem conferência, vão para a lista de espera. Quem já está na rota permanece.</p>
+                            <p>{{ $deferidosOferta === 1 ? '1 pedido aprovado será movido.' : $deferidosOferta . ' pedidos aprovados serão movidos.' }}</p>
+                            <button type="submit">Fechar vagas</button>
+                        </form>
+                    </dialog>
+                @endif
             @endforeach
         @endif
         <style>
@@ -463,10 +495,7 @@
                             </form>
                         @endif
                         @if($segue && $rede && in_array($pedido->situacao, ['recebida', 'em_analise'], true))
-                            <form method="post" action="{{ url('/transporte-escolar/solicitacoes/'.$pedido->id) }}">
-                                @csrf
-                                <button class="icone aceitar" name="acao" value="deferir" aria-label="Aceitar" title="Aceitar"><i class="fa fa-check" aria-hidden="true"></i></button>
-                            </form>
+                            <button type="button" class="icone aceitar" data-abre-modal="aprovar-{{ $pedido->id }}" aria-label="Aceitar" title="Aceitar"><i class="fa fa-check" aria-hidden="true"></i></button>
                         @endif
                         @if($rede && in_array($pedido->situacao, ['recebida', 'em_analise'], true))
                             <form method="post" action="{{ url('/transporte-escolar/solicitacoes/'.$pedido->id) }}">
@@ -552,7 +581,7 @@
                                 <p class="lead">Ainda não há vaga para chamar este aluno.</p>
                             @endif
                             @if($segue && $rede && in_array($pedido->situacao, ['recebida', 'em_analise'], true))
-                                <button name="acao" value="deferir">Aceitar</button>
+                                <button type="button" data-abre-modal="aprovar-{{ $pedido->id }}">Aceitar</button>
                             @endif
                             @if($rede && in_array($pedido->situacao, ['recebida', 'em_analise', 'espera'], true))
                                 <button name="acao" value="indeferir">{{ $pedido->situacao === 'espera' ? 'Retirar da lista' : 'Recusar' }}</button>
@@ -629,6 +658,31 @@
                 </section>
             </div>
         </dialog>
+        @if($rede && in_array($pedido->situacao, ['recebida', 'em_analise'], true))
+            @php
+                $ofertaAprovacao = $ofertas->firstWhere('id', $pedido->oferta_id);
+                $vagasAprovacao = $ofertaAprovacao ? (int) $ofertaAprovacao->vagas : null;
+                $ocupadasAprovacao = (int) (optional($usoOferta->get($pedido->oferta_id))->ocupadas ?? 0);
+                $disponiveisAprovacao = $vagasAprovacao === null ? null : max(0, $vagasAprovacao - $ocupadasAprovacao);
+            @endphp
+            <dialog class="modal" id="aprovar-{{ $pedido->id }}">
+                <div class="modal-cabeca"><h2>Aprovar {{ $pedido->protocolo }}</h2><button type="button" data-fecha-modal aria-label="Fechar">&times;</button></div>
+                <form method="post" action="{{ url('/transporte-escolar/solicitacoes/'.$pedido->id) }}">
+                    @csrf
+                    @if($disponiveisAprovacao === null)
+                        <p class="lead">Este pedido não está ligado a uma vaga publicada.</p>
+                        <button name="acao" value="deferir">Confirmar aceite</button>
+                    @elseif($disponiveisAprovacao > 0)
+                        <p class="lead">Há {{ $disponiveisAprovacao }} {{ $disponiveisAprovacao === 1 ? 'vaga disponível' : 'vagas disponíveis' }} de {{ $vagasAprovacao }} nesta rota.</p>
+                        <button name="acao" value="deferir">Confirmar aceite</button>
+                    @else
+                        <p class="lead">A linha está lotada: {{ $vagasAprovacao }} vagas e {{ $ocupadasAprovacao }} ocupadas. O aluno entra na lista de espera.</p>
+                        <label class="opcao"><input type="checkbox" name="ciente" value="1" required> Estou ciente de que não há vaga e o pedido vai para a lista de espera.</label>
+                        <button name="acao" value="esperar">Colocar na lista de espera</button>
+                    @endif
+                </form>
+            </dialog>
+        @endif
     @endforeach
     <script>
         document.querySelectorAll('[data-conferencia]').forEach(function (bloco) {

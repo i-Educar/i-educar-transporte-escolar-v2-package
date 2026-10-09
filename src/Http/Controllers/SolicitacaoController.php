@@ -94,7 +94,7 @@ class SolicitacaoController
                 ->keyBy('processo_id'),
             'usoOferta' => DB::table('transporte_escolar.solicitacao')
                 ->whereNotNull('oferta_id')
-                ->selectRaw("oferta_id, count(*) as pedidos, count(*) filter (where situacao = 'deferida') as deferidos, count(*) filter (where situacao in ('recebida', 'em_analise', 'deferida', 'conferida')) as ocupadas")
+                ->selectRaw("oferta_id, count(*) as pedidos, count(*) filter (where situacao = 'deferida') as deferidos, count(*) filter (where situacao = 'espera') as espera, count(*) filter (where situacao in ('recebida', 'em_analise', 'deferida', 'conferida')) as ocupadas")
                 ->groupBy('oferta_id')
                 ->get()
                 ->keyBy('oferta_id'),
@@ -230,6 +230,11 @@ class SolicitacaoController
         }
 
         $registro = DB::table('transporte_escolar.processo_vaga_oferta')->where('id', $oferta)->first();
+
+        if ((string) $request->input('acao') === 'fechar') {
+            return $this->fecharOferta($registro);
+        }
+
         $proxima = $registro === null ? null : ProcessoVaga::proxima((string) ($registro->situacao ?? ProcessoVaga::ABERTO), (string) $request->input('acao'));
 
         if ($proxima === null) {
@@ -242,6 +247,38 @@ class SolicitacaoController
         ]);
 
         return redirect('/transporte-escolar/solicitacoes')->with('ok', 'Vaga ' . mb_strtolower(ProcessoVaga::rotulo($proxima)) . '. Pedidos novos desta vaga ficam suspensos.');
+    }
+
+    private function fecharOferta(?object $registro): RedirectResponse
+    {
+        if ($registro === null || ($registro->situacao ?? ProcessoVaga::ABERTO) === ProcessoVaga::FECHADO) {
+            return redirect('/transporte-escolar/solicitacoes')->with('erro', 'Esta vaga já está fechada.');
+        }
+
+        DB::table('transporte_escolar.processo_vaga_oferta')->where('id', $registro->id)->update([
+            'situacao' => ProcessoVaga::FECHADO,
+            'updated_at' => now(),
+        ]);
+
+        $aprovados = DB::table('transporte_escolar.solicitacao')
+            ->where('oferta_id', $registro->id)
+            ->where('situacao', SituacaoPedido::DEFERIDA)
+            ->get();
+        $rota = (string) DB::table('transporte_escolar.rota')->where('id', $registro->rota_id)->value('descricao');
+
+        foreach ($aprovados as $pedido) {
+            DB::table('transporte_escolar.solicitacao')->where('id', $pedido->id)->update([
+                'situacao' => SituacaoPedido::ESPERA,
+                'atualizado_em' => now(),
+            ]);
+            $pedido->situacao = SituacaoPedido::ESPERA;
+            HistoricoPedido::registrar((int) $pedido->id, SituacaoPedido::ESPERA, HistoricoPedido::lugar($pedido, $rota), 'Vagas fechadas. O pedido aprovado foi para a lista de espera.');
+        }
+
+        $quantidade = $aprovados->count();
+        $texto = $quantidade === 1 ? '1 pedido aprovado foi para a lista de espera.' : $quantidade . ' pedidos aprovados foram para a lista de espera.';
+
+        return redirect('/transporte-escolar/solicitacoes')->with('ok', 'Vaga fechada. ' . $texto);
     }
 
     public function grupo(Request $request): RedirectResponse
@@ -452,6 +489,14 @@ class SolicitacaoController
         }
 
         $temVaga = $this->temVaga($pedido);
+
+        if ($acao === 'deferir' && in_array($pedido->situacao, [SituacaoPedido::RECEBIDA, SituacaoPedido::ANALISE], true) && $temVaga === false) {
+            if ($request->input('ciente') !== '1') {
+                return redirect('/transporte-escolar/solicitacoes')->with('erro', 'A linha está lotada. Confirme a ciência para colocar o pedido na lista de espera.');
+            }
+
+            $acao = 'esperar';
+        }
 
         if ($acao === 'esperar') {
             if ($temVaga === null) {

@@ -14,8 +14,14 @@ final class ProcessoVaga
 
     public const BLOQUEADO = 'bloqueado';
 
+    public const FECHADO = 'fechado';
+
     public static function rotulo(string $situacao): string
     {
+        if ($situacao === self::FECHADO) {
+            return 'Fechado';
+        }
+
         if ($situacao === self::PAUSADO || $situacao === self::BLOQUEADO) {
             return 'Pausado';
         }
@@ -39,7 +45,8 @@ final class ProcessoVaga
 
         return match ($acao) {
             'pausar' => $atual === self::ABERTO ? self::PAUSADO : null,
-            'retomar' => $atual === self::PAUSADO ? self::ABERTO : null,
+            'retomar' => in_array($atual, [self::PAUSADO, self::FECHADO], true) ? self::ABERTO : null,
+            'fechar' => in_array($atual, [self::ABERTO, self::PAUSADO], true) ? self::FECHADO : null,
             default => null,
         };
     }

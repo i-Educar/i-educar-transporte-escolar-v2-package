@@ -57,6 +57,7 @@ use iEducar\Packages\BuritiTransporteEscolar\Support\Frequencia;
 use iEducar\Packages\BuritiTransporteEscolar\Support\Pagina;
 use iEducar\Packages\BuritiTransporteEscolar\Support\PercursoTransito;
 use iEducar\Packages\BuritiTransporteEscolar\Support\ProcessoVaga;
+use iEducar\Packages\BuritiTransporteEscolar\Support\CapacidadeViagem;
 use iEducar\Packages\BuritiTransporteEscolar\Support\ProtocoloSolicitacao;
 use iEducar\Packages\BuritiTransporteEscolar\Support\SituacaoPedido;
 
@@ -101,6 +102,7 @@ require __DIR__ . '/../src/Support/NomeExibicao.php';
 require __DIR__ . '/../src/Support/Pagina.php';
 require __DIR__ . '/../src/Support/PercursoTransito.php';
 require __DIR__ . '/../src/Support/ProcessoVaga.php';
+require __DIR__ . '/../src/Support/CapacidadeViagem.php';
 require __DIR__ . '/../src/Support/ProcessoEdicao.php';
 require __DIR__ . '/../src/Support/AuditoriaTransporte.php';
 require __DIR__ . '/../src/Support/PortalAberto.php';
@@ -495,6 +497,16 @@ ok(ProcessoVaga::recebePedido('aberto', 'pausado') === false, 'agrupamento pausa
 ok(ProcessoVaga::recebePedido('bloqueado', null) === false, 'bloqueio antigo também impede o pedido');
 ok(ProcessoVaga::recebePedido('aberto', 'aberto', 'pausado') === false, 'vaga pausada não recebe pedido');
 ok(ProcessoVaga::proxima('aberto', 'bloquear') === null, 'não há um segundo botão de bloqueio');
+ok(ProcessoVaga::proxima('aberto', 'fechar') === 'fechado', 'fechar encerra a vaga publicada');
+ok(ProcessoVaga::proxima('fechado', 'retomar') === 'aberto', 'vaga fechada pode ser reaberta');
+ok(ProcessoVaga::recebePedido('aberto', 'aberto', 'fechado') === false, 'vaga fechada não recebe pedido');
+$paradasViagem = [
+    (object) ['descricao' => 'Casa', 'hora' => '06:40:00', 'tipo' => 'I'],
+    (object) ['descricao' => 'Escola', 'hora' => '07:10:00', 'tipo' => 'I'],
+];
+$viagensCurtas = CapacidadeViagem::linhas(25, 10, 30, $paradasViagem);
+ok(count($viagensCurtas) === 4 && str_contains($viagensCurtas[1], '06:40–07:10') && str_contains($viagensCurtas[3], '5 alunos'), 'veículo menor reparte a rota em viagens com hora e percurso');
+ok(CapacidadeViagem::linhas(8, 10, 30, $paradasViagem) === [], 'veículo que cabe a rota não gera viagem extra');
 ok(ProcessoEdicao::processo(2026, 2027, 1) !== null, 'ano com pedido da família não muda');
 ok(ProcessoEdicao::processo(2026, 2027, 0) === null, 'ano sem pedido pode mudar');
 ok(ProcessoEdicao::oferta(['processo_id' => 1, 'rota_id' => 1, 'escola' => 2, 'turno' => 'manha', 'vagas' => 10, 'idade_min' => null, 'idade_max' => null, 'series' => [], 'turmas' => []], ['processo_id' => 1, 'rota_id' => 2, 'escola' => 2, 'turno' => 'manha', 'vagas' => 10, 'idade_min' => null, 'idade_max' => null, 'series' => [], 'turmas' => []], 1, 0, 1) !== null, 'rota com pedido não muda');

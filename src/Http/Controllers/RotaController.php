@@ -4,6 +4,7 @@ namespace iEducar\Packages\BuritiTransporteEscolar\Http\Controllers;
 
 use iEducar\Packages\BuritiTransporteEscolar\Services\RedeConsulta;
 use iEducar\Packages\BuritiTransporteEscolar\Support\Acesso;
+use iEducar\Packages\BuritiTransporteEscolar\Support\CapacidadeViagem;
 use iEducar\Packages\BuritiTransporteEscolar\Support\Codigos;
 use iEducar\Packages\BuritiTransporteEscolar\Support\TurnoMatricula;
 use iEducar\Packages\BuritiTransporteEscolar\Support\VisaoRede;
@@ -130,6 +131,7 @@ class RotaController
                 ? (int) $registro->tempo_estimado_min
                 : KmCalculado::minutos($km, (float) $registro->velocidade_media_kmh),
             'kmInformado' => (float) $registro->km_pav + (float) $registro->km_npav,
+            'viagens' => $this->viagensDoVeiculo($itinerario, $alunos, $registro->tempo_estimado_min !== null ? (int) $registro->tempo_estimado_min : KmCalculado::minutos($km, (float) $registro->velocidade_media_kmh)),
             'pontos' => DB::table('transporte_escolar.ponto')->orderBy('descricao')->get(),
             'veiculos' => DB::table('transporte_escolar.veiculo')->where('ativo', true)->orderBy('placa')->get(),
             'podeGravar' => Acesso::permite(Processos::ROTAS, 'gravar'),
@@ -296,7 +298,7 @@ class RotaController
             ? ' Parada incluída, mas este ponto ainda não tem coordenada e não aparece no mapa.'
             : '';
 
-        return back()->with('ok', 'Parada ' . $seq . ' incluída no itinerário.' . $aviso);
+        return back()->with('ok', 'Parada ' . $seq . ' incluída no itinerário.' . $aviso . $this->textoCapacidade($rota, isset($dados['veiculo_id']) ? (int) $dados['veiculo_id'] : null));
     }
 
     public function removerParada(int $rota, int $parada): RedirectResponse
@@ -405,7 +407,7 @@ class RotaController
                 'tipo' => in_array($request->input('tipo'), ['I', 'V'], true) ? $request->input('tipo') : 'I',
             ]);
 
-            return back()->with('ok', 'Ponto criado e incluído como parada ' . $seq . ' desta rota.');
+            return back()->with('ok', 'Ponto criado e incluído como parada ' . $seq . ' desta rota.' . $this->textoCapacidade($rotaId, (int) ($request->input('veiculo_id') ?: 0)));
         }
 
         return back()->with('ok', 'Ponto criado. Inclua-o no itinerário da rota para ele entrar na viagem.');
@@ -582,5 +584,69 @@ class RotaController
         }
 
         return ['pontos' => $pontos, 'calor' => GradeCalor::celulas($casas)];
+    }
+
+    private function textoCapacidade(int $rotaId, ?int $veiculoId): string
+    {
+        if ($veiculoId === null || $veiculoId < 1) {
+            return '';
+        }
+
+        $veiculo = DB::table('transporte_escolar.veiculo')->where('id', $veiculoId)->first();
+        $registro = DB::table('transporte_escolar.rota')->where('id', $rotaId)->first();
+
+        if ($veiculo === null || $registro === null) {
+            return '';
+        }
+
+        $paradas = DB::table('transporte_escolar.itinerario as i')
+            ->join('transporte_escolar.ponto as p', 'p.id', '=', 'i.ponto_id')
+            ->where('i.rota_id', $rotaId)
+            ->where('i.veiculo_id', $veiculoId)
+            ->orderBy('i.seq')
+            ->get(['p.descricao', 'i.hora', 'i.tipo']);
+        $alunos = (int) DB::table('transporte_escolar.aluno_rota')->where('rota_id', $rotaId)->count();
+        $minutos = $registro->tempo_estimado_min !== null
+            ? (int) $registro->tempo_estimado_min
+            : KmCalculado::minutos((float) ($registro->km_calculado ?? 0), (float) $registro->velocidade_media_kmh);
+        $linhas = CapacidadeViagem::linhas($alunos, (int) $veiculo->passageiros, $minutos, $paradas->all());
+
+        return $linhas === [] ? '' : ' ' . implode(' ', $linhas);
+    }
+
+    /**
+     * @param iterable<int, object> $itinerario
+     * @return list<array{placa: string, linhas: list<string>}>
+     */
+    private function viagensDoVeiculo(iterable $itinerario, int $alunos, int $minutos): array
+    {
+        $grupos = [];
+
+        foreach ($itinerario as $parada) {
+            $id = (int) ($parada->veiculo_id ?? 0);
+
+            if ($id < 1) {
+                continue;
+            }
+
+            $grupos[$id][] = $parada;
+        }
+
+        $saida = [];
+
+        foreach ($grupos as $paradas) {
+            $linhas = CapacidadeViagem::linhas($alunos, (int) ($paradas[0]->passageiros ?? 0), $minutos, $paradas);
+
+            if ($linhas === []) {
+                continue;
+            }
+
+            $saida[] = [
+                'placa' => (string) ($paradas[0]->placa ?: 'Veículo'),
+                'linhas' => $linhas,
+            ];
+        }
+
+        return $saida;
     }
 }

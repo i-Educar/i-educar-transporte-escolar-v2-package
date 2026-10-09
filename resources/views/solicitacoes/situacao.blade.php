@@ -1,4 +1,6 @@
-@php $pausado = in_array($situacao, ['pausado', 'bloqueado'], true); @endphp
+@php
+    $pausado = in_array($situacao, ['pausado', 'bloqueado', 'fechado'], true);
+@endphp
 <form method="post" action="{{ url('/transporte-escolar/solicitacoes/'.$alvo.'/'.$id.'/situacao') }}">
     @csrf
     <input type="hidden" name="acao" value="{{ $pausado ? 'retomar' : 'pausar' }}">

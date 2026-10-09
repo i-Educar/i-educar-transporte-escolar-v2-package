@@ -12,6 +12,9 @@
         </ul>
     @endif
     <p>Km informado: {{ number_format($kmInformado, 1, ',', '.') }} · Km calculado: {{ number_format($kmCalculado, 1, ',', '.') }} · Tempo estimado: {{ $minutos }} min</p>
+    @foreach($viagens as $viagem)
+        <p class="lead"><strong>{{ $viagem['placa'] }}.</strong> {{ implode(' ', $viagem['linhas']) }}</p>
+    @endforeach
 
     @php
         $pontosMapa = [];
