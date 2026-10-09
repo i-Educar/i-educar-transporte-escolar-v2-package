@@ -18,6 +18,15 @@ use Illuminate\View\View;
 
 class FamiliaPortalController
 {
+    public function mapaSetor(): View
+    {
+        $this->municipio();
+        $dados = $this->atendimento();
+        abort_if($dados['mapa'] === null, 404);
+
+        return view('transporte-escolar::portal.setor', $dados);
+    }
+
     public function inicio(): View
     {
         $this->municipio();

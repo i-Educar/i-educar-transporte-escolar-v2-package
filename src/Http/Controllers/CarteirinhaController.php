@@ -3,11 +3,13 @@
 namespace iEducar\Packages\BuritiTransporteEscolar\Http\Controllers;
 
 use iEducar\Packages\BuritiTransporteEscolar\Services\RedeConsulta;
+use iEducar\Packages\BuritiTransporteEscolar\Support\AtendimentoSetor;
 use iEducar\Packages\BuritiTransporteEscolar\Support\CarteirinhaPdf;
 use iEducar\Packages\BuritiTransporteEscolar\Support\Codigos;
 use iEducar\Packages\BuritiTransporteEscolar\Support\DataTela;
 use iEducar\Packages\BuritiTransporteEscolar\Support\FotoIdentificacao;
 use iEducar\Packages\BuritiTransporteEscolar\Support\IdentidadeMunicipio;
+use iEducar\Packages\BuritiTransporteEscolar\Support\QrCodigo;
 use iEducar\Packages\BuritiTransporteEscolar\Support\ResponsaveisAluno;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
@@ -95,6 +97,7 @@ class CarteirinhaController
         $inicios = $this->inicioRotas($linhas->pluck('rota_id')->all());
         $municipio = IdentidadeMunicipio::rotulo();
         $setor = $this->setor();
+        $qr = $this->qrSetor();
         $pessoas = [];
 
         foreach ($linhas as $linha) {
@@ -126,9 +129,9 @@ class CarteirinhaController
                     ['Período da rota', Codigos::PERIODO[$linha->periodo] ?? (string) $linha->periodo],
                     ['Veículo', $veiculo['veiculo'] ?? ''],
                     ['Motorista', $veiculo['motorista'] ?? ''],
-                    ['Embarque', (string) ($linha->ponto ?: '')],
                     ['Horário', $hora],
                 ],
+                'qr' => $qr,
             ];
         }
 
@@ -248,6 +251,33 @@ class CarteirinhaController
         }
 
         return $mapa;
+    }
+
+    /**
+     * @return ?list<list<bool>>
+     */
+    private function qrSetor(): ?array
+    {
+        $linhas = DB::table('transporte_escolar.configuracao')
+            ->whereIn('chave', ['atendimento_latitude', 'atendimento_longitude'])
+            ->pluck('valor', 'chave');
+        $mapa = AtendimentoSetor::mapa($linhas['atendimento_latitude'] ?? null, $linhas['atendimento_longitude'] ?? null);
+
+        if ($mapa === null) {
+            return null;
+        }
+
+        $local = url('/te/setor');
+        $direto = 'https://maps.google.com/?q=' . $this->coordenada($mapa['lat']) . ',' . $this->coordenada($mapa['lon']);
+
+        return QrCodigo::matriz(strlen($local) <= 60 ? $local : $direto);
+    }
+
+    private function coordenada(float $valor): string
+    {
+        $texto = rtrim(rtrim(number_format($valor, 5, '.', ''), '0'), '.');
+
+        return $texto === '' || $texto === '-' ? '0' : $texto;
     }
 
     private function setor(): string

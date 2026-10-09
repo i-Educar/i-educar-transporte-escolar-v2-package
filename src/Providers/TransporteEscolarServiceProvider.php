@@ -48,6 +48,7 @@ class TransporteEscolarServiceProvider extends ServiceProvider
             Route::get('/transporte-escolar/familia/protocolo', [\iEducar\Packages\BuritiTransporteEscolar\Http\Controllers\FamiliaPortalController::class, 'protocolo']);
             Route::post('/transporte-escolar/familia/protocolo', [\iEducar\Packages\BuritiTransporteEscolar\Http\Controllers\FamiliaPortalController::class, 'consultar']);
             Route::post('/transporte-escolar/familia/cancelar', [\iEducar\Packages\BuritiTransporteEscolar\Http\Controllers\FamiliaPortalController::class, 'cancelar']);
+            Route::get('/te/setor', [\iEducar\Packages\BuritiTransporteEscolar\Http\Controllers\FamiliaPortalController::class, 'mapaSetor']);
             Route::get('/te/{token}', [\iEducar\Packages\BuritiTransporteEscolar\Http\Controllers\FamiliaPortalController::class, 'acompanhar']);
             Route::post('/te/{token}', [\iEducar\Packages\BuritiTransporteEscolar\Http\Controllers\FamiliaPortalController::class, 'confirmar']);
         });
