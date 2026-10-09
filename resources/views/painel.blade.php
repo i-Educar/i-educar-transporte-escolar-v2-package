@@ -10,14 +10,14 @@
     @endphp
     <style>
         .painel-tela { display: grid; gap: 12px; }
-        .painel-kpis { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 12px; margin: 0; align-items: stretch; }
-        .kpi-coluna { display: flex; flex-direction: column; min-width: 0; position: relative; overflow: hidden; background: linear-gradient(180deg, color-mix(in srgb, var(--cor, var(--azul)) 7%, #fff), #fff 72px); border: 1px solid color-mix(in srgb, var(--cor, var(--azul)) 18%, #e6edf2); border-radius: 14px; padding: 14px 14px 10px; box-shadow: 0 10px 28px rgba(21, 34, 43, .05); }
+        .painel-kpis { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; margin: 0; align-items: stretch; }
+        .kpi-coluna { display: flex; flex-direction: column; min-width: 0; position: relative; overflow: hidden; background: linear-gradient(180deg, color-mix(in srgb, var(--cor, var(--azul)) 9%, #fff), #fff 88px); border: 1px solid color-mix(in srgb, var(--cor, var(--azul)) 28%, #d5e2ea); border-radius: 14px; padding: 16px 16px 14px; box-shadow: 0 8px 22px rgba(21, 34, 43, .04); }
         .kpi-coluna header { display: flex; align-items: center; gap: 8px; margin: 0; color: var(--suave); font-size: .68rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; line-height: 1.25; }
         .kpi-coluna header i { width: 32px; height: 32px; border-radius: 10px; display: grid; place-items: center; flex: none; color: var(--cor, var(--azul)); background: #fff; border: 1px solid color-mix(in srgb, var(--cor, var(--azul)) 22%, #e6edf2); box-shadow: 0 4px 10px color-mix(in srgb, var(--cor, var(--azul)) 16%, transparent); }
         .kpi-coluna .geral { margin: 14px 0 0; font-size: 2rem; font-weight: 800; letter-spacing: -.04em; line-height: .95; color: var(--tinta); font-variant-numeric: tabular-nums; }
         .kpi-coluna .geral small { display: block; margin-top: 6px; color: var(--cor, var(--azul)); font-size: .66rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
-        .kpi-coluna ul { list-style: none; margin: 12px 0 0; padding: 0; overflow: auto; max-height: 168px; }
-        .kpi-coluna li { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 3px 8px; align-items: center; padding: 8px 0; border-top: 1px solid #eef2f5; font-size: .76rem; }
+        .kpi-coluna ul { list-style: none; display: grid; gap: 6px; margin: 14px 0 0; padding: 0; overflow: auto; max-height: 220px; }
+        .kpi-coluna li { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 10px; align-items: center; padding: 8px 10px; border: 1px solid color-mix(in srgb, var(--cor, var(--azul)) 18%, #e3ebf0); border-radius: 8px; background: color-mix(in srgb, var(--cor, var(--azul)) 7%, #fff); font-size: .76rem; }
         .kpi-coluna li span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--suave); }
         .kpi-coluna li strong { justify-self: end; color: var(--tinta); font-weight: 800; font-variant-numeric: tabular-nums; }
         .kpi-faixa { grid-column: 1 / -1; height: 4px; border-radius: 99px; background: #eef2f5; overflow: hidden; }
@@ -61,10 +61,10 @@
         .painel-fila .botao { padding: 4px 8px; font-size: .75rem; }
         .marca-mapa { background: transparent; border: 0; }
         .marca-mapa span { width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; color: #fff; border: 2px solid #fff; box-shadow: 0 1px 3px rgba(0,0,0,.35); font-size: 11px; }
-        @media (max-width: 1200px) {
-            .painel-kpis { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+        @media (max-width: 900px) {
+            .painel-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
         }
-        @media (max-width: 720px) {
+        @media (max-width: 640px) {
             .painel-kpis { grid-template-columns: 1fr; }
         }
         @media (max-width: 1100px) {
