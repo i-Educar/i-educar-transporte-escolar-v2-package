@@ -2,7 +2,7 @@
 
 Pacote Buriti para o i-Educar 2.12. Funciona quando o pacote `portabilis/i-educar-transport-package` não está instalado: as tabelas ficam no schema `transporte_escolar`, não em `modules`.
 
-Esta versão é a 1.5.1. Cobre as fases 0 a 5, as ondas 1 a 8, o portal da família, o processo de vagas, o PDF de duas vias, o aviso no navegador, a frequência da viagem e o painel na ordem do trabalho. SMS, envio ao SiGPC e folha de pagamento continuam de fora.
+Esta versão é a 1.5.2. Cobre as fases 0 a 5, as ondas 1 a 8, o portal da família, o processo de vagas, o PDF de duas vias, o aviso no navegador, a frequência da viagem e o painel na ordem do trabalho. SMS, envio ao SiGPC e folha de pagamento continuam de fora.
 
 ## O que o núcleo já guarda
 
@@ -37,7 +37,7 @@ php artisan migrate --database=conexao_do_municipio
 php artisan transporte:simula --database=conexao_do_municipio
 ```
 
-`transporte:simula` monta a operação de teste com os alunos já matriculados no ano vigente: frota, linhas, viagens, avisos, fila de notificação, informes de prazo, pedidos em várias situações, ocorrência, ordem aberta e bilhete pendente. Se o ano não tiver matrícula, o comando para e pede para rodar `php artisan ieducar:matriculas` antes. Uma segunda execução não duplica o que já foi simulado.
+`transporte:simula` monta a operação de teste com os alunos já matriculados no ano vigente: frota, linhas curtas, rotas longas com várias paradas e dezenas de alunos, viagens, avisos, fila de notificação, informes de prazo, pedidos em várias situações, ocorrência, ordem aberta e bilhete pendente. Se o ano não tiver matrícula, o comando para e pede para rodar `php artisan ieducar:matriculas` antes. Uma segunda execução não duplica o que já foi simulado.
 
 Os testes de regra, sem banco, rodam com `php tests/run.php`.
 

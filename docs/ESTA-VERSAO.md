@@ -1,6 +1,6 @@
 # O que esta versão entrega
 
-Versão 1.5.1. Fases 0 a 5, ondas 1 a 8, portal da família, processo de vagas, documentos em duas vias, aviso no navegador, frequência da viagem e painel na ordem do trabalho. SMS, envio ao SiGPC e folha ficam de fora. O desenho de cada fluxo está em `docs/FLUXOS.md`.
+Versão 1.5.2. Fases 0 a 5, ondas 1 a 8, portal da família, processo de vagas, documentos em duas vias, aviso no navegador, frequência da viagem e painel na ordem do trabalho. SMS, envio ao SiGPC e folha ficam de fora. O desenho de cada fluxo está em `docs/FLUXOS.md`.
 
 | Entrega | Onde está |
 | --- | --- |
@@ -23,6 +23,6 @@ Versão 1.5.1. Fases 0 a 5, ondas 1 a 8, portal da família, processo de vagas, 
 | Frequência impressa na viagem, com CPF abreviado e status de presença ou ausência | `/transporte-escolar/viagens` |
 | Relatórios em grupos de indicadores | `/transporte-escolar/relatorios` |
 | Veículo com os tipos do Censo nos modais rodoviário, aquaviário e ferroviário | `/transporte-escolar/veiculos` |
-| Carga de teste com alunos do ano, avisos, notificações e informes de prazo | `php artisan transporte:simula` |
+| Carga de teste com alunos do ano, rotas longas, avisos, notificações e informes | `php artisan transporte:simula` |
 
 A cerca não barra o embarque. O responsável escolhe receber o aviso no navegador; não há SMS. No portal, a família acompanha o pedido na página Acompanhar. A prefeitura não pede senha nem dados por rede social. Quando o pedido é aceito, a página mostra os documentos e o endereço do setor, com mapa se o institucional gravou latitude e longitude. A janela periódica usa o dia letivo quando o calendário do ano existe. A descarga não reescreve aluno, rota nem veículo. O evento repetido é ignorado. A falta no transporte não entra no diário. O dossiê não envia o SiGPC. O pedido da família não cria pessoa nem matrícula. Aceitar o pedido não coloca o aluno na rota.

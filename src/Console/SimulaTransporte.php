@@ -43,6 +43,7 @@ class SimulaTransporte extends Command
         $this->line('Alunos do ano: ' . $resumo['alunos_ano']);
         $this->line('Alunos colocados em rota nesta execução: ' . $resumo['vinculados']);
         $this->line('Rotas de simulação: ' . $resumo['rotas']);
+        $this->line('Paradas das rotas longas: ' . $resumo['paradas']);
         $this->line('Viagens criadas: ' . $resumo['viagens']);
         $this->line('Avisos à família: ' . $resumo['avisos']);
         $this->line('Notificações na fila: ' . $resumo['notificacoes']);

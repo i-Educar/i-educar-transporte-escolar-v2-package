@@ -27,7 +27,7 @@ final class SimulaCarga
     }
 
     /**
-     * @return array{alunos_ano: int, vinculados: int, rotas: int, viagens: int, avisos: int, notificacoes: int, informes: int, pedidos: int, ocorrencias: int}
+     * @return array{alunos_ano: int, vinculados: int, rotas: int, viagens: int, avisos: int, notificacoes: int, informes: int, pedidos: int, ocorrencias: int, paradas: int}
      */
     public static function executar(int $ano): array
     {
@@ -66,18 +66,20 @@ final class SimulaCarga
         self::processo($ano, $escolas);
         $pedidos = self::pedidos($ano, $escolas[0] ?? null);
         $lotacao = self::lotacao($ano, $empresa, $motoristas[0]);
+        $longas = self::rotasLongas($ano, $empresa, $motoristas[0], $monitores[0]);
         $chamada = self::chamada($ano);
 
         return [
             'alunos_ano' => self::alunosDoAno($ano),
-            'vinculados' => $vinculados + $lotacao['vinculados'],
-            'rotas' => count($escolas) + $lotacao['rotas'],
-            'viagens' => $viagens,
+            'vinculados' => $vinculados + $lotacao['vinculados'] + $longas['vinculados'],
+            'rotas' => count($escolas) + $lotacao['rotas'] + $longas['rotas'],
+            'viagens' => $viagens + $longas['viagens'],
             'avisos' => $chamada['avisos'],
             'notificacoes' => $chamada['notificacoes'],
             'informes' => self::informes($empresa),
             'pedidos' => $pedidos,
             'ocorrencias' => self::ocorrencias($ano) + self::servicos($onibus, $oficina, $posto) + self::contrato($ano, $empresa) + self::offline(),
+            'paradas' => $longas['paradas'],
         ];
     }
 
@@ -577,6 +579,237 @@ final class SimulaCarga
         }
 
         return ['vinculados' => $vinculados, 'rotas' => $nova ? 1 : 0];
+    }
+
+    /**
+     * @return array{vinculados: int, rotas: int, viagens: int, paradas: int}
+     */
+    private static function rotasLongas(int $ano, int $empresa, int $motorista, int $monitor): array
+    {
+        $resumo = ['vinculados' => 0, 'rotas' => 0, 'viagens' => 0, 'paradas' => 0];
+        $veiculo = self::veiculo('simula-onibus-longo', 'SIM0D04', 'Ônibus simulado de linha longa', 3, 46, 2.8, $empresa, $motorista);
+        $escolas = self::escolas($ano);
+
+        if ($escolas === []) {
+            return $resumo;
+        }
+
+        foreach ([
+            [$escolas[0], 'manha', 10, 40],
+            [$escolas[1] ?? $escolas[0], 'tarde', 8, 28],
+        ] as [$escola, $periodo, $quantidade, $limite]) {
+            $parte = self::rotaLonga($ano, $escola, $empresa, $veiculo, $motorista, $monitor, $periodo, $quantidade, $limite);
+            $resumo['vinculados'] += $parte['vinculados'];
+            $resumo['rotas'] += $parte['rotas'];
+            $resumo['viagens'] += $parte['viagens'];
+            $resumo['paradas'] += $parte['paradas'];
+        }
+
+        return $resumo;
+    }
+
+    /**
+     * @return array{vinculados: int, rotas: int, viagens: int, paradas: int}
+     */
+    private static function rotaLonga(int $ano, object $escola, int $empresa, int $veiculo, int $motorista, int $monitor, string $periodo, int $quantidade, int $limite): array
+    {
+        $chave = 'simula-rota-longa-' . $periodo . '-' . $escola->cod_escola;
+        $id = DB::table('transporte_escolar.rota')->where('origem_chave', $chave)->where('ano', $ano)->value('id');
+        $nova = $id === null;
+        $base = self::coordenada($escola);
+        $paradas = [];
+
+        for ($ordem = 1; $ordem <= $quantidade; $ordem++) {
+            $paradas[] = [
+                'id' => self::ponto(
+                    'simula-ponto-longo-' . $periodo . '-' . $escola->cod_escola . '-' . $ordem,
+                    'Parada longa ' . $ordem,
+                    $base[0] + ($ordem * 0.015),
+                    $base[1] + ($ordem * 0.008)
+                ),
+                'lat' => $base[0] + ($ordem * 0.015),
+                'lng' => $base[1] + ($ordem * 0.008),
+            ];
+        }
+
+        $escolaPonto = self::ponto(
+            'simula-ponto-' . $escola->cod_escola . '-escola',
+            Str::limit((string) $escola->nome, 70, ''),
+            $base[0],
+            $base[1]
+        );
+
+        if ($id === null) {
+            $id = (int) DB::table('transporte_escolar.rota')->insertGetId([
+                'ano' => $ano,
+                'descricao' => Str::limit('Linha longa simulada ' . $escola->cod_escola . ' ' . $periodo, 80, ''),
+                'tipo_rota' => 'U',
+                'periodo' => $periodo,
+                'sentido' => 'C',
+                'km_pav' => $quantidade * 3,
+                'km_npav' => 6,
+                'velocidade_media_kmh' => 40,
+                'terceirizada' => false,
+                'empresa_id' => $empresa,
+                'origem' => 'simula',
+                'origem_chave' => $chave,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+            DB::table('transporte_escolar.rota_escola')->insertOrIgnore([
+                'rota_id' => $id,
+                'ref_cod_escola' => $escola->cod_escola,
+            ]);
+            $linhas = [];
+            $seq = 1;
+            $hora = $periodo === 'tarde' ? 12 * 60 + 10 : 5 * 60 + 10;
+
+            foreach ($paradas as $parada) {
+                $linhas[] = [
+                    'rota_id' => $id,
+                    'seq' => $seq,
+                    'ponto_id' => $parada['id'],
+                    'veiculo_id' => $veiculo,
+                    'hora' => sprintf('%02d:%02d:00', intdiv($hora, 60), $hora % 60),
+                    'tipo' => 'I',
+                ];
+                $seq++;
+                $hora += 7;
+            }
+
+            $linhas[] = [
+                'rota_id' => $id,
+                'seq' => $seq,
+                'ponto_id' => $escolaPonto,
+                'veiculo_id' => $veiculo,
+                'hora' => sprintf('%02d:%02d:00', intdiv($hora, 60), $hora % 60),
+                'tipo' => 'I',
+            ];
+            $seq++;
+            $hora = $periodo === 'tarde' ? 17 * 60 : 12 * 60;
+            $linhas[] = [
+                'rota_id' => $id,
+                'seq' => $seq,
+                'ponto_id' => $escolaPonto,
+                'veiculo_id' => $veiculo,
+                'hora' => sprintf('%02d:%02d:00', intdiv($hora, 60), $hora % 60),
+                'tipo' => 'V',
+            ];
+            $seq++;
+            $hora += 7;
+
+            foreach (array_reverse($paradas) as $parada) {
+                $linhas[] = [
+                    'rota_id' => $id,
+                    'seq' => $seq,
+                    'ponto_id' => $parada['id'],
+                    'veiculo_id' => $veiculo,
+                    'hora' => sprintf('%02d:%02d:00', intdiv($hora, 60), $hora % 60),
+                    'tipo' => 'V',
+                ];
+                $seq++;
+                $hora += 7;
+            }
+
+            DB::table('transporte_escolar.itinerario')->insert($linhas);
+            self::ofertaLonga($ano, (int) $id, (int) $escola->cod_escola, $periodo);
+        }
+
+        $rota = [
+            'id' => (int) $id,
+            'veiculo' => $veiculo,
+            'motorista' => $motorista,
+            'monitor' => $monitor,
+            'hora' => $periodo === 'tarde' ? '12:10:00' : '05:10:00',
+            'escola' => (int) $escola->cod_escola,
+        ];
+
+        return [
+            'vinculados' => self::vincularPontos($ano, $escola, $rota, $paradas, $limite, $periodo),
+            'rotas' => $nova ? 1 : 0,
+            'viagens' => self::viagens($ano, $rota),
+            'paradas' => $nova ? $quantidade : 0,
+        ];
+    }
+
+    /**
+     * @param list<array{id: int, lat: float, lng: float}> $paradas
+     * @param array{id: int, escola: int} $rota
+     */
+    private static function vincularPontos(int $ano, object $escola, array $rota, array $paradas, int $limite, string $periodo): int
+    {
+        if ($paradas === [] || DB::table('transporte_escolar.aluno_rota')->where('rota_id', $rota['id'])->exists()) {
+            return 0;
+        }
+
+        $alunos = DB::table('pmieducar.matricula as m')
+            ->where('m.ano', $ano)
+            ->where('m.ativo', 1)
+            ->where('m.ref_ref_cod_escola', $escola->cod_escola)
+            ->whereNotExists(function ($consulta) use ($ano) {
+                $consulta->select(DB::raw('1'))
+                    ->from('transporte_escolar.aluno_rota as ar')
+                    ->whereColumn('ar.ref_cod_aluno', 'm.ref_cod_aluno')
+                    ->where('ar.ano', $ano);
+            })
+            ->distinct()
+            ->orderBy('m.ref_cod_aluno')
+            ->limit($limite)
+            ->pluck('m.ref_cod_aluno');
+        $gravados = 0;
+        $total = count($paradas);
+
+        foreach ($alunos as $indice => $aluno) {
+            $parada = $paradas[$indice % $total];
+            DB::table('transporte_escolar.aluno_rota')->insert([
+                'ref_cod_aluno' => $aluno,
+                'rota_id' => $rota['id'],
+                'ponto_id' => $parada['id'],
+                'turno' => $periodo,
+                'ano' => $ano,
+                'residencia_latitude' => round($parada['lat'] + (($indice % 5) * 0.0003), 7),
+                'residencia_longitude' => round($parada['lng'] + (($indice % 4) * 0.0003), 7),
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+            DB::table('pmieducar.aluno')->where('cod_aluno', $aluno)->where(function ($consulta) {
+                $consulta->whereNull('tipo_transporte')->orWhere('tipo_transporte', 0);
+            })->update(['tipo_transporte' => 2]);
+            $gravados++;
+        }
+
+        return $gravados;
+    }
+
+    private static function ofertaLonga(int $ano, int $rota, int $escola, string $periodo): void
+    {
+        $processo = DB::table('transporte_escolar.processo_vaga')->where('nome', 'Simulação de transporte ' . $ano)->where('ano', $ano)->value('id');
+
+        if ($processo === null) {
+            return;
+        }
+
+        $existe = DB::table('transporte_escolar.processo_vaga_oferta')
+            ->where('processo_id', $processo)
+            ->where('rota_id', $rota)
+            ->where('ref_cod_escola', $escola)
+            ->where('turno', $periodo)
+            ->exists();
+
+        if ($existe) {
+            return;
+        }
+
+        DB::table('transporte_escolar.processo_vaga_oferta')->insert([
+            'processo_id' => $processo,
+            'rota_id' => $rota,
+            'ref_cod_escola' => $escola,
+            'turno' => $periodo,
+            'vagas' => 40,
+            'situacao' => 'aberto',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
     }
 
     /**
