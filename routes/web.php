@@ -1,6 +1,7 @@
 <?php
 
 use iEducar\Packages\BuritiTransporteEscolar\Http\Controllers\AlunoRotaController;
+use iEducar\Packages\BuritiTransporteEscolar\Http\Controllers\CarteirinhaController;
 use iEducar\Packages\BuritiTransporteEscolar\Http\Controllers\FrequenciaController;
 use iEducar\Packages\BuritiTransporteEscolar\Http\Controllers\AuditoriaController;
 use iEducar\Packages\BuritiTransporteEscolar\Http\Controllers\AvisoController;
@@ -45,6 +46,9 @@ Route::prefix('transporte-escolar')->group(function () {
     Route::post('/escolas/{escola}/coordenada', [RotaController::class, 'escolaCoordenada'])->middleware('transporte.processo:' . Processos::ROTAS . ',gravar');
 
     Route::get('/fotos/{foto}', [FrotaController::class, 'foto'])->whereNumber('foto');
+    Route::post('/motoristas/carteirinhas', [CarteirinhaController::class, 'motoristas'])->middleware('transporte.processo:' . Processos::MOTORISTAS . ',ver');
+    Route::post('/monitores/carteirinhas', [CarteirinhaController::class, 'monitores'])->middleware('transporte.processo:' . Processos::MONITORES . ',ver');
+    Route::post('/alunos/carteirinhas', [CarteirinhaController::class, 'alunos'])->middleware('transporte.processo:' . Processos::ALUNOS . ',ver');
     Route::get('/alunos', [AlunoRotaController::class, 'index'])->middleware('transporte.processo:' . Processos::ALUNOS . ',ver');
     Route::post('/alunos', [AlunoRotaController::class, 'store'])->middleware('transporte.processo:' . Processos::ALUNOS . ',gravar');
     Route::post('/alunos/atualizar', [AlunoRotaController::class, 'atualizar'])->middleware('transporte.processo:' . Processos::ALUNOS . ',gravar');

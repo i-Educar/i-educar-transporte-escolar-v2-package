@@ -7,6 +7,13 @@
         <div class="barra-dados">
             <label class="filtro"><i class="fa fa-search" aria-hidden="true"></i><input type="search" data-filtro-tabela placeholder="Buscar nesta página"></label>
             <a class="botao claro" href="{{ url('/transporte-escolar/'.$recurso.'/csv') }}"><i class="fa fa-download" aria-hidden="true"></i> Exportar</a>
+            @if(in_array($recurso, ['motoristas', 'monitores'], true))
+                <form id="carteirinhas" class="acao" method="post" action="{{ url('/transporte-escolar/'.$recurso.'/carteirinhas') }}" target="_blank" data-carteirinhas>
+                    @csrf
+                    <button type="submit" class="botao claro" name="modo" value="selecionadas"><i class="fa fa-id-card" aria-hidden="true"></i> Emitir selecionadas</button>
+                    <button type="submit" class="botao claro" name="modo" value="todas"><i class="fa fa-id-card" aria-hidden="true"></i> Emitir todas</button>
+                </form>
+            @endif
             @if($podeGravar)
                 <button type="button" class="botao" data-abre-modal="novo-registro"><i class="fa fa-plus" aria-hidden="true"></i> Incluir</button>
             @endif
@@ -18,9 +25,9 @@
                         @if($recurso === 'veiculos')
                             <th>Placa</th><th>Descrição</th><th>Passageiros</th><th>Ativo</th><th></th>
                         @elseif($recurso === 'motoristas')
-                            <th>Nome</th><th>Telefone</th><th>E-mail</th><th>Matrícula</th><th>CNH</th><th></th>
+                            <th><input type="checkbox" data-marca-todas aria-label="Selecionar esta página" title="Selecionar esta página"></th><th>Nome</th><th>Telefone</th><th>E-mail</th><th>Matrícula</th><th>CNH</th><th></th>
                         @elseif($recurso === 'monitores')
-                            <th>Nome</th><th>Telefone</th><th>E-mail</th><th>Matrícula</th><th>Turno</th><th></th>
+                            <th><input type="checkbox" data-marca-todas aria-label="Selecionar esta página" title="Selecionar esta página"></th><th>Nome</th><th>Telefone</th><th>E-mail</th><th>Matrícula</th><th>Turno</th><th></th>
                         @elseif($recurso === 'empresas')
                             <th>Nome</th><th>CNPJ</th><th>Telefone</th><th>E-mail</th><th></th>
                         @elseif($recurso === 'fornecedores')
@@ -55,6 +62,7 @@
                                 <td>{{ $linha->ativo ? 'Sim' : 'Não' }}</td>
                                 <td class="acoes"><button type="button" class="icone ver" data-abre-modal="ver-{{ $loop->index }}" aria-label="Ver veículo" title="Ver"><i class="fa fa-eye" aria-hidden="true"></i></button>@if($podeGravar)<button type="button" class="icone editar" data-abre-modal="editar-{{ $linha->id }}" aria-label="Editar veículo" title="Editar"><i class="fa fa-pencil" aria-hidden="true"></i></button>@endif</td>
                             @elseif($recurso === 'motoristas')
+                                <td><input type="checkbox" name="ids[]" value="{{ $linha->id }}" form="carteirinhas" data-carteirinha aria-label="Selecionar {{ $linha->nome }}"></td>
                                 <td>{{ $linha->nome }}@include('transporte-escolar::frota.atencao', ['avisos' => $avisos])</td>
                                 <td>{{ $linha->telefone ?: '—' }}</td>
                                 <td>{{ $linha->email ?: '—' }}</td>
@@ -62,6 +70,7 @@
                                 <td>{{ $linha->cnh ?: '—' }}</td>
                                 <td class="acoes"><button type="button" class="icone ver" data-abre-modal="ver-{{ $loop->index }}" aria-label="Ver motorista" title="Ver"><i class="fa fa-eye" aria-hidden="true"></i></button>@if($podeGravar)<button type="button" class="icone editar" data-abre-modal="editar-{{ $linha->id }}" aria-label="Editar motorista" title="Editar"><i class="fa fa-pencil" aria-hidden="true"></i></button>@endif</td>
                             @elseif($recurso === 'monitores')
+                                <td><input type="checkbox" name="ids[]" value="{{ $linha->id }}" form="carteirinhas" data-carteirinha aria-label="Selecionar {{ $linha->nome }}"></td>
                                 <td>{{ $linha->nome }}</td>
                                 <td>{{ $linha->telefone ?: '—' }}</td>
                                 <td>{{ $linha->email ?: '—' }}</td>

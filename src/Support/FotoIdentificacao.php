@@ -71,6 +71,57 @@ final class FotoIdentificacao
         return Storage::response($foto->caminho);
     }
 
+    /**
+     * @return ?array{w: int, h: int, data: string}
+     */
+    public static function retrato(string $tipo, int $dono): ?array
+    {
+        if ($dono <= 0 || !Schema::hasTable('transporte_escolar.foto_identificacao') || !function_exists('imagecreatefromstring')) {
+            return null;
+        }
+
+        $caminho = DB::table('transporte_escolar.foto_identificacao')
+            ->where('tipo', $tipo)
+            ->where('dono_id', $dono)
+            ->where('papel', 'carteirinha')
+            ->orderByDesc('id')
+            ->value('caminho');
+
+        if (!is_string($caminho) || !str_starts_with($caminho, 'transporte-escolar/fotos/') || !Storage::exists($caminho)) {
+            return null;
+        }
+
+        $origem = @imagecreatefromstring((string) Storage::get($caminho));
+
+        if ($origem === false) {
+            return null;
+        }
+
+        $largura = imagesx($origem);
+        $altura = imagesy($origem);
+        $destino = imagecreatetruecolor(160, 200);
+        $branco = imagecolorallocate($destino, 255, 255, 255);
+        imagefill($destino, 0, 0, $branco);
+        $proporcao = max(160 / max(1, $largura), 200 / max(1, $altura));
+        $novaLargura = (int) round($largura * $proporcao);
+        $novaAltura = (int) round($altura * $proporcao);
+        imagecopyresampled($destino, $origem, (int) ((160 - $novaLargura) / 2), (int) ((200 - $novaAltura) / 2), 0, 0, $novaLargura, $novaAltura, $largura, $altura);
+        imagedestroy($origem);
+
+        if (!function_exists('imagejpeg')) {
+            imagedestroy($destino);
+
+            return null;
+        }
+
+        ob_start();
+        imagejpeg($destino, null, 82);
+        $dados = ob_get_clean();
+        imagedestroy($destino);
+
+        return is_string($dados) && $dados !== '' ? ['w' => 160, 'h' => 200, 'data' => $dados] : null;
+    }
+
     private static function gravar(string $tipo, int $dono, string $papel, $arquivo): void
     {
         DB::table('transporte_escolar.foto_identificacao')->insert([

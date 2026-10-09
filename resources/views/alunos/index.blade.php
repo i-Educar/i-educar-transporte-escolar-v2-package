@@ -11,6 +11,13 @@
         <label>Nome, matrícula ou CPF <input name="q" value="{{ $busca }}"></label>
         <button type="submit">Buscar no ano</button>
     </form>
+    <form id="carteirinhas" class="acao" method="post" action="{{ url('/transporte-escolar/alunos/carteirinhas') }}" target="_blank" data-carteirinhas>
+        @csrf
+        <input type="hidden" name="ano" value="{{ $ano }}">
+        <input type="hidden" name="q" value="{{ $busca }}">
+        <button type="submit" class="botao claro" name="modo" value="selecionadas"><i class="fa fa-id-card" aria-hidden="true"></i> Emitir selecionadas</button>
+        <button type="submit" class="botao claro" name="modo" value="todas"><i class="fa fa-id-card" aria-hidden="true"></i> Emitir todas</button>
+    </form>
 
     <div data-painel>
         <h2>Alunos Transportados</h2>
@@ -19,11 +26,12 @@
         </div>
         <div class="tabela-wrap">
             <table>
-                <thead><tr><th>Matrícula</th><th>Aluno</th><th>Rota</th><th>Cartão</th><th>Responsável</th><th></th></tr></thead>
+                <thead><tr><th><input type="checkbox" data-marca-todas aria-label="Selecionar esta página" title="Selecionar esta página"></th><th>Matrícula</th><th>Aluno</th><th>Rota</th><th>Cartão</th><th>Responsável</th><th></th></tr></thead>
                 <tbody>
                     @forelse($vinculos as $vinculo)
                         @php($nome = $mostrar($vinculo->nome))
                         <tr data-busca="{{ $vinculo->cod_matricula }} {{ $nome }} {{ $vinculo->descricao }} {{ $vinculo->nome_responsavel }}">
+                            <td><input type="checkbox" name="vinculos[]" value="{{ $vinculo->ref_cod_aluno }}:{{ $vinculo->rota_id }}" form="carteirinhas" data-carteirinha aria-label="Selecionar {{ $nome }}"></td>
                             <td>{{ $vinculo->cod_matricula ?: '—' }}</td>
                             <td>{{ $nome }}</td>
                             <td>{{ $vinculo->descricao }}</td>
@@ -41,7 +49,7 @@
                             </td>
                         </tr>
                     @empty
-                        <tr data-vazio><td colspan="6" class="vazio">Nenhum aluno transportado.</td></tr>
+                        <tr data-vazio><td colspan="7" class="vazio">Nenhum aluno transportado.</td></tr>
                     @endforelse
                 </tbody>
             </table>

@@ -79,6 +79,7 @@
         .conteudo h2 { margin: 28px 0 10px; font-size: 1.15rem; }
         .conteudo a { color: var(--azul); }
         .barra-dados { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: space-between; margin: 0 0 12px; }
+        form.acao { display: inline-flex; gap: 8px; align-items: center; margin: 0; }
         .barra-dados h2 { margin: 0; font-size: 1.05rem; }
         .filtro { display: flex; align-items: center; gap: 8px; background: #fff; border: 1px solid var(--linha); border-radius: 10px; padding: 0 12px; min-width: min(100%, 320px); flex: 1 1 240px; }
         .filtro i { color: var(--suave); }
@@ -878,6 +879,26 @@
             pulso();
             setInterval(pulso, 20000);
         }
+    </script>
+    <script>
+        document.querySelectorAll('[data-marca-todas]').forEach(function (marca) {
+            marca.addEventListener('change', function () {
+                document.querySelectorAll('[data-carteirinha]').forEach(function (caixa) {
+                    caixa.checked = marca.checked;
+                });
+            });
+        });
+        document.querySelectorAll('form[data-carteirinhas]').forEach(function (form) {
+            form.addEventListener('submit', function (evento) {
+                if (evento.submitter && evento.submitter.value === 'todas') {
+                    return;
+                }
+                if (!document.querySelector('[data-carteirinha]:checked')) {
+                    evento.preventDefault();
+                    alert('Selecione ao menos uma pessoa.');
+                }
+            });
+        });
     </script>
 </body>
 </html>
