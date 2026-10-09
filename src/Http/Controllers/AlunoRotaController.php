@@ -24,53 +24,39 @@ class AlunoRotaController
         $ano = (int) $request->input('ano', date('Y'));
         $busca = trim((string) $request->input('q', ''));
         $ids = RedeConsulta::rotas($ano)->pluck('r.id')->all() ?: [0];
-        $vinculos = $this->comContato(
-            DB::table('transporte_escolar.aluno_rota as ar')
-                ->join('transporte_escolar.rota as r', 'r.id', '=', 'ar.rota_id')
-                ->join('pmieducar.aluno as a', 'a.cod_aluno', '=', 'ar.ref_cod_aluno')
-                ->join('cadastro.pessoa as p', 'p.idpes', '=', 'a.ref_idpes')
-                ->leftJoin('cadastro.fisica as f', 'f.idpes', '=', 'a.ref_idpes')
-                ->leftJoin('pmieducar.matricula as m', function ($join) use ($ano) {
-                    $join->on('m.ref_cod_aluno', '=', 'a.cod_aluno')->where('m.ano', $ano)->where('m.ativo', 1);
-                })
-                ->leftJoin('pmieducar.escola as e', 'e.cod_escola', '=', 'm.ref_ref_cod_escola')
-                ->leftJoin('cadastro.pessoa as pe', 'pe.idpes', '=', 'e.ref_idpes')
-                ->leftJoin('pmieducar.serie as s', 's.cod_serie', '=', 'm.ref_ref_cod_serie')
-                ->leftJoin('pmieducar.matricula_turma as mt', function ($join) {
-                    $join->on('mt.ref_cod_matricula', '=', 'm.cod_matricula')->where('mt.ativo', 1);
-                })
-                ->leftJoin('pmieducar.turma as t', 't.cod_turma', '=', 'mt.ref_cod_turma')
-                ->where('ar.ano', $ano)
-                ->whereIn('r.id', $ids)
-                ->when($busca !== '', function ($consulta) use ($busca) {
-                    $consulta->where(function ($q) use ($busca) {
-                        $q->where('p.nome', 'ilike', '%' . $busca . '%')
-                            ->orWhere('m.cod_matricula', ctype_digit($busca) ? (int) $busca : 0)
-                            ->orWhereRaw("regexp_replace(coalesce(f.cpf::text, ''), '\\D', '', 'g') = ?", [preg_replace('/\D/', '', $busca) ?: '0']);
-                    });
-                })
-                ->select(
-                    'ar.ref_cod_aluno',
-                    'ar.rota_id',
-                    'p.nome',
-                    'r.descricao',
-                    'ar.turno',
-                    'ar.cartao',
-                    'ar.residencia_latitude',
-                    'ar.residencia_longitude',
-                    'm.cod_matricula',
-                    'r.periodo',
-                    't.turma_turno_id',
-                    'pe.nome as escola',
-                    's.nm_serie',
-                    't.nm_turma',
-                    'f.nome_responsavel',
-                )
-                ->orderBy('p.nome'),
-        );
-        $total = (clone $vinculos)->count();
+        $vinculos = DB::table('transporte_escolar.aluno_rota as ar')
+            ->join('transporte_escolar.rota as r', 'r.id', '=', 'ar.rota_id')
+            ->join('pmieducar.aluno as a', 'a.cod_aluno', '=', 'ar.ref_cod_aluno')
+            ->join('cadastro.pessoa as p', 'p.idpes', '=', 'a.ref_idpes')
+            ->leftJoin('cadastro.fisica as f', 'f.idpes', '=', 'a.ref_idpes')
+            ->leftJoin('pmieducar.matricula as m', function ($join) use ($ano) {
+                $join->on('m.ref_cod_aluno', '=', 'a.cod_aluno')->where('m.ano', $ano)->where('m.ativo', 1);
+            })
+            ->leftJoin('pmieducar.escola as e', 'e.cod_escola', '=', 'm.ref_ref_cod_escola')
+            ->leftJoin('cadastro.pessoa as pe', 'pe.idpes', '=', 'e.ref_idpes')
+            ->leftJoin('pmieducar.serie as s', 's.cod_serie', '=', 'm.ref_ref_cod_serie')
+            ->leftJoin('pmieducar.matricula_turma as mt', function ($join) {
+                $join->on('mt.ref_cod_matricula', '=', 'm.cod_matricula')->where('mt.ativo', 1);
+            })
+            ->leftJoin('pmieducar.turma as t', 't.cod_turma', '=', 'mt.ref_cod_turma')
+            ->leftJoin(DB::raw('(SELECT idpes, min(fone)::text AS fone FROM cadastro.fone_pessoa GROUP BY idpes) tel'), 'tel.idpes', '=', 'a.ref_idpes')
+            ->where('ar.ano', $ano)
+            ->whereIn('r.id', $ids)
+            ->when($busca !== '', function ($consulta) use ($busca) {
+                $consulta->where(function ($q) use ($busca) {
+                    $q->where('p.nome', 'ilike', '%' . $busca . '%')
+                        ->orWhere('m.cod_matricula', ctype_digit($busca) ? (int) $busca : 0)
+                        ->orWhereRaw("regexp_replace(coalesce(f.cpf::text, ''), '\\D', '', 'g') = ?", [preg_replace('/\D/', '', $busca) ?: '0']);
+                });
+            })
+            ->selectRaw('DISTINCT ON (ar.ref_cod_aluno, ar.rota_id) ar.ref_cod_aluno, ar.rota_id, p.nome, r.descricao, ar.turno, ar.cartao, ar.residencia_latitude, ar.residencia_longitude, m.cod_matricula, r.periodo, t.turma_turno_id, pe.nome as escola, s.nm_serie, t.nm_turma, f.nome_responsavel, tel.fone')
+            ->orderBy('ar.ref_cod_aluno')
+            ->orderBy('ar.rota_id')
+            ->orderByRaw('m.cod_matricula DESC NULLS LAST');
+        $alunos = DB::query()->fromSub($vinculos, 'alunos')->orderBy('nome');
+        $total = (clone $alunos)->count();
         $pagina = Pagina::fatia($total, (int) $request->input('pagina', 1));
-        $lista = $vinculos->offset($pagina['inicio'])->limit($pagina['tamanho'])->get();
+        $lista = $alunos->offset($pagina['inicio'])->limit($pagina['tamanho'])->get();
         $responsaveis = ResponsaveisAluno::mapa($lista->pluck('ref_cod_aluno')->all());
 
         foreach ($lista as $linha) {
@@ -292,12 +278,5 @@ class AlunoRotaController
         }
 
         return $avisos;
-    }
-
-    private function comContato($consulta)
-    {
-        return $consulta
-            ->leftJoin(DB::raw('(SELECT idpes, min(fone)::text AS fone FROM cadastro.fone_pessoa GROUP BY idpes) tel'), 'tel.idpes', '=', 'a.ref_idpes')
-            ->addSelect('tel.fone', 'f.nome_responsavel', 'm.cod_matricula');
     }
 }

@@ -512,6 +512,21 @@ ok(CapacidadeViagem::linhas(8, 10, 30, $paradasViagem) === [], 'veículo que cab
 $ofertaRota = [(object) ['id' => 4, 'processo_id' => 2, 'rota_id' => 9, 'turno' => 'manha', 'periodo' => 'manha']];
 $semMatricula = (object) ['situacao' => 'conferida', 'oferta_id' => null, 'processo_id' => 2, 'rota_id' => 9, 'vinculo_rota_id' => 9, 'ref_cod_aluno' => null];
 ok(OcupacaoOferta::destino($semMatricula, $ofertaRota) === 4, 'aluno na rota sem matrícula ocupa a vaga da rota');
+$naRota = (object) ['rota_id' => 9, 'ref_cod_aluno' => 7];
+$conferido = (object) ['situacao' => 'conferida', 'oferta_id' => 4, 'processo_id' => 2, 'rota_id' => 9, 'vinculo_rota_id' => 9, 'ref_cod_aluno' => 7];
+$usoConferido = OcupacaoOferta::montar($ofertaRota, [$conferido], [$naRota]);
+ok($usoConferido[4]->ocupadas === 1, 'aluno conferido e na rota ocupa uma vaga só');
+$aceito = (object) ['situacao' => 'deferida', 'oferta_id' => 4, 'processo_id' => 2, 'rota_id' => 9, 'vinculo_rota_id' => null, 'ref_cod_aluno' => 7];
+$usoAceito = OcupacaoOferta::montar($ofertaRota, [$aceito], [$naRota]);
+ok($usoAceito[4]->ocupadas === 1, 'pedido aceito de quem já está na rota não dobra a vaga');
+$usoSemMatricula = OcupacaoOferta::montar($ofertaRota, [$semMatricula], []);
+ok($usoSemMatricula[4]->ocupadas === 1, 'conferido sem matrícula ocupa uma vaga');
+$ofertasIrmas = [
+    (object) ['id' => 4, 'processo_id' => 2, 'rota_id' => 9, 'turno' => 'manha', 'periodo' => 'manha'],
+    (object) ['id' => 5, 'processo_id' => 2, 'rota_id' => 9, 'turno' => 'tarde', 'periodo' => 'manha'],
+];
+$usoRota = OcupacaoOferta::montar($ofertasIrmas, [], [$naRota]);
+ok($usoRota[4]->ocupadas === 1 && $usoRota[5]->ocupadas === 0, 'o mesmo aluno da rota não entra em cada oferta do processo');
 ok(ProcessoEdicao::processo(2026, 2027, 1) !== null, 'ano com pedido da família não muda');
 ok(ProcessoEdicao::processo(2026, 2027, 0) === null, 'ano sem pedido pode mudar');
 ok(ProcessoEdicao::oferta(['processo_id' => 1, 'rota_id' => 1, 'escola' => 2, 'turno' => 'manha', 'vagas' => 10, 'idade_min' => null, 'idade_max' => null, 'series' => [], 'turmas' => []], ['processo_id' => 1, 'rota_id' => 2, 'escola' => 2, 'turno' => 'manha', 'vagas' => 10, 'idade_min' => null, 'idade_max' => null, 'series' => [], 'turmas' => []], 1, 0, 1) !== null, 'rota com pedido não muda');
