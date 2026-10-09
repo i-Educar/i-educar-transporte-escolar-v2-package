@@ -6,6 +6,7 @@ use iEducar\Packages\BuritiTransporteEscolar\Services\AtribuicaoAluno;
 use iEducar\Packages\BuritiTransporteEscolar\Services\RedeConsulta;
 use iEducar\Packages\BuritiTransporteEscolar\Support\FotoIdentificacao;
 use iEducar\Packages\BuritiTransporteEscolar\Support\Pagina;
+use iEducar\Packages\BuritiTransporteEscolar\Support\ResponsaveisAluno;
 use iEducar\Packages\BuritiTransporteEscolar\Support\VisaoRede;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -65,6 +66,14 @@ class AlunoRotaController
         $total = (clone $vinculos)->count();
         $pagina = Pagina::fatia($total, (int) $request->input('pagina', 1));
         $lista = $vinculos->offset($pagina['inicio'])->limit($pagina['tamanho'])->get();
+        $responsaveis = ResponsaveisAluno::mapa($lista->pluck('ref_cod_aluno')->all());
+
+        foreach ($lista as $linha) {
+            $bloco = $responsaveis[(int) $linha->ref_cod_aluno] ?? ['ieducar' => [], 'transporte' => ['nome' => '', 'telefone' => '']];
+            $linha->responsaveis = $bloco['ieducar'];
+            $linha->transporte_nome = $bloco['transporte']['nome'];
+            $linha->transporte_telefone = $bloco['transporte']['telefone'];
+        }
 
         return view('transporte-escolar::alunos.index', [
             'ano' => $ano,
@@ -87,6 +96,8 @@ class AlunoRotaController
             'cartao' => ['nullable', 'string', 'max:40'],
             'residencia_latitude' => ['nullable', 'numeric'],
             'residencia_longitude' => ['nullable', 'numeric'],
+            'responsavel_transporte' => ['nullable', 'string', 'max:150'],
+            'responsavel_transporte_telefone' => ['nullable', 'string', 'max:20'],
         ]);
 
         try {
@@ -104,6 +115,11 @@ class AlunoRotaController
             );
             AtribuicaoAluno::cartao((int) $dados['aluno_id'], (int) $dados['rota_id'], (string) ($dados['cartao'] ?? ''));
             FotoIdentificacao::substituir($request, 'aluno', (int) $dados['aluno_id'], 'carteirinha');
+            ResponsaveisAluno::gravar(
+                (int) $dados['aluno_id'],
+                (string) ($dados['responsavel_transporte'] ?? ''),
+                (string) ($dados['responsavel_transporte_telefone'] ?? ''),
+            );
         } catch (RuntimeException $e) {
             return back()->with('erro', $e->getMessage());
         }

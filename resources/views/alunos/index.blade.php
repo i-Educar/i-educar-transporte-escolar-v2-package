@@ -1,6 +1,11 @@
 @extends('transporte-escolar::layout')
 
 @section('transporte')
+    <style>
+        td.responsaveis, dd.responsaveis { white-space: normal; }
+        td.responsaveis span, dd.responsaveis span { display: block; line-height: 1.35; }
+        td.responsaveis span + span, dd.responsaveis span + span { margin-top: 2px; }
+    </style>
     @php
         $mostrar = fn ($nome) => \iEducar\Packages\BuritiTransporteEscolar\Support\NomeExibicao::exibir((string) $nome, $admin);
     @endphp
@@ -30,13 +35,15 @@
                 <tbody>
                     @forelse($vinculos as $vinculo)
                         @php($nome = $mostrar($vinculo->nome))
-                        <tr data-busca="{{ $vinculo->cod_matricula }} {{ $nome }} {{ $vinculo->descricao }} {{ $vinculo->nome_responsavel }}">
+                        <tr data-busca="{{ $vinculo->cod_matricula }} {{ $nome }} {{ $vinculo->descricao }} {{ collect($vinculo->responsaveis)->pluck('nome')->implode(' ') }} {{ $vinculo->transporte_nome }}">
                             <td><input type="checkbox" name="vinculos[]" value="{{ $vinculo->ref_cod_aluno }}:{{ $vinculo->rota_id }}" form="carteirinhas" data-carteirinha aria-label="Selecionar {{ $nome }}"></td>
                             <td>{{ $vinculo->cod_matricula ?: '—' }}</td>
                             <td>{{ $nome }}</td>
                             <td>{{ $vinculo->descricao }}</td>
                             <td>{{ $vinculo->cartao ?: '—' }}</td>
-                            <td>{{ $vinculo->nome_responsavel ?: '—' }}</td>
+                            <td class="responsaveis">
+                                @include('transporte-escolar::alunos.responsaveis', ['vinculo' => $vinculo])
+                            </td>
                             <td class="acoes">
                                 <button type="button" class="icone ver" data-abre-modal="detalhe-{{ $vinculo->ref_cod_aluno }}-{{ $vinculo->rota_id }}" aria-label="Ver detalhes" title="Ver detalhes"><i class="fa fa-eye" aria-hidden="true"></i></button>
                                 <button type="button" class="icone editar" data-abre-modal="editar-{{ $vinculo->ref_cod_aluno }}-{{ $vinculo->rota_id }}" aria-label="Editar" title="Editar"><i class="fa fa-pencil" aria-hidden="true"></i></button>
@@ -73,8 +80,8 @@
                 <dt>Rota</dt><dd>{{ $vinculo->descricao }}</dd>
                 <dt>Turno</dt><dd>{{ \iEducar\Packages\BuritiTransporteEscolar\Support\Codigos::PERIODO[$vinculo->turno] ?? ($vinculo->turno ?: '—') }}</dd>
                 <dt>Cartão</dt><dd>{{ $vinculo->cartao ?: '—' }}</dd>
-                <dt>Responsável</dt><dd>{{ $vinculo->nome_responsavel ?: '—' }}</dd>
-                <dt>Telefone</dt><dd>{{ $vinculo->fone ?: '—' }}</dd>
+                <dt>Responsáveis</dt><dd class="responsaveis">@include('transporte-escolar::alunos.responsaveis', ['vinculo' => $vinculo])</dd>
+                <dt>Telefone do aluno</dt><dd>{{ $vinculo->fone ?: '—' }}</dd>
                 <dt>Casa</dt><dd>{{ $vinculo->residencia_latitude ? $vinculo->residencia_latitude.', '.$vinculo->residencia_longitude : '—' }}</dd>
             </dl>
         </dialog>
@@ -101,6 +108,11 @@
                     </select>
                 </label>
                 <label>Cartão ou RFID <input name="cartao" value="{{ $vinculo->cartao }}" maxlength="40"></label>
+                @include('transporte-escolar::alunos.responsaveis', ['vinculo' => $vinculo, 'somenteIeducar' => true])
+                <div class="linha">
+                    <label>Outro responsável do transporte <input name="responsavel_transporte" value="{{ $vinculo->transporte_nome }}" maxlength="150"></label>
+                    <label>Contato <input name="responsavel_transporte_telefone" value="{{ $vinculo->transporte_telefone }}" maxlength="20"></label>
+                </div>
                 @include('transporte-escolar::frota.fotos', ['lista' => $fotos[$vinculo->ref_cod_aluno] ?? [], 'carteirinha' => true])
                 <label>Carteirinha <input type="file" name="carteirinha" accept="image/jpeg,image/png,image/webp"></label>
                 <div class="linha">

@@ -8,6 +8,7 @@ use iEducar\Packages\BuritiTransporteEscolar\Support\Codigos;
 use iEducar\Packages\BuritiTransporteEscolar\Support\DataTela;
 use iEducar\Packages\BuritiTransporteEscolar\Support\FotoIdentificacao;
 use iEducar\Packages\BuritiTransporteEscolar\Support\IdentidadeMunicipio;
+use iEducar\Packages\BuritiTransporteEscolar\Support\ResponsaveisAluno;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\DB;
@@ -90,12 +91,19 @@ class CarteirinhaController
         abort_if($linhas->isEmpty(), 422, 'Nenhum aluno encontrado para a carteirinha.');
         abort_if($linhas->count() > 400, 422, 'Há mais de 400 alunos nesse recorte. Filtre a lista antes de emitir.');
         $frota = $this->frota($linhas->pluck('rota_id')->all());
+        $responsaveis = ResponsaveisAluno::mapa($linhas->pluck('ref_cod_aluno')->all());
         $horarios = $this->horarios($linhas->pluck('rota_id')->all(), $linhas->pluck('ponto_id')->filter()->all());
         $municipio = IdentidadeMunicipio::rotulo();
         $pessoas = [];
 
         foreach ($linhas as $linha) {
             $veiculo = $frota[(int) $linha->rota_id] ?? null;
+            $bloco = $responsaveis[(int) $linha->ref_cod_aluno] ?? ['ieducar' => [], 'transporte' => ['nome' => '', 'telefone' => '']];
+            $nomes = array_map(static fn (array $item): string => trim($item['papel'] . ': ' . $item['nome'] . ($item['telefone'] !== '' ? ' ' . $item['telefone'] : '')), $bloco['ieducar']);
+
+            if ($bloco['transporte']['nome'] !== '') {
+                $nomes[] = trim('Transporte: ' . $bloco['transporte']['nome'] . ($bloco['transporte']['telefone'] !== '' ? ' ' . $bloco['transporte']['telefone'] : ''));
+            }
             $hora = $horarios[(int) $linha->rota_id . ':' . (int) $linha->ponto_id] ?? null;
             $pessoas[] = [
                 'papel' => 'Aluno',
@@ -105,7 +113,7 @@ class CarteirinhaController
                 'linhas' => [
                     ['Nascimento', DataTela::dia($linha->data_nasc)],
                     ['CPF', $this->cpf($linha->cpf)],
-                    ['Responsável', (string) ($linha->nome_responsavel ?: '')],
+                    ['Responsável', implode(' · ', $nomes)],
                     ['Telefone', (string) ($linha->fone ?: '')],
                 ],
                 'verso' => [
