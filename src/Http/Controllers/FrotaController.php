@@ -5,6 +5,7 @@ namespace iEducar\Packages\BuritiTransporteEscolar\Http\Controllers;
 use iEducar\Packages\BuritiTransporteEscolar\Support\Acesso;
 use iEducar\Packages\BuritiTransporteEscolar\Support\Codigos;
 use iEducar\Packages\BuritiTransporteEscolar\Support\Coordenada;
+use iEducar\Packages\BuritiTransporteEscolar\Support\FotoIdentificacao;
 use iEducar\Packages\BuritiTransporteEscolar\Support\Pagina;
 use iEducar\Packages\BuritiTransporteEscolar\Support\Processos;
 use iEducar\Packages\BuritiTransporteEscolar\Support\UsoPonto;
@@ -14,6 +15,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\View\View;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class FrotaController
 {
@@ -24,11 +26,19 @@ class FrotaController
 
         $consulta = $this->linhas($recurso);
         $fatia = Pagina::fatia((int) (clone $consulta)->count(), $request->input('pagina'));
+        $linhas = $consulta->offset($fatia['inicio'])->limit($fatia['tamanho'])->get();
+        $tipoFoto = match ($recurso) {
+            'veiculos' => 'veiculo',
+            'motoristas' => 'motorista',
+            'monitores' => 'monitor',
+            default => null,
+        };
 
         return view('transporte-escolar::frota.index', [
             'recurso' => $recurso,
             'titulo' => $this->titulo($recurso),
-            'linhas' => $consulta->offset($fatia['inicio'])->limit($fatia['tamanho'])->get(),
+            'linhas' => $linhas,
+            'fotos' => $tipoFoto === null ? [] : FotoIdentificacao::mapa($tipoFoto, $linhas->pluck('id')->all()),
             'podeGravar' => Acesso::permite($processo, 'gravar'),
             'podeExcluir' => Acesso::permite($processo, 'excluir'),
             'codigos' => Codigos::class,
@@ -37,6 +47,11 @@ class FrotaController
             'paginas' => $fatia['paginas'],
             'total' => $fatia['total'],
         ]);
+    }
+
+    public function foto(int $foto): StreamedResponse
+    {
+        return FotoIdentificacao::mostrar($foto);
     }
 
     public function csv(Request $request): Response
@@ -157,6 +172,8 @@ class FrotaController
             ],
         );
         $this->contato((int) $idpes, (string) $request->input('email'), (string) $request->input('telefone'));
+        $id = (int) DB::table('transporte_escolar.motorista')->where('ref_idpes', $idpes)->value('id');
+        FotoIdentificacao::substituir($request, 'motorista', $id, 'carteirinha');
     }
 
     private function monitor(Request $request): void
@@ -176,6 +193,8 @@ class FrotaController
             ],
         );
         $this->contato((int) $idpes, (string) $request->input('email'), (string) $request->input('telefone'));
+        $id = (int) DB::table('transporte_escolar.monitor')->where('ref_idpes', $idpes)->value('id');
+        FotoIdentificacao::substituir($request, 'monitor', $id, 'carteirinha');
     }
 
     private function veiculo(Request $request): void
@@ -190,9 +209,10 @@ class FrotaController
         ]);
 
         abort_unless(isset(Codigos::VEICULO_CENSO[(int) $dados['tipo_censo']]), 422);
+        $placa = $dados['placa'] !== '' ? strtoupper((string) $dados['placa']) : null;
 
         DB::table('transporte_escolar.veiculo')->updateOrInsert(
-            ['placa' => $dados['placa'] !== '' ? strtoupper((string) $dados['placa']) : null],
+            ['placa' => $placa],
             [
                 'descricao' => $dados['descricao'],
                 'renavam' => $dados['renavam'] ?? null,
@@ -213,6 +233,11 @@ class FrotaController
                 'created_at' => now(),
             ],
         );
+        $id = (int) DB::table('transporte_escolar.veiculo')
+            ->when($placa !== null, fn ($consulta) => $consulta->where('placa', $placa), fn ($consulta) => $consulta->where('descricao', $dados['descricao']))
+            ->orderByDesc('id')
+            ->value('id');
+        FotoIdentificacao::acrescentar($request, 'veiculo', $id, 'fotos');
     }
 
     public function atualizarPonto(Request $request, int $ponto): RedirectResponse
@@ -272,6 +297,7 @@ class FrotaController
             'updated_at' => now(),
         ]);
         $this->contato((int) $linha->ref_idpes, (string) $request->input('email'), (string) $request->input('telefone'));
+        FotoIdentificacao::substituir($request, 'motorista', $registro, 'carteirinha');
     }
 
     private function atualizarMonitor(Request $request, int $registro): void
@@ -287,6 +313,7 @@ class FrotaController
             'updated_at' => now(),
         ]);
         $this->contato((int) $linha->ref_idpes, (string) $request->input('email'), (string) $request->input('telefone'));
+        FotoIdentificacao::substituir($request, 'monitor', $registro, 'carteirinha');
     }
 
     private function atualizarVeiculo(Request $request, int $registro): void
@@ -319,6 +346,7 @@ class FrotaController
             'ativo' => $request->boolean('ativo'),
             'updated_at' => now(),
         ]);
+        FotoIdentificacao::acrescentar($request, 'veiculo', $registro, 'fotos');
     }
 
     private function contato(int $idpes, string $email, string $telefone): void

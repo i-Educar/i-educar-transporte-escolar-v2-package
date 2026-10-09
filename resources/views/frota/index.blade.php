@@ -115,7 +115,7 @@
                 <h2>Incluir {{ mb_strtolower($titulo) }}</h2>
                 <button type="button" data-fecha-modal aria-label="Fechar">&times;</button>
             </div>
-            <form method="post">
+            <form method="post" enctype="multipart/form-data">
                 @csrf
                 <input type="hidden" name="recurso" value="{{ $recurso }}">
                 @if(in_array($recurso, ['empresas', 'fornecedores']))
@@ -148,6 +148,7 @@
                         <label>Encargo % <input name="encargo_percent"></label>
                         <label>Carga horária <input name="carga_horaria"></label>
                     </div>
+                    <label>Carteirinha <input type="file" name="carteirinha" accept="image/jpeg,image/png,image/webp"></label>
                 @elseif($recurso === 'monitores')
                     <label>CPF <input name="cpf" required></label>
                     <div class="linha">
@@ -163,6 +164,7 @@
                         <label>Encargo % <input name="encargo_percent"></label>
                         <label>Carga horária <input name="carga_horaria"></label>
                     </div>
+                    <label>Carteirinha <input type="file" name="carteirinha" accept="image/jpeg,image/png,image/webp"></label>
                 @elseif($recurso === 'veiculos')
                     @include('transporte-escolar::frota.campos-veiculo')
                 @else
@@ -205,6 +207,7 @@
                 <button type="button" data-fecha-modal aria-label="Fechar">&times;</button>
             </div>
             <div class="modal-corpo">
+                @include('transporte-escolar::frota.fotos', ['lista' => $fotos[$linha->id] ?? [], 'carteirinha' => in_array($recurso, ['motoristas', 'monitores'], true)])
                 <dl class="ficha">
                     @foreach((array) $linha as $campo => $valor)
                         @continue(in_array($campo, ['id', 'created_at', 'updated_at', 'origem', 'origem_chave', 'ref_idpes'], true) || str_ends_with($campo, '_id'))
@@ -237,7 +240,7 @@
         @foreach($linhas as $linha)
             <dialog class="modal" id="editar-{{ $linha->id }}">
                 <div class="modal-cabeca"><h2>Editar</h2><button type="button" data-fecha-modal aria-label="Fechar">&times;</button></div>
-                <form method="post" action="{{ url('/transporte-escolar/'.$recurso.'/'.$linha->id) }}">
+                <form method="post" enctype="multipart/form-data" action="{{ url('/transporte-escolar/'.$recurso.'/'.$linha->id) }}">
                     @csrf
                     @if(in_array($recurso, ['empresas', 'fornecedores'], true))
                         <label>Telefone <input name="telefone" value="{{ $linha->telefone }}"></label>
@@ -267,6 +270,8 @@
                             <label>Encargo % <input name="encargo_percent" value="{{ $linha->encargo_percent }}"></label>
                             <label>Carga horária <input name="carga_horaria" value="{{ $linha->carga_horaria }}"></label>
                         </div>
+                        @include('transporte-escolar::frota.fotos', ['lista' => $fotos[$linha->id] ?? [], 'carteirinha' => true])
+                        <label>Carteirinha <input type="file" name="carteirinha" accept="image/jpeg,image/png,image/webp"></label>
                     @elseif($recurso === 'monitores')
                         <div class="linha">
                             <label>Matrícula funcional <input name="matricula_funcional" value="{{ $linha->matricula_funcional }}"></label>
@@ -281,6 +286,8 @@
                             <label>Encargo % <input name="encargo_percent" value="{{ $linha->encargo_percent }}"></label>
                             <label>Carga horária <input name="carga_horaria" value="{{ $linha->carga_horaria }}"></label>
                         </div>
+                        @include('transporte-escolar::frota.fotos', ['lista' => $fotos[$linha->id] ?? [], 'carteirinha' => true])
+                        <label>Carteirinha <input type="file" name="carteirinha" accept="image/jpeg,image/png,image/webp"></label>
                     @else
                         @include('transporte-escolar::frota.campos-veiculo', ['veiculo' => $linha])
                     @endif

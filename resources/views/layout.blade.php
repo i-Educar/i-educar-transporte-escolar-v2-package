@@ -106,6 +106,9 @@
         .tom-lotacao { color: #9b2c2c; }
         .tom-servico { color: #0f6b4c; }
         .sino { position: relative; }
+        .galeria-foto { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 14px; }
+        .galeria-foto img { width: 132px; height: 96px; object-fit: cover; border-radius: 10px; border: 1px solid #e7f2ff; background: #f7f9fa; }
+        .galeria-foto.carteirinha img { width: 108px; height: 136px; }
         .sino-contagem { position: absolute; top: 4px; right: 4px; min-width: 16px; height: 16px; padding: 0 4px; border-radius: 999px; background: #f3c15b; color: #24323c; font-size: .68rem; font-weight: 800; line-height: 16px; }
         .gaveta { position: absolute; top: calc(100% + 8px); right: 0; width: min(380px, calc(100vw - 24px)); background: #fff; color: var(--tinta); border: 1px solid var(--linha); border-radius: 4px; box-shadow: 0 12px 28px rgba(21, 34, 43, .16); z-index: 50; }
         .gaveta header, .gaveta footer { display: flex; justify-content: space-between; align-items: center; padding: 10px 12px; }

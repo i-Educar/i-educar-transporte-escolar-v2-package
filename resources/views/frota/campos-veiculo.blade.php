@@ -46,3 +46,7 @@
         <label class="opcao"><input type="checkbox" name="ativo" value="1" @checked($veiculo->ativo)> Ativo</label>
     @endif
 </div>
+@if($veiculo)
+    @include('transporte-escolar::frota.fotos', ['lista' => ($fotos ?? [])[$veiculo->id] ?? []])
+@endif
+<label>Fotos do veículo <input type="file" name="fotos[]" accept="image/jpeg,image/png,image/webp" multiple></label>

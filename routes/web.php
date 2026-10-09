@@ -44,6 +44,7 @@ Route::prefix('transporte-escolar')->group(function () {
     Route::post('/pontos/{ponto}/coordenada', [RotaController::class, 'coordenada'])->middleware('transporte.processo:' . Processos::PONTOS . ',gravar');
     Route::post('/escolas/{escola}/coordenada', [RotaController::class, 'escolaCoordenada'])->middleware('transporte.processo:' . Processos::ROTAS . ',gravar');
 
+    Route::get('/fotos/{foto}', [FrotaController::class, 'foto'])->whereNumber('foto');
     Route::get('/alunos', [AlunoRotaController::class, 'index'])->middleware('transporte.processo:' . Processos::ALUNOS . ',ver');
     Route::post('/alunos', [AlunoRotaController::class, 'store'])->middleware('transporte.processo:' . Processos::ALUNOS . ',gravar');
     Route::post('/alunos/atualizar', [AlunoRotaController::class, 'atualizar'])->middleware('transporte.processo:' . Processos::ALUNOS . ',gravar');

@@ -4,6 +4,7 @@ namespace iEducar\Packages\BuritiTransporteEscolar\Http\Controllers;
 
 use iEducar\Packages\BuritiTransporteEscolar\Services\AtribuicaoAluno;
 use iEducar\Packages\BuritiTransporteEscolar\Services\RedeConsulta;
+use iEducar\Packages\BuritiTransporteEscolar\Support\FotoIdentificacao;
 use iEducar\Packages\BuritiTransporteEscolar\Support\Pagina;
 use iEducar\Packages\BuritiTransporteEscolar\Support\VisaoRede;
 use Illuminate\Http\RedirectResponse;
@@ -63,13 +64,15 @@ class AlunoRotaController
         );
         $total = (clone $vinculos)->count();
         $pagina = Pagina::fatia($total, (int) $request->input('pagina', 1));
+        $lista = $vinculos->offset($pagina['inicio'])->limit($pagina['tamanho'])->get();
 
         return view('transporte-escolar::alunos.index', [
             'ano' => $ano,
             'busca' => $busca,
             'admin' => VisaoRede::escolas() === null,
             'rotas' => RedeConsulta::rotas($ano)->get(),
-            'vinculos' => $vinculos->offset($pagina['inicio'])->limit($pagina['tamanho'])->get(),
+            'vinculos' => $lista,
+            'fotos' => FotoIdentificacao::mapa('aluno', $lista->pluck('ref_cod_aluno')->all()),
             'pagina' => $pagina,
         ]);
     }
@@ -100,6 +103,7 @@ class AlunoRotaController
                 isset($dados['residencia_longitude']) ? (float) $dados['residencia_longitude'] : null,
             );
             AtribuicaoAluno::cartao((int) $dados['aluno_id'], (int) $dados['rota_id'], (string) ($dados['cartao'] ?? ''));
+            FotoIdentificacao::substituir($request, 'aluno', (int) $dados['aluno_id'], 'carteirinha');
         } catch (RuntimeException $e) {
             return back()->with('erro', $e->getMessage());
         }

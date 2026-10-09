@@ -56,6 +56,7 @@
                 <h2>Aluno {{ $nome }}</h2>
                 <button type="button" data-fecha-modal aria-label="Fechar">&times;</button>
             </div>
+            @include('transporte-escolar::frota.fotos', ['lista' => $fotos[$vinculo->ref_cod_aluno] ?? [], 'carteirinha' => true])
             <dl class="ficha">
                 <dt>Matrícula</dt><dd>{{ $vinculo->cod_matricula ?: '—' }}</dd>
                 <dt>Aluno</dt><dd>{{ $nome }}</dd>
@@ -74,7 +75,7 @@
                 <h2>Editar {{ $nome }}</h2>
                 <button type="button" data-fecha-modal aria-label="Fechar">&times;</button>
             </div>
-            <form method="post" action="{{ url('/transporte-escolar/alunos/atualizar') }}">
+            <form method="post" enctype="multipart/form-data" action="{{ url('/transporte-escolar/alunos/atualizar') }}">
                 @csrf
                 <input type="hidden" name="aluno_id" value="{{ $vinculo->ref_cod_aluno }}">
                 <input type="hidden" name="rota_origem" value="{{ $vinculo->rota_id }}">
@@ -92,6 +93,8 @@
                     </select>
                 </label>
                 <label>Cartão ou RFID <input name="cartao" value="{{ $vinculo->cartao }}" maxlength="40"></label>
+                @include('transporte-escolar::frota.fotos', ['lista' => $fotos[$vinculo->ref_cod_aluno] ?? [], 'carteirinha' => true])
+                <label>Carteirinha <input type="file" name="carteirinha" accept="image/jpeg,image/png,image/webp"></label>
                 <div class="linha">
                     <label>Latitude da casa <input name="residencia_latitude" value="{{ $vinculo->residencia_latitude }}"></label>
                     <label>Longitude da casa <input name="residencia_longitude" value="{{ $vinculo->residencia_longitude }}"></label>
