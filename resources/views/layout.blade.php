@@ -302,9 +302,7 @@
         .rodape { height: 100%; padding: 0 18px; display: flex; align-items: center; justify-content: space-between; gap: 16px; }
         .rodape-dev { display: flex; align-items: center; gap: 10px; min-width: 0; }
         .rodape-selo { font-size: 11px; letter-spacing: .08em; text-transform: uppercase; font-weight: 700; color: #8aa0ad; }
-        .rodape-dev strong { color: #fff; font-size: 1.05rem; letter-spacing: 0; }
-        .rodape-dev span:last-child { color: #fff; font-weight: 600; }
-        .rodape-dev a { color: #fff; font-weight: 700; text-decoration: none; }
+        .rodape-dev a { color: #fff; font-size: 1.05rem; font-weight: 700; text-decoration: none; }
         .rodape-dev a:hover { text-decoration: underline; }
         .rodape-sistema { color: #8aa0ad; font-size: .82rem; text-align: right; }
         @media (max-width: 1100px) {
