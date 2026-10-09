@@ -422,6 +422,7 @@ ok(ProcessoVaga::cabe(2, 2) === false, 'rota lotada não recebe outro pedido');
 ok(ProcessoVaga::ocupa('deferida') === true && ProcessoVaga::ocupa('cancelada') === false, 'pedido aceito ocupa vaga e o cancelado devolve');
 ok(PortalAberto::mostrar(true, true) === true, 'botão do login aparece com pacote e tabela');
 ok(PortalAberto::mostrar(false, true) === false, 'outro município não mostra o botão');
+ok(PortalAberto::mostrar(false, true, false) === true, 'sem multi-tenant a tabela desta instalação libera o botão');
 ok(PortalAberto::mostrar(true, false) === false, 'sem a tabela do processo o botão fica oculto');
 
 $protocoloOs = ProtocoloDocumento::montar('OS', 2026, 1);

@@ -8,7 +8,8 @@ use Illuminate\Support\Facades\Schema;
 
 /**
  * O botão do login segue a mesma regra da pré-matrícula:
- * só aparece quando o pacote vale neste município e há processo de vaga aberto.
+ * há processo de vaga aberto nesta instalação.
+ * No multi-tenant, o pacote também precisa valer para a conexão do município.
  */
 final class PortalAberto
 {
@@ -17,6 +18,7 @@ final class PortalAberto
         if (!self::mostrar(
             \App\Support\Tenancy\PackageTenant::allows(TransporteEscolarServiceProvider::PACKAGE),
             Schema::hasTable('transporte_escolar.processo_vaga'),
+            (bool) config('app.multi_tenant'),
         )) {
             return null;
         }
@@ -53,8 +55,16 @@ final class PortalAberto
         return $aberto ? url('/transporte-escolar/familia') : null;
     }
 
-    public static function mostrar(bool $pacotePermitido, bool $tabelaExiste): bool
+    public static function mostrar(bool $pacotePermitido, bool $tabelaExiste, bool $multiTenant = true): bool
     {
-        return $pacotePermitido && $tabelaExiste;
+        if (!$tabelaExiste) {
+            return false;
+        }
+
+        if (!$multiTenant) {
+            return true;
+        }
+
+        return $pacotePermitido;
     }
 }
