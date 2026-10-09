@@ -141,42 +141,38 @@
     </script>
 
     <h2>Pontos da rota</h2>
+    <p class="lead">A ida sobe os alunos no ponto e deixa todos na última parada. A volta sobe todos na primeira parada e deixa cada um no próprio ponto. “No ônibus” é quem continua a bordo depois daquela parada.</p>
+    <p class="legenda-viagem"><span class="marca-ida">Ida</span><span class="marca-volta">Volta</span></p>
     <div class="tabela-wrap">
         <table>
-            <thead><tr><th>Ponto</th><th>Raio</th><th>Alunos</th><th>Entradas</th><th>Saídas</th><th>Idades</th></tr></thead>
+            <thead><tr><th>Viagem</th><th>Ordem</th><th>Ponto</th><th>Hora</th><th>Embarques</th><th>Desembarques</th><th>No ônibus</th></tr></thead>
             <tbody>
-            @forelse($cobertura['pontos'] as $ponto)
-                <tr>
-                    <td>{{ $ponto['nome'] }}</td>
-                    <td>{{ $ponto['raio'] }} m</td>
-                    <td>{{ $ponto['alunos'] }}</td>
-                    <td>{{ $ponto['embarques'] }}</td>
-                    <td>{{ $ponto['desembarques'] }}</td>
-                    <td>
-                        @if($ponto['faixas'])
-                            @foreach($ponto['faixas'] as $faixa => $quantidade){{ $faixa }}: {{ $quantidade }}@if(!$loop->last) · @endif @endforeach
-                        @elseif($ponto['alunos'] > 0)
-                            Omitida
-                        @else
-                            —
-                        @endif
-                    </td>
+            @forelse($movimento as $passo)
+                <tr class="{{ $passo['sentido'] === 'V' ? 'viagem-volta' : 'viagem-ida' }}">
+                    <td>{{ $passo['rotulo'] }}</td>
+                    <td>{{ $passo['seq'] }}</td>
+                    <td>{{ $passo['nome'] }}</td>
+                    <td>{{ $passo['hora'] }}</td>
+                    <td>{{ $passo['embarcam'] }}</td>
+                    <td>{{ $passo['desembarcam'] }}</td>
+                    <td>{{ $passo['a_bordo'] }}</td>
                 </tr>
             @empty
-                <tr><td colspan="6" class="vazio">Esta rota ainda não tem pontos no itinerário.</td></tr>
+                <tr><td colspan="7" class="vazio">Esta rota ainda não tem pontos no itinerário.</td></tr>
             @endforelse
             </tbody>
         </table>
     </div>
 
     <h2>Itinerário</h2>
-    <p class="lead">A lista é a ordem da viagem. Incluir uma parada usa um ponto que já existe. Criar um ponto novo é outro passo: o clique no mapa preenche só o formulário que estiver escutando.</p>
+    <p class="lead">A lista é a ordem da viagem. A faixa azul é a ida e a faixa âmbar é a volta. Incluir uma parada usa um ponto que já existe. Criar um ponto novo é outro passo: o clique no mapa preenche só o formulário que estiver escutando.</p>
+    <p class="legenda-viagem"><span class="marca-ida">Ida</span><span class="marca-volta">Volta</span></p>
     <div class="tabela-wrap">
         <table>
             <thead><tr><th>Ordem</th><th>Ponto</th><th>Sentido</th><th>Hora</th><th>Veículo</th><th>No mapa</th><th></th></tr></thead>
             <tbody>
             @forelse($itinerario as $parada)
-                <tr>
+                <tr class="{{ $parada->tipo === 'V' ? 'viagem-volta' : 'viagem-ida' }}">
                     <td>{{ $parada->seq }}</td>
                     <td>{{ $parada->descricao }}</td>
                     <td>{{ $parada->tipo === 'V' ? 'Volta' : 'Ida' }}</td>
@@ -307,4 +303,14 @@
             @endforeach
         </section>
     @endif
+    <style>
+        .legenda-viagem { display: flex; gap: 8px; margin: 0 0 10px; }
+        .legenda-viagem span { display: inline-block; border-radius: 999px; padding: 2px 10px; font-size: .82rem; font-weight: 700; }
+        .marca-ida { background: #e7f1f6; color: #188ad1; }
+        .marca-volta { background: #fff6e8; color: #b86e00; }
+        .conteudo tr.viagem-ida td { background: #e7f1f6; }
+        .conteudo tr.viagem-ida td:first-child { box-shadow: inset 4px 0 #188ad1; }
+        .conteudo tr.viagem-volta td { background: #fff6e8; }
+        .conteudo tr.viagem-volta td:first-child { box-shadow: inset 4px 0 #b86e00; }
+    </style>
 @endsection

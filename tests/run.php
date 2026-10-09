@@ -34,6 +34,7 @@ use iEducar\Packages\BuritiTransporteEscolar\Support\GastoRegra;
 use iEducar\Packages\BuritiTransporteEscolar\Support\Gpx;
 use iEducar\Packages\BuritiTransporteEscolar\Support\KmCalculado;
 use iEducar\Packages\BuritiTransporteEscolar\Support\KmRealizado;
+use iEducar\Packages\BuritiTransporteEscolar\Support\OcupacaoRota;
 use iEducar\Packages\BuritiTransporteEscolar\Support\OrdemPontos;
 use iEducar\Packages\BuritiTransporteEscolar\Support\PermissaoMatriz;
 use iEducar\Packages\BuritiTransporteEscolar\Support\Processos;
@@ -59,6 +60,7 @@ require __DIR__ . '/../src/Support/KmCalculado.php';
 require __DIR__ . '/../src/Support/SincroniaCenso.php';
 require __DIR__ . '/../src/Support/CopiaAnoPlanejador.php';
 require __DIR__ . '/../src/Support/OrdemPontos.php';
+require __DIR__ . '/../src/Support/OcupacaoRota.php';
 require __DIR__ . '/../src/Support/Gpx.php';
 require __DIR__ . '/../src/Support/GastoRegra.php';
 require __DIR__ . '/../src/Support/KmRealizado.php';
@@ -195,6 +197,24 @@ $ordem = OrdemPontos::sugerir(
     ],
 );
 ok($ordem === [3, 7], 'pontos seguem a ordem da trilha');
+
+$paradaRota = static function (int $seq, int $ponto, string $tipo, string $nome): object {
+    return (object) ['seq' => $seq, 'ponto_id' => $ponto, 'tipo' => $tipo, 'descricao' => $nome, 'hora' => '06:40:00'];
+};
+$ocupacao = OcupacaoRota::linhas([
+    $paradaRota(1, 10, 'I', 'Parada 1'),
+    $paradaRota(2, 11, 'I', 'Parada 2'),
+    $paradaRota(3, 12, 'I', 'Escola'),
+    $paradaRota(4, 12, 'V', 'Escola'),
+    $paradaRota(5, 11, 'V', 'Parada 2'),
+    $paradaRota(6, 10, 'V', 'Parada 1'),
+], [10 => 2, 11 => 3]);
+ok($ocupacao[0]['embarcam'] === 2 && $ocupacao[0]['a_bordo'] === 2, 'na ida sobem 2 no primeiro ponto');
+ok($ocupacao[1]['embarcam'] === 3 && $ocupacao[1]['a_bordo'] === 5, 'na ida o ônibus segue com 5');
+ok($ocupacao[2]['desembarcam'] === 5 && $ocupacao[2]['a_bordo'] === 0 && $ocupacao[2]['sentido'] === 'I', 'na última parada da ida todos descem');
+ok($ocupacao[3]['embarcam'] === 5 && $ocupacao[3]['a_bordo'] === 5 && $ocupacao[3]['sentido'] === 'V', 'na volta todos sobem na escola');
+ok($ocupacao[4]['desembarcam'] === 3 && $ocupacao[4]['a_bordo'] === 2, 'na volta descem 3 e ficam 2');
+ok($ocupacao[5]['desembarcam'] === 2 && $ocupacao[5]['a_bordo'] === 0, 'na última parada da volta o ônibus esvazia');
 
 ok($escola[Processos::VIAGENS]['cadastra'] === true, 'escola grava o embarque das suas rotas');
 ok($escola[Processos::GASTOS]['visualiza'] === false, 'escola não vê o dinheiro da rede');

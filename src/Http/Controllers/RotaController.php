@@ -11,6 +11,7 @@ use iEducar\Packages\BuritiTransporteEscolar\Support\FaixaEtaria;
 use iEducar\Packages\BuritiTransporteEscolar\Support\GradeCalor;
 use iEducar\Packages\BuritiTransporteEscolar\Support\KmCalculado;
 use iEducar\Packages\BuritiTransporteEscolar\Support\RegraOferta;
+use iEducar\Packages\BuritiTransporteEscolar\Support\OcupacaoRota;
 use iEducar\Packages\BuritiTransporteEscolar\Support\OrdemPontos;
 use iEducar\Packages\BuritiTransporteEscolar\Support\PercursoTransito;
 use iEducar\Packages\BuritiTransporteEscolar\Support\Processos;
@@ -132,6 +133,7 @@ class RotaController
             'trilha' => $trilha,
             'codigos' => Codigos::class,
             'cobertura' => $this->cobertura($rota, (int) $registro->ano, $itinerario),
+            'movimento' => OcupacaoRota::linhas($itinerario, $this->alunosPorPonto($rota)),
             'raioEscola' => 500,
         ]);
     }
@@ -442,6 +444,25 @@ class RotaController
         ]);
 
         return back()->with('ok', 'Coordenada da escola atualizada no cadastro do i-Educar.');
+    }
+
+    /**
+     * @return array<int, int>
+     */
+    private function alunosPorPonto(int $rota): array
+    {
+        $contagem = [];
+
+        foreach (DB::table('transporte_escolar.aluno_rota')
+            ->where('rota_id', $rota)
+            ->whereNotNull('ponto_id')
+            ->groupBy('ponto_id')
+            ->selectRaw('ponto_id, count(*) as n')
+            ->get() as $linha) {
+            $contagem[(int) $linha->ponto_id] = (int) $linha->n;
+        }
+
+        return $contagem;
     }
 
     private function visivel(int $rota): object
