@@ -51,7 +51,6 @@ Route::prefix('transporte-escolar')->group(function () {
     Route::post('/alunos/carteirinhas', [CarteirinhaController::class, 'alunos'])->middleware('transporte.processo:' . Processos::ALUNOS . ',ver');
     Route::get('/alunos/busca', [AlunoRotaController::class, 'buscar'])->middleware('transporte.processo:' . Processos::ALUNOS . ',ver');
     Route::get('/alunos', [AlunoRotaController::class, 'index'])->middleware('transporte.processo:' . Processos::ALUNOS . ',ver');
-    Route::post('/alunos/sanar', [AlunoRotaController::class, 'sanar'])->middleware('transporte.processo:' . Processos::ALUNOS . ',gravar');
     Route::post('/alunos', [AlunoRotaController::class, 'store'])->middleware('transporte.processo:' . Processos::ALUNOS . ',gravar');
     Route::post('/alunos/atualizar', [AlunoRotaController::class, 'atualizar'])->middleware('transporte.processo:' . Processos::ALUNOS . ',gravar');
     Route::post('/alunos/cartao', [AlunoRotaController::class, 'cartao'])->middleware('transporte.processo:' . Processos::ALUNOS . ',gravar');

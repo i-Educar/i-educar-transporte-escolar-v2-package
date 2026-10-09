@@ -586,7 +586,7 @@
                             </label>
                             <label>Turno da rota <input data-turno-rotulo value="—" readonly></label>
                         </div>
-                        <p class="lead">A matrícula pode ficar em branco. Sem ela, o aluno entra na rota e o aviso fica em Alunos na rota. Turno da turma diferente do da rota também permanece como aviso.</p>
+                        <p class="lead">A matrícula é feita no i-Educar. Pode ficar em branco aqui: o aluno entra na rota e o aviso permanece em Alunos na rota. Turno da turma diferente do da rota também permanece como aviso.</p>
                         <div class="linha">
                             <label>Nome, matrícula ou CPF <input data-q value="{{ $pedido->nome_aluno }}"></label>
                             <label>Matrícula ativa

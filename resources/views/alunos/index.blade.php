@@ -6,13 +6,17 @@
         td.responsaveis span, dd.responsaveis span { display: block; line-height: 1.35; }
         td.responsaveis span + span, dd.responsaveis span + span { margin-top: 2px; }
         .aviso-rota { display: block; margin-top: 4px; color: #9b2c2c; font-size: .82rem; font-weight: 600; }
-        .pendencia { background: #fff; border: 1px solid #e7c7c7; border-radius: 8px; padding: 12px; margin: 0 0 10px; display: grid; gap: 8px; }
+        .resumo { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px 18px; margin: 0; background: #fff; border: 1px solid var(--linha); border-radius: 8px; padding: 14px 16px; }
+        .resumo > div { display: grid; gap: 2px; min-width: 0; }
+        .resumo .largo { grid-column: 1 / -1; }
+        .resumo dt { margin: 0; font-size: .7rem; color: var(--suave); font-weight: 700; letter-spacing: .04em; text-transform: uppercase; }
+        .resumo dd { margin: 0; font-weight: 600; }
     </style>
     @php
         $mostrar = fn ($nome) => \iEducar\Packages\BuritiTransporteEscolar\Support\NomeExibicao::exibir((string) $nome, $admin);
     @endphp
     <h1><i class="fa fa-users" aria-hidden="true"></i> Alunos na rota · {{ $ano }}</h1>
-    <p class="lead">A matrícula vem do i-Educar. @if($admin) O perfil institucional vê o nome completo. @else O perfil da escola vê o primeiro nome e a inicial do sobrenome. @endif</p>
+    <p class="lead">A matrícula é feita no i-Educar. Quem não tem matrícula ativa neste ano fica nesta lista, com o aviso abaixo do nome. @if($admin) O perfil institucional vê o nome completo. @else O perfil da escola vê o primeiro nome e a inicial do sobrenome. @endif</p>
     <form method="get" class="acao" style="margin-bottom:12px;">
         <label>Ano <input name="ano" value="{{ $ano }}" size="6"></label>
         <label>Nome, matrícula ou CPF <input name="q" value="{{ $busca }}"></label>
@@ -27,33 +31,6 @@
         <button type="button" class="botao" data-abre-modal="incluir-aluno"><i class="fa fa-user-plus" aria-hidden="true"></i> Incluir aluno</button>
     </form>
 
-    @if($pendencias->isNotEmpty())
-        <h2>Na rota sem matrícula</h2>
-        <p class="lead">Estes alunos foram conferidos e entraram na rota. O aviso sai quando a matrícula ativa é informada.</p>
-        @foreach($pendencias as $pendencia)
-            <article class="pendencia" data-pendencia data-url="{{ url('/transporte-escolar/alunos/busca') }}" data-ano="{{ $ano }}">
-                <strong>{{ $pendencia->nome_aluno }}</strong>
-                <span class="aviso-rota">Sem matrícula ativa. Protocolo {{ $pendencia->protocolo }} · {{ $pendencia->descricao }} · {{ \iEducar\Packages\BuritiTransporteEscolar\Support\Codigos::PERIODO[$pendencia->periodo] ?? $pendencia->periodo }}</span>
-                <form method="post" action="{{ url('/transporte-escolar/alunos/sanar') }}">
-                    @csrf
-                    <input type="hidden" name="solicitacao_id" value="{{ $pendencia->id }}">
-                    <input type="hidden" name="aluno_id" value="">
-                    <input type="hidden" name="matricula_id" value="">
-                    <div class="linha">
-                        <label>Nome, matrícula ou CPF <input data-q value="{{ $pendencia->nome_aluno }}"></label>
-                        <p><button type="button" class="botao claro" data-buscar>Buscar matrícula</button></p>
-                    </div>
-                    <label>Matrícula encontrada
-                        <select data-escolha required>
-                            <option value="">Escolha a matrícula para sanar o aviso</option>
-                        </select>
-                    </label>
-                    <button type="submit">Informar matrícula</button>
-                </form>
-            </article>
-        @endforeach
-    @endif
-
     <div data-painel>
         <h2>Alunos Transportados</h2>
         <div class="barra-dados">
@@ -63,6 +40,24 @@
             <table>
                 <thead><tr><th><input type="checkbox" data-marca-todas aria-label="Selecionar esta página" title="Selecionar esta página"></th><th>Matrícula</th><th>Aluno</th><th>Rota</th><th>Cartão</th><th>Responsável</th><th></th></tr></thead>
                 <tbody>
+                    @foreach($semMatricula as $vinculo)
+                        @php($nome = $mostrar($vinculo->nome))
+                        <tr data-busca="{{ $vinculo->protocolo }} {{ $nome }} {{ $vinculo->descricao }}">
+                            <td></td>
+                            <td>—</td>
+                            <td>{{ $nome }}
+                                @foreach($vinculo->avisos as $aviso)
+                                    <span class="aviso-rota">{{ $aviso }}</span>
+                                @endforeach
+                            </td>
+                            <td>{{ $vinculo->descricao }}</td>
+                            <td>—</td>
+                            <td>—</td>
+                            <td class="acoes">
+                                <button type="button" class="icone ver" data-abre-modal="conferir-{{ $vinculo->id }}" aria-label="Conferir" title="Conferir"><i class="fa fa-eye" aria-hidden="true"></i></button>
+                            </td>
+                        </tr>
+                    @endforeach
                     @forelse($vinculos as $vinculo)
                         @php($nome = $mostrar($vinculo->nome))
                         <tr data-busca="{{ $vinculo->cod_matricula }} {{ $nome }} {{ $vinculo->descricao }} {{ collect($vinculo->responsaveis)->pluck('nome')->implode(' ') }} {{ $vinculo->transporte_nome }}">
@@ -90,13 +85,32 @@
                             </td>
                         </tr>
                     @empty
-                        <tr data-vazio><td colspan="7" class="vazio">Nenhum aluno transportado.</td></tr>
+                        @if($semMatricula->isEmpty())
+                            <tr data-vazio><td colspan="7" class="vazio">Nenhum aluno transportado.</td></tr>
+                        @endif
                     @endforelse
                 </tbody>
             </table>
         </div>
         @include('transporte-escolar::paginacao', ['pagina' => $pagina['pagina'], 'paginas' => $pagina['paginas'], 'total' => $pagina['total'], 'url' => url('/transporte-escolar/alunos'), 'consulta' => ['ano' => $ano, 'q' => $busca]])
     </div>
+
+    @foreach($semMatricula as $vinculo)
+        <dialog class="modal" id="conferir-{{ $vinculo->id }}">
+            <div class="modal-cabeca">
+                <h2>{{ $mostrar($vinculo->nome) }}</h2>
+                <button type="button" data-fecha-modal aria-label="Fechar">&times;</button>
+            </div>
+            <div class="modal-corpo">
+                <dl class="resumo">
+                    <div><dt>Protocolo</dt><dd>{{ $vinculo->protocolo }}</dd></div>
+                    <div><dt>Rota</dt><dd>{{ $vinculo->descricao }}</dd></div>
+                    <div><dt>Turno</dt><dd>{{ \iEducar\Packages\BuritiTransporteEscolar\Support\Codigos::PERIODO[$vinculo->periodo] ?? $vinculo->periodo }}</dd></div>
+                    <div class="largo"><dt>Matrícula</dt><dd>@foreach($vinculo->avisos as $aviso)<span class="aviso-rota">{{ $aviso }}</span>@endforeach</dd></div>
+                </dl>
+            </div>
+        </dialog>
+    @endforeach
 
     @foreach($vinculos as $vinculo)
         @php($nome = $mostrar($vinculo->nome))
@@ -167,51 +181,61 @@
             <h2>Incluir aluno na rota</h2>
             <button type="button" data-fecha-modal aria-label="Fechar">&times;</button>
         </div>
-        <div data-incluir-aluno data-url="{{ url('/transporte-escolar/alunos/busca') }}" data-ano="{{ $ano }}">
-            <p class="lead" style="padding:0 18px;">Busque uma matrícula ativa deste ano. A rota precisa atender a escola dessa matrícula. Rota com lista de espera em processo aberto não recebe inclusão à mão.</p>
-            <p><label>Nome, matrícula ou CPF <input data-q placeholder="Digite ao menos 2 caracteres"></label></p>
+        <form method="post" action="{{ url('/transporte-escolar/alunos') }}" data-incluir-aluno data-url="{{ url('/transporte-escolar/alunos/busca') }}" data-ano="{{ $ano }}">
+            @csrf
+            <input type="hidden" name="aluno_id" value="">
+            <input type="hidden" name="matricula_id" value="">
+            <p class="lead">A matrícula já existe no i-Educar. A rota precisa atender a escola dessa matrícula. Rota com lista de espera não recebe inclusão à mão. O turno segue a rota.</p>
+            <div class="linha">
+                <label>Nome, matrícula ou CPF <input data-q placeholder="Digite ao menos 2 caracteres"></label>
+                <label>Matrícula encontrada
+                    <select data-escolha>
+                        <option value="">Busque e escolha a matrícula</option>
+                    </select>
+                </label>
+            </div>
             <p><button type="button" class="botao claro" data-buscar>Buscar matrícula</button></p>
-            <div data-lista></div>
-            <form method="post" action="{{ url('/transporte-escolar/alunos') }}">
-                @csrf
-                <input type="hidden" name="aluno_id" value="">
-                <input type="hidden" name="matricula_id" value="">
-                <p data-escolhido class="lead" style="padding:0 18px;">Nenhuma matrícula escolhida.</p>
+            <div class="linha">
                 <label>Rota
                     <select name="rota_id" required>
                         <option value="">Escolha a rota</option>
                         @foreach($rotas as $rota)
-                            <option value="{{ $rota->id }}" @disabled(($espera[$rota->id] ?? 0) > 0)>{{ $rota->descricao }}@if(($espera[$rota->id] ?? 0) > 0) — lista de espera @endif</option>
+                            <option value="{{ $rota->id }}" data-periodo="{{ $rota->periodo }}" data-periodo-rotulo="{{ \iEducar\Packages\BuritiTransporteEscolar\Support\Codigos::PERIODO[$rota->periodo] ?? $rota->periodo }}" @disabled(($espera[$rota->id] ?? 0) > 0)>{{ $rota->descricao }}@if(($espera[$rota->id] ?? 0) > 0) — lista de espera @endif</option>
                         @endforeach
                     </select>
                 </label>
-                <label>Turno
-                    <select name="turno" required>
-                        <option value="">Escolha o turno</option>
-                        @foreach(\iEducar\Packages\BuritiTransporteEscolar\Support\Codigos::PERIODO as $codigo => $rotulo)
-                            <option value="{{ $codigo }}">{{ $rotulo }}</option>
-                        @endforeach
-                    </select>
-                </label>
-                <button type="submit">Incluir na rota</button>
-            </form>
-        </div>
+                <label>Turno da rota <input data-turno-rotulo value="—" readonly></label>
+            </div>
+            <button type="submit">Incluir na rota</button>
+        </form>
     </dialog>
     <script>
-        document.querySelectorAll('[data-pendencia]').forEach(function (bloco) {
+        (function () {
+            var bloco = document.querySelector('[data-incluir-aluno]');
+            if (!bloco) return;
             var escolha = bloco.querySelector('[data-escolha]');
             var aluno = bloco.querySelector('[name=aluno_id]');
             var matricula = bloco.querySelector('[name=matricula_id]');
+            var rota = bloco.querySelector('[name=rota_id]');
+            var turnoRotulo = bloco.querySelector('[data-turno-rotulo]');
             var achados = [];
+            function aplicarTurno() {
+                var opcao = rota.options[rota.selectedIndex];
+                turnoRotulo.value = opcao ? (opcao.getAttribute('data-periodo-rotulo') || '—') : '—';
+            }
             bloco.querySelector('[data-buscar]').addEventListener('click', function () {
                 var q = bloco.querySelector('[data-q]').value || '';
                 fetch(bloco.getAttribute('data-url') + '?ano=' + encodeURIComponent(bloco.getAttribute('data-ano')) + '&q=' + encodeURIComponent(q), { headers: { 'Accept': 'application/json' } })
                     .then(function (resposta) { return resposta.json(); })
                     .then(function (dados) {
                         achados = dados.alunos || [];
-                        escolha.innerHTML = '<option value="">Escolha a matrícula para sanar o aviso</option>';
+                        escolha.innerHTML = '<option value="">Busque e escolha a matrícula</option>';
                         aluno.value = '';
                         matricula.value = '';
+                        if (!achados.length) {
+                            escolha.options[0].textContent = 'Nenhuma matrícula ativa encontrada.';
+                            return;
+                        }
                         achados.forEach(function (item, indice) {
                             var opcao = document.createElement('option');
                             opcao.value = String(indice);
@@ -225,40 +249,8 @@
                 aluno.value = item ? item.id : '';
                 matricula.value = item ? item.matricula : '';
             });
-        });
-        (function () {
-            var bloco = document.querySelector('[data-incluir-aluno]');
-            if (!bloco) return;
-            var lista = bloco.querySelector('[data-lista]');
-            var escolhido = bloco.querySelector('[data-escolhido]');
-            var aluno = bloco.querySelector('[name=aluno_id]');
-            var matricula = bloco.querySelector('[name=matricula_id]');
-            bloco.querySelector('[data-buscar]').addEventListener('click', function () {
-                var q = bloco.querySelector('[data-q]').value || '';
-                lista.innerHTML = '';
-                fetch(bloco.getAttribute('data-url') + '?ano=' + encodeURIComponent(bloco.getAttribute('data-ano')) + '&q=' + encodeURIComponent(q), { headers: { 'Accept': 'application/json' } })
-                    .then(function (resposta) { return resposta.json(); })
-                    .then(function (dados) {
-                        if (!dados.alunos || !dados.alunos.length) {
-                            lista.textContent = 'Nenhuma matrícula ativa encontrada.';
-                            return;
-                        }
-                        dados.alunos.forEach(function (item) {
-                            var botao = document.createElement('button');
-                            botao.type = 'button';
-                            botao.className = 'botao claro';
-                            botao.style.display = 'block';
-                            botao.style.margin = '0 18px 8px';
-                            botao.textContent = item.rotulo;
-                            botao.addEventListener('click', function () {
-                                aluno.value = item.id;
-                                matricula.value = item.matricula;
-                                escolhido.textContent = item.rotulo;
-                            });
-                            lista.appendChild(botao);
-                        });
-                    });
-            });
+            rota.addEventListener('change', aplicarTurno);
+            aplicarTurno();
         }());
     </script>
 
