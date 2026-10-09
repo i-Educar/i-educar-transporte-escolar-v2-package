@@ -5,6 +5,8 @@ namespace iEducar\Packages\BuritiTransporteEscolar\Http\Controllers;
 use iEducar\Packages\BuritiTransporteEscolar\Services\RedeConsulta;
 use iEducar\Packages\BuritiTransporteEscolar\Support\Acesso;
 use iEducar\Packages\BuritiTransporteEscolar\Support\Codigos;
+use iEducar\Packages\BuritiTransporteEscolar\Support\TurnoMatricula;
+use iEducar\Packages\BuritiTransporteEscolar\Support\VisaoRede;
 use iEducar\Packages\BuritiTransporteEscolar\Support\Coordenada;
 use iEducar\Packages\BuritiTransporteEscolar\Support\Gpx;
 use iEducar\Packages\BuritiTransporteEscolar\Support\FaixaEtaria;
@@ -25,10 +27,13 @@ class RotaController
     public function index(): View
     {
         $ano = (int) request('ano', date('Y'));
+        $rotas = RedeConsulta::rotas($ano)->get();
 
         return view('transporte-escolar::rotas.index', [
             'ano' => $ano,
-            'rotas' => RedeConsulta::rotas($ano)->get(),
+            'rotas' => $rotas,
+            'admin' => VisaoRede::escolas() === null,
+            'divergencias' => TurnoMatricula::porRota($rotas->pluck('id')->map(fn ($id) => (int) $id)->all()),
             'escolas' => RedeConsulta::escolas()->get(),
             'podeGravar' => Acesso::permite(Processos::ROTAS, 'gravar'),
             'codigos' => Codigos::class,
@@ -132,6 +137,8 @@ class RotaController
             'temTracado' => $tracado !== null,
             'trilha' => $trilha,
             'codigos' => Codigos::class,
+            'admin' => VisaoRede::escolas() === null,
+            'divergencias' => TurnoMatricula::porRota([$rota])[$rota] ?? [],
             'cobertura' => $this->cobertura($rota, (int) $registro->ano, $itinerario),
             'movimento' => OcupacaoRota::linhas($itinerario, $this->alunosPorPonto($rota)),
             'raioEscola' => 500,

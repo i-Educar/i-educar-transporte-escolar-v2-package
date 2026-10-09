@@ -62,7 +62,7 @@
                 <dt>Escola</dt><dd>{{ $vinculo->escola ?: '—' }}</dd>
                 <dt>Série e turma</dt><dd>{{ $vinculo->nm_serie ?: '—' }} · {{ $vinculo->nm_turma ?: '—' }}</dd>
                 <dt>Rota</dt><dd>{{ $vinculo->descricao }}</dd>
-                <dt>Turno</dt><dd>{{ $vinculo->turno ?: '—' }}</dd>
+                <dt>Turno</dt><dd>{{ \iEducar\Packages\BuritiTransporteEscolar\Support\Codigos::PERIODO[$vinculo->turno] ?? ($vinculo->turno ?: '—') }}</dd>
                 <dt>Cartão</dt><dd>{{ $vinculo->cartao ?: '—' }}</dd>
                 <dt>Responsável</dt><dd>{{ $vinculo->nome_responsavel ?: '—' }}</dd>
                 <dt>Telefone</dt><dd>{{ $vinculo->fone ?: '—' }}</dd>
@@ -83,7 +83,14 @@
                         @foreach($rotas as $rota)<option value="{{ $rota->id }}" @selected($rota->id == $vinculo->rota_id)>{{ $rota->descricao }}</option>@endforeach
                     </select>
                 </label>
-                <label>Turno <input name="turno" value="{{ $vinculo->turno }}"></label>
+                <label>Turno
+                    <select name="turno" required>
+                        <option value="">Escolha o turno</option>
+                        @foreach(\iEducar\Packages\BuritiTransporteEscolar\Support\Codigos::PERIODO as $codigo => $rotulo)
+                            <option value="{{ $codigo }}" @selected($vinculo->turno === $codigo)>{{ $rotulo }}</option>
+                        @endforeach
+                    </select>
+                </label>
                 <label>Cartão ou RFID <input name="cartao" value="{{ $vinculo->cartao }}" maxlength="40"></label>
                 <div class="linha">
                     <label>Latitude da casa <input name="residencia_latitude" value="{{ $vinculo->residencia_latitude }}"></label>

@@ -80,7 +80,7 @@ class AlunoRotaController
             'aluno_id' => ['required', 'integer'],
             'rota_id' => ['required', 'integer'],
             'rota_origem' => ['required', 'integer'],
-            'turno' => ['nullable', 'string', 'max:40'],
+            'turno' => ['required', 'in:manha,tarde,noite,integral'],
             'cartao' => ['nullable', 'string', 'max:40'],
             'residencia_latitude' => ['nullable', 'numeric'],
             'residencia_longitude' => ['nullable', 'numeric'],
@@ -112,7 +112,7 @@ class AlunoRotaController
         $dados = $request->validate([
             'aluno_id' => ['required', 'integer'],
             'rota_id' => ['required', 'integer'],
-            'turno' => ['nullable', 'string', 'max:40'],
+            'turno' => ['required', 'in:manha,tarde,noite,integral'],
             'residencia_latitude' => ['nullable', 'numeric'],
             'residencia_longitude' => ['nullable', 'numeric'],
         ]);

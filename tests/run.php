@@ -17,6 +17,7 @@ use iEducar\Packages\BuritiTransporteEscolar\Support\SituacaoDocumento;
 use iEducar\Packages\BuritiTransporteEscolar\Support\AvisoTexto;
 use iEducar\Packages\BuritiTransporteEscolar\Support\ChavePush;
 use iEducar\Packages\BuritiTransporteEscolar\Support\Codigos;
+use iEducar\Packages\BuritiTransporteEscolar\Support\TurnoMatricula;
 use iEducar\Packages\BuritiTransporteEscolar\Support\ComprovantePedido;
 use iEducar\Packages\BuritiTransporteEscolar\Services\SimulaCarga;
 use iEducar\Packages\BuritiTransporteEscolar\Support\CpfAnonimizado;
@@ -59,6 +60,7 @@ use iEducar\Packages\BuritiTransporteEscolar\Support\SituacaoPedido;
 require __DIR__ . '/../src/Support/Processos.php';
 require __DIR__ . '/../src/Support/PermissaoMatriz.php';
 require __DIR__ . '/../src/Support/Codigos.php';
+require __DIR__ . '/../src/Support/TurnoMatricula.php';
 require __DIR__ . '/../src/Support/KmCalculado.php';
 require __DIR__ . '/../src/Support/SincroniaCenso.php';
 require __DIR__ . '/../src/Support/CopiaAnoPlanejador.php';
@@ -571,5 +573,9 @@ ok(str_contains(implode("\n", DocumentoTexto::ordem([
     'fornecedor' => 'Oficina',
     'solicitante' => 'Garagem',
 ])), 'Servico a realizar'), 'ordem descreve o serviço a realizar');
+
+ok(TurnoMatricula::diverge('manha', 2) === true, 'matrícula da tarde diverge do transporte da manhã');
+ok(TurnoMatricula::diverge('manha', 1) === false, 'matrícula da manhã acompanha o transporte');
+ok(TurnoMatricula::diverge('integral', 2) === false, 'transporte integral cobre o turno da matrícula');
 
 exit($falhas === 0 ? 0 : 1);

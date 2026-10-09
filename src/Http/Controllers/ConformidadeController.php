@@ -4,7 +4,9 @@ namespace iEducar\Packages\BuritiTransporteEscolar\Http\Controllers;
 
 use iEducar\Packages\BuritiTransporteEscolar\Support\Acesso;
 use iEducar\Packages\BuritiTransporteEscolar\Support\AptidaoViagem;
+use iEducar\Packages\BuritiTransporteEscolar\Support\IdentidadeMunicipio;
 use iEducar\Packages\BuritiTransporteEscolar\Support\Processos;
+use Illuminate\Support\Carbon;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -114,14 +116,53 @@ class ConformidadeController
         return back()->with('ok', 'Checklist gravado.');
     }
 
-    public function anexoArquivo(string $tabela, int $id): StreamedResponse
+    public function anexoArquivo(string $tabela, int $id): View
+    {
+        $linha = $this->anexoVisivel($tabela, $id);
+        $veiculo = $linha->placa ?: $linha->descricao;
+        if ($tabela === 'autorizacao') {
+            $orgao = $linha->orgao === 'ciretran' ? 'CIRETRAN' : 'DETRAN';
+            $assunto = 'Autorização ' . $orgao . ' nº ' . $linha->numero . ' do veículo ' . $veiculo;
+            $data = 'Validade em ' . Carbon::parse($linha->validade)->format('d/m/Y');
+        } else {
+            $item = AptidaoViagem::ITENS[$linha->item] ?? $linha->item;
+            $situacao = $linha->conforme ? 'conforme' : 'pendente';
+            $assunto = 'Checklist de ' . $item . ' do veículo ' . $veiculo . ', ' . $situacao;
+            $data = 'Dados de ' . Carbon::parse($linha->updated_at ?: $linha->created_at)->format('d/m/Y');
+        }
+
+        return view('transporte-escolar::conformidade.anexo', [
+            'nome' => $linha->anexo_nome ?: 'Anexo',
+            'assunto' => $assunto,
+            'data' => $data,
+            'mime' => (string) (Storage::mimeType($linha->anexo_caminho) ?: 'application/octet-stream'),
+            'url' => url('/transporte-escolar/conformidade/anexo/' . $tabela . '/' . $id . '/arquivo'),
+            'municipio' => IdentidadeMunicipio::rotulo(),
+        ]);
+    }
+
+    public function anexoConteudo(string $tabela, int $id): StreamedResponse
+    {
+        $linha = $this->anexoVisivel($tabela, $id);
+
+        return Storage::response($linha->anexo_caminho, null, [
+            'Content-Disposition' => 'inline',
+            'X-Content-Type-Options' => 'nosniff',
+            'Cache-Control' => 'private, no-store',
+        ], 'inline');
+    }
+
+    private function anexoVisivel(string $tabela, int $id): object
     {
         abort_unless(in_array($tabela, ['autorizacao', 'checklist'], true), 404);
         $nome = $tabela === 'autorizacao' ? 'transporte_escolar.autorizacao_veiculo' : 'transporte_escolar.checklist_veiculo';
-        $linha = DB::table($nome)->where('id', $id)->first();
+        $linha = DB::table($nome . ' as a')
+            ->join('transporte_escolar.veiculo as v', 'v.id', '=', 'a.veiculo_id')
+            ->where('a.id', $id)
+            ->first(['a.*', 'v.placa', 'v.descricao']);
         abort_if($linha === null || $linha->anexo_caminho === null || !str_starts_with((string) $linha->anexo_caminho, 'transporte-escolar/conformidade/'), 404);
 
-        return Storage::download($linha->anexo_caminho, $linha->anexo_nome ?: 'anexo');
+        return $linha;
     }
 
     private function anexo(Request $request, string $tabela, int $id): void

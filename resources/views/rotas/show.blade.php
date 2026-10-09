@@ -2,7 +2,15 @@
 
 @section('transporte')
     <h1>{{ $rota->descricao }} · {{ $rota->ano }}</h1>
-    <p>{{ $codigos::TIPO_ROTA[$rota->tipo_rota] ?? $rota->tipo_rota }} · {{ $codigos::SENTIDO[$rota->sentido] ?? $rota->sentido }} · {{ $alunos }} alunos</p>
+    <p>{{ $codigos::TIPO_ROTA[$rota->tipo_rota] ?? $rota->tipo_rota }} · {{ $codigos::SENTIDO[$rota->sentido] ?? $rota->sentido }} · {{ $codigos::PERIODO[$rota->periodo] ?? $rota->periodo }} · {{ $alunos }} alunos</p>
+    @if($divergencias !== [])
+        <p><span class="selo alerta">Matrícula em turno diferente do transporte</span></p>
+        <ul>
+            @foreach($divergencias as $aluno)
+                <li>{{ \iEducar\Packages\BuritiTransporteEscolar\Support\NomeExibicao::exibir($aluno['nome'], $admin) }} · transporte {{ $aluno['transporte'] }} · matrícula {{ $aluno['matricula'] }}</li>
+            @endforeach
+        </ul>
+    @endif
     <p>Km informado: {{ number_format($kmInformado, 1, ',', '.') }} · Km calculado: {{ number_format($kmCalculado, 1, ',', '.') }} · Tempo estimado: {{ $minutos }} min</p>
 
     @php

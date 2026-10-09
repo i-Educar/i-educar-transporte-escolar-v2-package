@@ -99,6 +99,7 @@ Route::prefix('transporte-escolar')->group(function () {
     Route::post('/conformidade/autorizacao', [ConformidadeController::class, 'autorizacao'])->middleware('transporte.processo:' . Processos::VEICULOS . ',gravar');
     Route::post('/conformidade/autorizacao/{autorizacao}', [ConformidadeController::class, 'editarAutorizacao'])->middleware('transporte.processo:' . Processos::VEICULOS . ',gravar');
     Route::post('/conformidade/checklist', [ConformidadeController::class, 'checklist'])->middleware('transporte.processo:' . Processos::VEICULOS . ',gravar');
+    Route::get('/conformidade/anexo/{tabela}/{id}/arquivo', [ConformidadeController::class, 'anexoConteudo'])->middleware('transporte.processo:' . Processos::VEICULOS . ',ver');
     Route::get('/conformidade/anexo/{tabela}/{id}', [ConformidadeController::class, 'anexoArquivo'])->middleware('transporte.processo:' . Processos::VEICULOS . ',ver');
 
     Route::get('/estoque', [EstoqueController::class, 'index'])->middleware('transporte.processo:' . Processos::GASTOS . ',ver');

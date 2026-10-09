@@ -20,7 +20,12 @@
                 <tbody>
                     @forelse($rotas as $rota)
                         <tr data-busca="{{ $rota->descricao }} {{ $codigos::TIPO_ROTA[$rota->tipo_rota] ?? $rota->tipo_rota }}">
-                            <td><a href="{{ url('/transporte-escolar/rotas/'.$rota->id) }}">{{ $rota->descricao }}</a></td>
+                            <td>
+                                <a href="{{ url('/transporte-escolar/rotas/'.$rota->id) }}">{{ $rota->descricao }}</a>
+                                @if(!empty($divergencias[$rota->id]))
+                                    <div><span class="selo alerta">{{ count($divergencias[$rota->id]) === 1 ? '1 aluno com matrícula em turno diferente do transporte' : count($divergencias[$rota->id]).' alunos com matrícula em turno diferente do transporte' }}</span></div>
+                                @endif
+                            </td>
                             <td>{{ $codigos::TIPO_ROTA[$rota->tipo_rota] ?? $rota->tipo_rota }}</td>
                             <td>{{ number_format((float) $rota->km_pav + (float) $rota->km_npav, 1, ',', '.') }}</td>
                             <td>{{ $rota->km_calculado === null ? '—' : number_format((float) $rota->km_calculado, 1, ',', '.') }}</td>
