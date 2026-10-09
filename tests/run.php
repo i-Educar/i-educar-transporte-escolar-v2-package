@@ -6,6 +6,9 @@ use iEducar\Packages\BuritiTransporteEscolar\Support\FaixaEtaria;
 use iEducar\Packages\BuritiTransporteEscolar\Support\GradeCalor;
 use iEducar\Packages\BuritiTransporteEscolar\Support\PontosProximos;
 use iEducar\Packages\BuritiTransporteEscolar\Support\RegraOferta;
+use iEducar\Packages\BuritiTransporteEscolar\Support\IndicadorRede;
+use iEducar\Packages\BuritiTransporteEscolar\Support\AptidaoViagem;
+use iEducar\Packages\BuritiTransporteEscolar\Support\EstoqueSaldo;
 use iEducar\Packages\BuritiTransporteEscolar\Support\UsoPonto;
 use iEducar\Packages\BuritiTransporteEscolar\Support\DocumentoTexto;
 use iEducar\Packages\BuritiTransporteEscolar\Support\PdfSimples;
@@ -100,6 +103,9 @@ require __DIR__ . '/../src/Support/FaixaEtaria.php';
 require __DIR__ . '/../src/Support/GradeCalor.php';
 require __DIR__ . '/../src/Support/PontosProximos.php';
 require __DIR__ . '/../src/Support/RegraOferta.php';
+require __DIR__ . '/../src/Support/IndicadorRede.php';
+require __DIR__ . '/../src/Support/AptidaoViagem.php';
+require __DIR__ . '/../src/Support/EstoqueSaldo.php';
 require __DIR__ . '/../src/Support/UsoPonto.php';
 require __DIR__ . '/../src/Support/SituacaoDocumento.php';
 require __DIR__ . '/../src/Support/ProtocoloDocumento.php';
@@ -498,6 +504,19 @@ ok(RegraOferta::recorteCabe([], [], []) === true, 'vaga sem série nem turma nã
 ok(RegraOferta::recorteCabe([3], [], [10 => 3, 11 => 4]) === true && RegraOferta::recorteCabe([9], [], [10 => 3]) === false, 'série precisa ter turma no ano e nas escolas da rota');
 ok(RegraOferta::recorteCabe([], [10], [10 => 3]) === true && RegraOferta::recorteCabe([], [12], [10 => 3]) === false, 'turma de outro ano ou de escola fora da rota não entra');
 ok(RegraOferta::recorteCabe([4], [10], [10 => 3, 11 => 4]) === false, 'turma marcada precisa ser de uma série marcada');
+ok(IndicadorRede::percentual(9, 10) === 90 && IndicadorRede::percentual(1, 0) === null, 'percentual não inventa base vazia');
+ok(IndicadorRede::litrosPorCem(20, 200) === 10.0, 'litros por 100 km');
+ok(IndicadorRede::ocorrenciasPorCemMil(2, 100000) === 2.0, 'ocorrências por 100 mil km');
+ok(IndicadorRede::custoPorAluno(300, 3) === 100.0 && IndicadorRede::custoPorAluno(10, 0) === null, 'custo PNATE só divide por quem embarcou');
+ok(IndicadorRede::planoEmDia(1000, 500, null, null, 1400, '2026-10-08') === true && IndicadorRede::planoEmDia(1000, 500, null, null, 1600, '2026-10-08') === false, 'preventiva por km');
+ok(AptidaoViagem::motivo('2026-12-01', '2026-12-01', '2026-12-01', '2026-12-01', true, true, '2026-10-08') === null, 'papéis vigentes liberam a viagem');
+ok(AptidaoViagem::motivo(null, '2026-12-01', '2026-12-01', '2026-12-01', true, true, '2026-10-08') !== null, 'sem autorização a viagem não abre');
+ok(AptidaoViagem::motivo(null, null, null, null, false, false, '2026-10-08') === null, 'viagem sem veículo e sem motorista não exige papel');
+ok(EstoqueSaldo::aplicar(2, 'baixa', 3) === null && EstoqueSaldo::aplicar(2, 'baixa', 1) === 1.0, 'baixa não deixa o lote negativo');
+ok(EstoqueSaldo::aplicar(2, 'contagem', 5) === 5.0 && EstoqueSaldo::diferenca(5, 2) === 3.0, 'contagem troca o saldo e guarda a diferença');
+ok($escola[Processos::GASTOS]['visualiza'] === false && $escola[Processos::VEICULOS]['cadastra'] === false, 'escola consulta a conformidade e não abre o estoque');
+ok($institucional[Processos::VEICULOS]['cadastra'] === true && $institucional[Processos::GASTOS]['cadastra'] === true && $institucional[Processos::CACS]['cadastra'] === false, 'institucional grava frota e gasto; o conselho só lê');
+ok($biblioteca[Processos::RELATORIOS]['visualiza'] === false, 'biblioteca continua sem os indicadores');
 ok(PontosProximos::ordenar(-30.0, -51.0, [
     ['id' => 1, 'nome' => 'Perto', 'latitude' => -30.001, 'longitude' => -51.0, 'raio' => 200],
     ['id' => 2, 'nome' => 'Longe', 'latitude' => -30.05, 'longitude' => -51.0, 'raio' => 100],

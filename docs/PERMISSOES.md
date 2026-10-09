@@ -102,3 +102,17 @@ A página `/transporte-escolar/familia` não pede login e não entra no menu. Qu
 O perfil institucional grava, em Pedidos da família, o nome do setor, o endereço, o horário, a lista de documentos e a latitude e longitude. A família só vê esse bloco quando o pedido está aceito. Com as duas coordenadas, a página mostra o mapa. A ficha do protocolo, antes da decisão, mostra os dados completos e a distância até os pontos cadastrados.
 
 O mesmo perfil agrupa processos, abre o processo e publica a vaga. Pode editar nome, ano e período, pausar ou bloquear. Processo pausado ou bloqueado não recebe pedido. Processo bloqueado também não recebe vaga nova. Pedido recebido, em análise ou aceito ocupa a vaga. Recusado ou cancelado devolve o lugar. Os desenhos estão em `docs/FLUXOS.md`.
+
+## Rodadas 9 a 11 — indicadores, conformidade e estoque
+
+Não há processo novo. A tela Tipos de usuário continua valendo o que já está marcado.
+
+| Tela | Processo | Institucional (níveis 1 e 2) | Escola (nível 4) | Biblioteca (nível 8) |
+| --- | --- | --- | --- | --- |
+| Gráficos em Relatórios | 880151, só leitura | Vê a rede, inclusive o gasto por fonte | Vê as próprias rotas, sem o bloco de gasto | Sem menu |
+| Gráficos no CACS | 880152, só leitura | Vê, não grava | Sem menu | Sem menu |
+| Conformidade da frota | 880113 Veículos | Grava autorização e checklist | Consulta, não grava | Sem menu |
+| Curso do motorista | 880111 Motoristas | Grava a validade | Consulta | Sem menu |
+| Estoque da frota | 880150 Gastos | Grava item, entrada, baixa e contagem | Sem menu | Sem menu |
+
+A viagem nova (880140) continua podendo ser gravada pela escola nas rotas dela. O bloqueio por papel vencido vale para os dois perfis que gravam viagem: sem autorização vigente, sem licenciamento, sem CNH ou sem curso, a viagem não abre. O poli-institucional segue vendo todos os menus pelo núcleo. O conselho não ganhou botão de gravar.

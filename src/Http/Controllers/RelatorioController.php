@@ -3,6 +3,7 @@
 namespace iEducar\Packages\BuritiTransporteEscolar\Http\Controllers;
 
 use iEducar\Packages\BuritiTransporteEscolar\Services\CustoMensal;
+use iEducar\Packages\BuritiTransporteEscolar\Services\IndicadoresLeitura;
 use iEducar\Packages\BuritiTransporteEscolar\Services\RedeConsulta;
 use iEducar\Packages\BuritiTransporteEscolar\Support\Acesso;
 use iEducar\Packages\BuritiTransporteEscolar\Support\ConsumoReal;
@@ -29,6 +30,7 @@ class RelatorioController
         return view('transporte-escolar::relatorios.index', $dados + [
             'ano' => $ano,
             'mes' => $mes,
+            'indicadores' => IndicadoresLeitura::montar($ano, $mes, $dados['rotas']->pluck('id')->map(fn ($id) => (int) $id)->all(), $podeCusto),
             'podeCusto' => $podeCusto,
             'custo' => $custo,
             'alertaSaldo' => $podeCusto ? CustoMensal::alertaSaldo($ano) : null,

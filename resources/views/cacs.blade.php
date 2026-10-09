@@ -38,6 +38,8 @@
         </div>
     </div>
 
+    @include('transporte-escolar::relatorios.graficos')
+
     <div data-painel>
         <div class="barra-dados">
             <h2>Rotas do ano</h2>

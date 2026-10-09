@@ -30,6 +30,7 @@ final class MenuFluxo
                 'itens' => [
                     self::item($pode, 'frota', 'Empresas', 'fa-building', '/transporte-escolar/empresas', request()->is('transporte-escolar/empresas*')),
                     self::item($pode, 'frota', 'Veículos', 'fa-bus', '/transporte-escolar/veiculos', request()->is('transporte-escolar/veiculos*')),
+                    self::item($pode, 'frota', 'Conformidade', 'fa-check-square-o', '/transporte-escolar/conformidade', request()->is('transporte-escolar/conformidade*')),
                     self::item($pode, 'frota', 'Motoristas', 'fa-id-card', '/transporte-escolar/motoristas', request()->is('transporte-escolar/motoristas*')),
                     self::item($pode, 'frota', 'Monitores', 'fa-user', '/transporte-escolar/monitores', request()->is('transporte-escolar/monitores*')),
                     self::item($pode, 'frota', 'Pontos', 'fa-map-marker', '/transporte-escolar/pontos', request()->is('transporte-escolar/pontos*')),
@@ -65,6 +66,7 @@ final class MenuFluxo
                 'itens' => [
                     self::item($pode, 'gastos', 'Ordens de serviço', 'fa-wrench', '/transporte-escolar/ordens', request()->is('transporte-escolar/ordens*')),
                     self::item($pode, 'gastos', 'Bilhetes', 'fa-tint', '/transporte-escolar/bilhetes', request()->is('transporte-escolar/bilhetes*')),
+                    self::item($pode, 'gastos', 'Estoque da frota', 'fa-cubes', '/transporte-escolar/estoque', request()->is('transporte-escolar/estoque*')),
                     self::item($pode, 'gastos', 'Gastos', 'fa-money', '/transporte-escolar/gastos', request()->is('transporte-escolar/gastos*')),
                 ],
             ],

@@ -131,6 +131,7 @@
                         <label>Habilitação <input type="date" name="dt_habilitacao"></label>
                         <label>Vencimento <input type="date" name="vencimento_cnh"></label>
                     </div>
+                    <label>Curso de transporte escolar <input type="date" name="curso_escolar_validade"></label>
                     <label>Vínculo <select name="vinculo">@foreach($codigos::VINCULO as $codigo => $rotulo)<option value="{{ $codigo }}">{{ $rotulo }}</option>@endforeach</select></label>
                     <div class="linha">
                         <label>Turno <input name="turno"></label>
@@ -201,7 +202,7 @@
                     @foreach((array) $linha as $campo => $valor)
                         @continue(in_array($campo, ['id', 'created_at', 'updated_at', 'origem', 'origem_chave', 'ref_idpes'], true) || str_ends_with($campo, '_id'))
                         @php
-                            $rotuloCampo = ['nome' => 'Nome', 'cnpj' => 'CNPJ', 'observacao' => 'Observação', 'email' => 'E-mail', 'telefone' => 'Telefone', 'matricula_funcional' => 'Matrícula funcional', 'cnh' => 'CNH', 'tipo_cnh' => 'Categoria', 'vencimento_cnh' => 'Vencimento da CNH', 'vinculo' => 'Vínculo', 'salario_mensal' => 'Salário', 'turno' => 'Turno', 'encargo_percent' => 'Encargo %', 'carga_horaria' => 'Carga horária', 'placa' => 'Placa', 'descricao' => 'Descrição', 'renavam' => 'RENAVAM', 'chassi' => 'Chassi', 'marca' => 'Marca', 'ano_fabricacao' => 'Ano de fabricação', 'ano_modelo' => 'Ano do modelo', 'passageiros' => 'Passageiros', 'tipo_censo' => 'Tipo no Censo', 'malha' => 'Malha', 'adaptado_pcd' => 'Adaptado', 'exclusivo_escolar' => 'Exclusivo escolar', 'caminho_da_escola' => 'Caminho da Escola', 'consumo_medio_km_l' => 'Consumo km/l', 'qtd_pneus' => 'Pneus', 'ipva_vencimento' => 'IPVA', 'seguro_vencimento' => 'Seguro', 'licenciamento_vencimento' => 'Licenciamento', 'vistoria_vencimento' => 'Vistoria', 'ativo' => 'Ativo', 'latitude' => 'Latitude', 'longitude' => 'Longitude', 'raio_metros' => 'Raio (m)'][$campo] ?? null;
+                            $rotuloCampo = ['nome' => 'Nome', 'cnpj' => 'CNPJ', 'observacao' => 'Observação', 'email' => 'E-mail', 'telefone' => 'Telefone', 'matricula_funcional' => 'Matrícula funcional', 'cnh' => 'CNH', 'tipo_cnh' => 'Categoria', 'vencimento_cnh' => 'Vencimento da CNH', 'curso_escolar_validade' => 'Curso de transporte escolar', 'vinculo' => 'Vínculo', 'salario_mensal' => 'Salário', 'turno' => 'Turno', 'encargo_percent' => 'Encargo %', 'carga_horaria' => 'Carga horária', 'placa' => 'Placa', 'descricao' => 'Descrição', 'renavam' => 'RENAVAM', 'chassi' => 'Chassi', 'marca' => 'Marca', 'ano_fabricacao' => 'Ano de fabricação', 'ano_modelo' => 'Ano do modelo', 'passageiros' => 'Passageiros', 'tipo_censo' => 'Tipo no Censo', 'malha' => 'Malha', 'adaptado_pcd' => 'Adaptado', 'exclusivo_escolar' => 'Exclusivo escolar', 'caminho_da_escola' => 'Caminho da Escola', 'consumo_medio_km_l' => 'Consumo km/l', 'qtd_pneus' => 'Pneus', 'ipva_vencimento' => 'IPVA', 'seguro_vencimento' => 'Seguro', 'licenciamento_vencimento' => 'Licenciamento', 'vistoria_vencimento' => 'Vistoria', 'ativo' => 'Ativo', 'latitude' => 'Latitude', 'longitude' => 'Longitude', 'raio_metros' => 'Raio (m)'][$campo] ?? null;
                         @endphp
                         @continue($rotuloCampo === null)
                         <div>
@@ -248,6 +249,7 @@
                         <div class="linha">
                             <label>Habilitação <input type="date" name="dt_habilitacao" value="{{ $linha->dt_habilitacao }}"></label>
                             <label>Vencimento <input type="date" name="vencimento_cnh" value="{{ $linha->vencimento_cnh }}"></label>
+                            <label>Curso de transporte escolar <input type="date" name="curso_escolar_validade" value="{{ $linha->curso_escolar_validade }}"></label>
                         </div>
                         <label>Vínculo <select name="vinculo">@foreach($codigos::VINCULO as $codigo => $rotulo)<option value="{{ $codigo }}" @selected($linha->vinculo === $codigo)>{{ $rotulo }}</option>@endforeach</select></label>
                         <div class="linha">

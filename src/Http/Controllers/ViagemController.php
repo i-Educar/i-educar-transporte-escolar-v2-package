@@ -5,6 +5,7 @@ namespace iEducar\Packages\BuritiTransporteEscolar\Http\Controllers;
 use iEducar\Packages\BuritiTransporteEscolar\Services\RedeConsulta;
 use iEducar\Packages\BuritiTransporteEscolar\Services\RegistrarAviso;
 use iEducar\Packages\BuritiTransporteEscolar\Services\TrilhaKm;
+use iEducar\Packages\BuritiTransporteEscolar\Support\AptidaoViagem;
 use iEducar\Packages\BuritiTransporteEscolar\Support\LoteViagem;
 use iEducar\Packages\BuritiTransporteEscolar\Support\QrCodigo;
 use iEducar\Packages\BuritiTransporteEscolar\Support\Codigos;
@@ -12,6 +13,7 @@ use iEducar\Packages\BuritiTransporteEscolar\Support\KmRealizado;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\View\View;
 
 class ViagemController
@@ -58,6 +60,11 @@ class ViagemController
         ]);
 
         abort_if(RedeConsulta::rotas()->where('r.id', $dados['rota_id'])->doesntExist(), 404);
+        $papel = $this->papelInapto(isset($dados['veiculo_id']) ? (int) $dados['veiculo_id'] : null, isset($dados['motorista_id']) ? (int) $dados['motorista_id'] : null);
+
+        if ($papel !== null) {
+            return back()->with('erro', $papel);
+        }
 
         if (KmRealizado::deOdometro(
             isset($dados['km_inicial']) ? (float) $dados['km_inicial'] : null,
@@ -95,6 +102,11 @@ class ViagemController
         ]);
         $rota = RedeConsulta::rotas()->where('r.id', $dados['rota_id'])->first();
         abort_if($rota === null, 404);
+        $papel = $this->papelInapto(isset($dados['veiculo_id']) ? (int) $dados['veiculo_id'] : null, isset($dados['motorista_id']) ? (int) $dados['motorista_id'] : null);
+
+        if ($papel !== null) {
+            return back()->with('erro', $papel);
+        }
 
         $escolas = DB::table('transporte_escolar.rota_escola')->where('rota_id', $rota->id)->pluck('ref_cod_escola');
         $calendarios = DB::table('pmieducar.calendario_ano_letivo')
@@ -262,5 +274,49 @@ class ViagemController
         abort_if($registro === null, 404);
 
         return $registro;
+    }
+
+    private function papelInapto(?int $veiculoId, ?int $motoristaId): ?string
+    {
+        if (!Schema::hasTable('transporte_escolar.autorizacao_veiculo')) {
+            return null;
+        }
+
+        $hoje = now()->toDateString();
+        $autorizacao = null;
+        $licenciamento = null;
+        $cnh = null;
+        $curso = null;
+        $temVeiculo = $veiculoId !== null && $veiculoId > 0;
+        $temMotorista = $motoristaId !== null && $motoristaId > 0;
+
+        if ($temVeiculo) {
+            $veiculo = DB::table('transporte_escolar.veiculo')->where('id', $veiculoId)->first();
+
+            if ($veiculo === null) {
+                return 'Veículo não encontrado.';
+            }
+
+            $licenciamento = $veiculo->licenciamento_vencimento === null ? null : (string) $veiculo->licenciamento_vencimento;
+            $autorizacao = DB::table('transporte_escolar.autorizacao_veiculo')->where('veiculo_id', $veiculoId)->max('validade');
+            $autorizacao = $autorizacao === null ? null : (string) $autorizacao;
+        }
+
+        if ($temMotorista) {
+            $motorista = DB::table('transporte_escolar.motorista')->where('id', $motoristaId)->first();
+
+            if ($motorista === null) {
+                return 'Motorista não encontrado.';
+            }
+
+            $cnh = $motorista->vencimento_cnh === null ? null : (string) $motorista->vencimento_cnh;
+            $curso = $hoje;
+
+            if (Schema::hasColumn('transporte_escolar.motorista', 'curso_escolar_validade')) {
+                $curso = $motorista->curso_escolar_validade === null ? null : (string) $motorista->curso_escolar_validade;
+            }
+        }
+
+        return AptidaoViagem::motivo($autorizacao, $licenciamento, $cnh, $curso, $temVeiculo, $temMotorista, $hoje);
     }
 }

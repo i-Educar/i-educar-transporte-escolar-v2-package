@@ -1,6 +1,6 @@
 # O que esta versão entrega
 
-Versão 1.5.2. Fases 0 a 5, ondas 1 a 8, portal da família, processo de vagas, documentos em duas vias, aviso no navegador, frequência da viagem e painel na ordem do trabalho. SMS, envio ao SiGPC e folha ficam de fora. O desenho de cada fluxo está em `docs/FLUXOS.md`.
+Versão 1.6.0. Fases 0 a 5, ondas 1 a 8, portal da família, processo de vagas, documentos em duas vias, aviso no navegador, frequência da viagem e painel na ordem do trabalho. SMS, envio ao SiGPC e folha ficam de fora. O desenho de cada fluxo está em `docs/FLUXOS.md`.
 
 | Entrega | Onde está |
 | --- | --- |
@@ -21,7 +21,9 @@ Versão 1.5.2. Fases 0 a 5, ondas 1 a 8, portal da família, processo de vagas, 
 | Pedido sem nome completo no PDF, com QR e página pública que pede dados antes do status | `/transporte-escolar/solicitacoes` |
 | Percurso pelas ruas, com quilometragem e tempo gravados na rota | `/transporte-escolar/rotas/{id}` |
 | Frequência impressa na viagem, com CPF abreviado e status de presença ou ausência | `/transporte-escolar/viagens` |
-| Relatórios em grupos de indicadores | `/transporte-escolar/relatorios` |
+| Relatórios em grupos de indicadores, com gráfico de km, gasto por fonte, cobertura rural, Censo, preventiva, disponibilidade e litros por 100 km | `/transporte-escolar/relatorios` e `/transporte-escolar/cacs` |
+| Autorização DETRAN ou CIRETRAN, checklist e curso do motorista. Viagem nova exige papel vigente | `/transporte-escolar/conformidade` |
+| Estoque de pneu, filtro, óleo e pastilha, com baixa na ordem e contagem | `/transporte-escolar/estoque` |
 | Veículo com os tipos do Censo nos modais rodoviário, aquaviário e ferroviário | `/transporte-escolar/veiculos` |
 | Carga de teste com alunos do ano, rotas longas, avisos, notificações e informes | `php artisan transporte:simula` |
 

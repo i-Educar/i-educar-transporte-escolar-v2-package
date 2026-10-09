@@ -50,6 +50,8 @@
         </div>
     </section>
 
+    @include('transporte-escolar::relatorios.graficos')
+
     <section class="painel-grupo">
         <h2><span class="marca-grupo verde"><i class="fa fa-users" aria-hidden="true"></i></span> Atendimento no ano</h2>
         <p class="lead">Quem está na lista da rota e quem já embarcou em alguma viagem.</p>

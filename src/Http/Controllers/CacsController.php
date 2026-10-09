@@ -3,6 +3,7 @@
 namespace iEducar\Packages\BuritiTransporteEscolar\Http\Controllers;
 
 use iEducar\Packages\BuritiTransporteEscolar\Services\CustoMensal;
+use iEducar\Packages\BuritiTransporteEscolar\Services\IndicadoresLeitura;
 use iEducar\Packages\BuritiTransporteEscolar\Support\KmRealizado;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -92,6 +93,7 @@ class CacsController
             'categorias' => $this->categorias($custo['linhas']),
             'alertaSaldo' => CustoMensal::alertaSaldo($ano),
             'fontes' => ['pnate' => 'PNATE', 'proprio' => 'Recurso próprio', 'outros' => 'Outras fontes'],
+            'indicadores' => IndicadoresLeitura::montar($ano, $mes, $ids, true),
         ];
     }
 

@@ -6,6 +6,7 @@ use iEducar\Packages\BuritiTransporteEscolar\Services\RedeConsulta;
 use iEducar\Packages\BuritiTransporteEscolar\Support\VisaoRede;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\View\View;
 
 class PainelController
@@ -49,6 +50,43 @@ class PainelController
             ]);
 
         $avisos = $this->avisos($cnh, $veiculos, $lotacao);
+
+        if (Schema::hasColumn('transporte_escolar.motorista', 'curso_escolar_validade')) {
+            $cursos = DB::table('transporte_escolar.motorista as m')
+                ->join('cadastro.pessoa as p', 'p.idpes', '=', 'm.ref_idpes')
+                ->whereNotNull('m.curso_escolar_validade')
+                ->where('m.curso_escolar_validade', '<=', $limite)
+                ->orderBy('m.curso_escolar_validade')
+                ->get(['p.nome', 'm.curso_escolar_validade']);
+
+            foreach ($cursos as $item) {
+                $avisos[] = [
+                    'icone' => 'fa-id-card',
+                    'texto' => 'Curso escolar de ' . $item->nome . ' vence em ' . Carbon::parse($item->curso_escolar_validade)->format('d/m/Y') . '.',
+                    'url' => '/transporte-escolar/motoristas',
+                    'chave' => 'frota',
+                    'tom' => 'prazo',
+                ];
+            }
+        }
+
+        if (Schema::hasTable('transporte_escolar.autorizacao_veiculo')) {
+            $autorizacoes = DB::table('transporte_escolar.autorizacao_veiculo as a')
+                ->join('transporte_escolar.veiculo as v', 'v.id', '=', 'a.veiculo_id')
+                ->where('a.validade', '<=', $limite)
+                ->orderBy('a.validade')
+                ->get(['v.placa', 'v.descricao', 'a.validade', 'a.orgao']);
+
+            foreach ($autorizacoes as $item) {
+                $avisos[] = [
+                    'icone' => 'fa-check-square-o',
+                    'texto' => 'Autorização ' . ($item->orgao === 'ciretran' ? 'CIRETRAN' : 'DETRAN') . ' de ' . ($item->placa ?: $item->descricao) . ' vence em ' . Carbon::parse($item->validade)->format('d/m/Y') . '.',
+                    'url' => '/transporte-escolar/conformidade',
+                    'chave' => 'frota',
+                    'tom' => 'prazo',
+                ];
+            }
+        }
 
         return view('transporte-escolar::painel', compact('avisos'));
     }

@@ -200,6 +200,17 @@
         .card-avisos li.servico i { color: #0f6b4c; }
         .card-avisos li span { flex: 1; }
         .card-avisos .vazio { margin: 0; }
+        .grafico { display: grid; gap: 6px; margin: 8px 0 12px; }
+        .grafico-linha { display: grid; grid-template-columns: 110px 1fr; gap: 8px; align-items: center; font-size: .8rem; color: var(--suave); }
+        .trilho { display: grid; gap: 3px; background: #f4f7f8; border-radius: 6px; padding: 4px; }
+        .trilho i { display: block; height: 8px; border-radius: 4px; min-width: 0; }
+        .trilho .planejado, .legenda-grafico .planejado { background: #188ad1; }
+        .trilho .realizado, .legenda-grafico .realizado { background: #0f6b4c; }
+        .trilho .fonte-pnate { background: #5c4d7a; }
+        .trilho .fonte-proprio { background: #188ad1; }
+        .trilho .fonte-outros { background: #b86e00; }
+        .legenda-grafico { display: flex; gap: 14px; align-items: center; font-size: .8rem; color: var(--suave); }
+        .legenda-grafico i { width: 12px; height: 8px; border-radius: 4px; display: inline-block; }
         dialog.modal { border: 0; border-radius: 8px; padding: 0; width: min(820px, calc(100% - 32px)); max-height: calc(100vh - 48px); overflow: hidden; box-shadow: 0 18px 50px rgba(20, 32, 42, .28); }
         dialog.modal[open] { display: flex; flex-direction: column; }
         dialog.modal::backdrop { background: rgba(20, 32, 42, .5); }

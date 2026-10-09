@@ -8,6 +8,8 @@ use iEducar\Packages\BuritiTransporteEscolar\Http\Controllers\NotificacaoModeloC
 use iEducar\Packages\BuritiTransporteEscolar\Http\Controllers\CacsController;
 use iEducar\Packages\BuritiTransporteEscolar\Http\Controllers\GastoController;
 use iEducar\Packages\BuritiTransporteEscolar\Http\Controllers\OfflineController;
+use iEducar\Packages\BuritiTransporteEscolar\Http\Controllers\ConformidadeController;
+use iEducar\Packages\BuritiTransporteEscolar\Http\Controllers\EstoqueController;
 use iEducar\Packages\BuritiTransporteEscolar\Http\Controllers\RelatorioController;
 use iEducar\Packages\BuritiTransporteEscolar\Http\Controllers\ViagemController;
 use iEducar\Packages\BuritiTransporteEscolar\Http\Controllers\CopiaAnoController;
@@ -88,6 +90,19 @@ Route::prefix('transporte-escolar')->group(function () {
     Route::post('/bilhetes/{bilhete}/situacao', [\iEducar\Packages\BuritiTransporteEscolar\Http\Controllers\DocumentoController::class, 'situacaoBilhete'])->middleware('transporte.processo:' . Processos::GASTOS . ',gravar');
     Route::get('/bilhetes/{bilhete}/pdf', [\iEducar\Packages\BuritiTransporteEscolar\Http\Controllers\DocumentoController::class, 'pdfBilhete'])->middleware('transporte.processo:' . Processos::GASTOS . ',ver');
     Route::get('/bilhetes.csv', [\iEducar\Packages\BuritiTransporteEscolar\Http\Controllers\DocumentoController::class, 'csvBilhetes'])->middleware('transporte.processo:' . Processos::GASTOS . ',ver');
+
+    Route::get('/conformidade', [ConformidadeController::class, 'index'])->middleware('transporte.processo:' . Processos::VEICULOS . ',ver');
+    Route::post('/conformidade/autorizacao', [ConformidadeController::class, 'autorizacao'])->middleware('transporte.processo:' . Processos::VEICULOS . ',gravar');
+    Route::post('/conformidade/autorizacao/{autorizacao}', [ConformidadeController::class, 'editarAutorizacao'])->middleware('transporte.processo:' . Processos::VEICULOS . ',gravar');
+    Route::post('/conformidade/checklist', [ConformidadeController::class, 'checklist'])->middleware('transporte.processo:' . Processos::VEICULOS . ',gravar');
+    Route::get('/conformidade/anexo/{tabela}/{id}', [ConformidadeController::class, 'anexoArquivo'])->middleware('transporte.processo:' . Processos::VEICULOS . ',ver');
+
+    Route::get('/estoque', [EstoqueController::class, 'index'])->middleware('transporte.processo:' . Processos::GASTOS . ',ver');
+    Route::post('/estoque/item', [EstoqueController::class, 'item'])->middleware('transporte.processo:' . Processos::GASTOS . ',gravar');
+    Route::post('/estoque/item/{item}', [EstoqueController::class, 'editarItem'])->middleware('transporte.processo:' . Processos::GASTOS . ',gravar');
+    Route::post('/estoque/entrada', [EstoqueController::class, 'entrada'])->middleware('transporte.processo:' . Processos::GASTOS . ',gravar');
+    Route::post('/estoque/baixa', [EstoqueController::class, 'baixa'])->middleware('transporte.processo:' . Processos::GASTOS . ',gravar');
+    Route::post('/estoque/contagem', [EstoqueController::class, 'contagem'])->middleware('transporte.processo:' . Processos::GASTOS . ',gravar');
 
     Route::get('/relatorios', [RelatorioController::class, 'index'])->middleware('transporte.processo:' . Processos::RELATORIOS . ',ver');
     Route::get('/relatorios/csv', [RelatorioController::class, 'csv'])->middleware('transporte.processo:' . Processos::RELATORIOS . ',ver');

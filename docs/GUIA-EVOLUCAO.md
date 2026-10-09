@@ -227,6 +227,27 @@ Salário de motorista e de monitor entra no custo por km e por aluno, como o SET
 - [x] Cerca do ponto, desligada por padrão. Com a opção ligada, o embarque com GPS fora do raio fica marcado.
 - [x] A cerca não impede o embarque e não é exigência do PNATE.
 
+### Rodada 9 — Indicadores
+
+- [x] Gráfico mensal de km planejado da viagem contra o odômetro, em Relatórios e no CACS.
+- [x] Gasto do mês por fonte, só para quem já vê custo.
+- [x] Cobertura rural, divergência do Censo, litros por 100 km, preventiva em dia, disponibilidade e ocorrências por 100 mil km.
+- [x] Cruzamento de escola, rota, turno e zona, e de vaga publicada com alunos na rota.
+- [x] Não calcular o Ideges.
+
+### Rodada 10 — Conformidade
+
+- [x] Autorização DETRAN ou CIRETRAN, com validade, alerta e anexo.
+- [x] Checklist de faixa, cinto, tacógrafo e identificação, com anexo.
+- [x] Curso de transporte escolar no cadastro do motorista.
+- [x] Viagem nova não abre com autorização, licenciamento, CNH ou curso vencido.
+
+### Rodada 11 — Estoque da frota
+
+- [x] Pneu, filtro, óleo e pastilha, com mínimo e lote.
+- [x] Baixa ligada à ordem e ao veículo.
+- [x] Contagem física com a diferença no movimento.
+
 ## Fases
 
 As ondas acima são o to-do. A fase diz o que precisa existir antes para a onda seguinte não nascer vazia. Não lançar a onda 6 (dinheiro) antes do km realizado da onda 4, apoiada na descarga da onda 3. A importação do SETE (onda 1) pode começar junto com a onda 2, porque ela alimenta o cadastro.
