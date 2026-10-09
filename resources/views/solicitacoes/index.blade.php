@@ -402,7 +402,11 @@
                         @endif
                     </td>
                     <td class="acoes">
-                        @php $segue = \iEducar\Packages\BuritiTransporteEscolar\Support\ProcessoVaga::recebePedido($pedido->situacao_processo ?? null, $pedido->situacao_grupo ?? null, $pedido->situacao_oferta ?? null); @endphp
+                        @php
+                            $segue = \iEducar\Packages\BuritiTransporteEscolar\Support\ProcessoVaga::recebePedido($pedido->situacao_processo ?? null, $pedido->situacao_grupo ?? null, $pedido->situacao_oferta ?? null);
+                            $ofertaPedido = $ofertas->firstWhere('id', $pedido->oferta_id);
+                            $semVaga = $ofertaPedido && !\iEducar\Packages\BuritiTransporteEscolar\Support\ProcessoVaga::cabe((int) $ofertaPedido->vagas, (int) (optional($usoOferta->get($pedido->oferta_id))->ocupadas ?? 0));
+                        @endphp
                         <button type="button" class="icone ver" data-abre-modal="pedido-{{ $pedido->id }}" aria-label="Ver protocolo" title="Ver protocolo"><i class="fa fa-eye" aria-hidden="true"></i></button>
                         <a class="icone imprimir" href="{{ url('/transporte-escolar/solicitacoes/'.$pedido->id.'/pdf') }}" aria-label="Imprimir" title="Imprimir"><i class="fa fa-print" aria-hidden="true"></i></a>
                         @if($rede && $pedido->situacao === 'deferida')
@@ -412,6 +416,24 @@
                             <form method="post" action="{{ url('/transporte-escolar/solicitacoes/'.$pedido->id) }}">
                                 @csrf
                                 <button class="icone encaminhar" name="acao" value="encaminhar" aria-label="Encaminhar" title="Encaminhar"><i class="fa fa-share" aria-hidden="true"></i></button>
+                            </form>
+                        @endif
+                        @if($segue && $rede && $semVaga && in_array($pedido->situacao, ['recebida', 'em_analise'], true))
+                            <form method="post" action="{{ url('/transporte-escolar/solicitacoes/'.$pedido->id) }}">
+                                @csrf
+                                <button class="icone editar" name="acao" value="esperar" aria-label="Lista de espera" title="Lista de espera"><i class="fa fa-hourglass-half" aria-hidden="true"></i></button>
+                            </form>
+                        @endif
+                        @if($segue && $rede && $pedido->situacao === 'espera')
+                            <form method="post" action="{{ url('/transporte-escolar/solicitacoes/'.$pedido->id) }}">
+                                @csrf
+                                <button class="icone aceitar" name="acao" value="deferir" aria-label="Chamar da lista" title="Chamar da lista" @disabled($semVaga)><i class="fa fa-level-up" aria-hidden="true"></i></button>
+                            </form>
+                        @endif
+                        @if($rede && $pedido->situacao === 'espera')
+                            <form method="post" action="{{ url('/transporte-escolar/solicitacoes/'.$pedido->id) }}">
+                                @csrf
+                                <button class="icone cancelar" name="acao" value="indeferir" aria-label="Retirar da lista" title="Retirar da lista"><i class="fa fa-sign-out" aria-hidden="true"></i></button>
                             </form>
                         @endif
                         @if($segue && $rede && in_array($pedido->situacao, ['recebida', 'em_analise'], true))
@@ -480,8 +502,12 @@
                         <div class="largo"><dt>Observação da última decisão</dt><dd>{{ $pedido->motivo_situacao }}</dd></div>
                     @endif
                 </dl>
-                @if($pedido->situacao === 'recebida' || ($rede && in_array($pedido->situacao, ['recebida', 'em_analise'], true)))
-                    @php $segue = \iEducar\Packages\BuritiTransporteEscolar\Support\ProcessoVaga::recebePedido($pedido->situacao_processo ?? null, $pedido->situacao_grupo ?? null, $pedido->situacao_oferta ?? null); @endphp
+                @if($pedido->situacao === 'recebida' || ($rede && in_array($pedido->situacao, ['recebida', 'em_analise', 'espera'], true)))
+                    @php
+                        $segue = \iEducar\Packages\BuritiTransporteEscolar\Support\ProcessoVaga::recebePedido($pedido->situacao_processo ?? null, $pedido->situacao_grupo ?? null, $pedido->situacao_oferta ?? null);
+                        $ofertaPedido = $ofertas->firstWhere('id', $pedido->oferta_id);
+                        $semVaga = $ofertaPedido && !\iEducar\Packages\BuritiTransporteEscolar\Support\ProcessoVaga::cabe((int) $ofertaPedido->vagas, (int) (optional($usoOferta->get($pedido->oferta_id))->ocupadas ?? 0));
+                    @endphp
                     <form method="post" action="{{ url('/transporte-escolar/solicitacoes/'.$pedido->id) }}">
                         @csrf
                         <label>Observação da decisão <input name="motivo" maxlength="255" placeholder="Opcional. A família vê este texto ao acompanhar o protocolo."></label>
@@ -492,11 +518,20 @@
                             @if($segue && $pedido->situacao === 'recebida')
                                 <button name="acao" value="encaminhar">Encaminhar</button>
                             @endif
+                            @if($segue && $rede && $semVaga && in_array($pedido->situacao, ['recebida', 'em_analise'], true))
+                                <button name="acao" value="esperar">Lista de espera</button>
+                            @endif
+                            @if($segue && $rede && $pedido->situacao === 'espera' && !$semVaga)
+                                <button name="acao" value="deferir">Chamar da lista</button>
+                            @endif
+                            @if($segue && $rede && $pedido->situacao === 'espera' && $semVaga)
+                                <p class="lead">Ainda não há vaga para chamar este aluno.</p>
+                            @endif
                             @if($segue && $rede && in_array($pedido->situacao, ['recebida', 'em_analise'], true))
                                 <button name="acao" value="deferir">Aceitar</button>
                             @endif
-                            @if($rede && in_array($pedido->situacao, ['recebida', 'em_analise'], true))
-                                <button name="acao" value="indeferir">Recusar</button>
+                            @if($rede && in_array($pedido->situacao, ['recebida', 'em_analise', 'espera'], true))
+                                <button name="acao" value="indeferir">{{ $pedido->situacao === 'espera' ? 'Retirar da lista' : 'Recusar' }}</button>
                             @endif
                         </div>
                     </form>

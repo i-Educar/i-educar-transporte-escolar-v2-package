@@ -97,7 +97,7 @@
                 <input type="hidden" name="rota_origem" value="{{ $vinculo->rota_id }}">
                 <label>Rota
                     <select name="rota_id" required>
-                        @foreach($rotas as $rota)<option value="{{ $rota->id }}" @selected($rota->id == $vinculo->rota_id)>{{ $rota->descricao }}</option>@endforeach
+                        @foreach($rotas as $rota)<option value="{{ $rota->id }}" @selected($rota->id == $vinculo->rota_id) @disabled(($espera[$rota->id] ?? 0) > 0 && (int) $rota->id !== (int) $vinculo->rota_id)>{{ $rota->descricao }}@if(($espera[$rota->id] ?? 0) > 0 && (int) $rota->id !== (int) $vinculo->rota_id) — lista de espera @endif</option>@endforeach
                     </select>
                 </label>
                 <label>Turno
@@ -131,7 +131,7 @@
             <button type="button" data-fecha-modal aria-label="Fechar">&times;</button>
         </div>
         <div data-incluir-aluno data-url="{{ url('/transporte-escolar/alunos/busca') }}" data-ano="{{ $ano }}">
-            <p class="lead" style="padding:0 18px;">Busque uma matrícula ativa deste ano. A rota precisa atender a escola dessa matrícula.</p>
+            <p class="lead" style="padding:0 18px;">Busque uma matrícula ativa deste ano. A rota precisa atender a escola dessa matrícula. Rota com lista de espera em processo aberto não recebe inclusão à mão.</p>
             <p><label>Nome, matrícula ou CPF <input data-q placeholder="Digite ao menos 2 caracteres"></label></p>
             <p><button type="button" class="botao claro" data-buscar>Buscar matrícula</button></p>
             <div data-lista></div>
@@ -144,7 +144,7 @@
                     <select name="rota_id" required>
                         <option value="">Escolha a rota</option>
                         @foreach($rotas as $rota)
-                            <option value="{{ $rota->id }}">{{ $rota->descricao }}</option>
+                            <option value="{{ $rota->id }}" @disabled(($espera[$rota->id] ?? 0) > 0)>{{ $rota->descricao }}@if(($espera[$rota->id] ?? 0) > 0) — lista de espera @endif</option>
                         @endforeach
                     </select>
                 </label>

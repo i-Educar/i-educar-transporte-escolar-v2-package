@@ -439,8 +439,24 @@ class SolicitacaoController
             ->where('s.id', $solicitacao)
             ->first(['p.situacao as situacao_processo', 'g.situacao as situacao_grupo', 'o.situacao as situacao_oferta']);
 
-        if (in_array($acao, ['encaminhar', 'deferir'], true) && $contexto !== null && !ProcessoVaga::recebePedido($contexto->situacao_processo, $contexto->situacao_grupo, $contexto->situacao_oferta)) {
+        if (in_array($acao, ['encaminhar', 'deferir', 'esperar'], true) && $contexto !== null && !ProcessoVaga::recebePedido($contexto->situacao_processo, $contexto->situacao_grupo, $contexto->situacao_oferta)) {
             return redirect('/transporte-escolar/solicitacoes')->with('erro', 'O processo ou a vaga está pausado. O pedido não segue enquanto a pausa durar.');
+        }
+
+        $temVaga = $this->temVaga($pedido);
+
+        if ($acao === 'esperar') {
+            if ($temVaga === null) {
+                return redirect('/transporte-escolar/solicitacoes')->with('erro', 'Este pedido não está ligado a uma vaga publicada.');
+            }
+
+            if ($temVaga) {
+                return redirect('/transporte-escolar/solicitacoes')->with('erro', 'Ainda há vaga nesta rota. Aceite o pedido em vez de colocar na lista de espera.');
+            }
+        }
+
+        if ($acao === 'deferir' && $pedido->situacao === SituacaoPedido::ESPERA && $temVaga !== true) {
+            return redirect('/transporte-escolar/solicitacoes')->with('erro', 'Ainda não há vaga para chamar este aluno da lista de espera.');
         }
 
         $proxima = SituacaoPedido::mover($pedido->situacao, $acao, $escolas === null ? 'rede' : 'escola');
@@ -564,6 +580,26 @@ class SolicitacaoController
         ]);
 
         return redirect('/transporte-escolar/solicitacoes')->with('ok', 'Documentação conferida. O aluno entrou na rota.');
+    }
+
+    private function temVaga(object $pedido): ?bool
+    {
+        if ((int) ($pedido->oferta_id ?? 0) < 1) {
+            return null;
+        }
+
+        $vagas = DB::table('transporte_escolar.processo_vaga_oferta')->where('id', $pedido->oferta_id)->value('vagas');
+
+        if ($vagas === null) {
+            return null;
+        }
+
+        $ocupadas = (int) DB::table('transporte_escolar.solicitacao')
+            ->where('oferta_id', $pedido->oferta_id)
+            ->whereIn('situacao', [SituacaoPedido::RECEBIDA, SituacaoPedido::ANALISE, SituacaoPedido::DEFERIDA])
+            ->count();
+
+        return ProcessoVaga::cabe((int) $vagas, $ocupadas);
     }
 
     private function pedidoRede(int $solicitacao): ?object

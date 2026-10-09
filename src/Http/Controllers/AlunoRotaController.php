@@ -5,6 +5,7 @@ namespace iEducar\Packages\BuritiTransporteEscolar\Http\Controllers;
 use iEducar\Packages\BuritiTransporteEscolar\Services\AtribuicaoAluno;
 use iEducar\Packages\BuritiTransporteEscolar\Services\RedeConsulta;
 use iEducar\Packages\BuritiTransporteEscolar\Support\FotoIdentificacao;
+use iEducar\Packages\BuritiTransporteEscolar\Support\ListaEspera;
 use iEducar\Packages\BuritiTransporteEscolar\Support\Pagina;
 use iEducar\Packages\BuritiTransporteEscolar\Support\ResponsaveisAluno;
 use iEducar\Packages\BuritiTransporteEscolar\Support\VisaoRede;
@@ -80,7 +81,8 @@ class AlunoRotaController
             'ano' => $ano,
             'busca' => $busca,
             'admin' => VisaoRede::escolas() === null,
-            'rotas' => RedeConsulta::rotas($ano)->get(),
+            'rotas' => $rotas = RedeConsulta::rotas($ano)->get(),
+            'espera' => ListaEspera::porRota($rotas->pluck('id')->all()),
             'vinculos' => $lista,
             'fotos' => FotoIdentificacao::mapa('aluno', $lista->pluck('ref_cod_aluno')->all()),
             'pagina' => $pagina,
@@ -100,6 +102,14 @@ class AlunoRotaController
             'responsavel_transporte' => ['nullable', 'string', 'max:150'],
             'responsavel_transporte_telefone' => ['nullable', 'string', 'max:20'],
         ]);
+
+        if ((int) $dados['rota_id'] !== (int) $dados['rota_origem']) {
+            $recado = ListaEspera::recado((int) $dados['rota_id']);
+
+            if ($recado !== null) {
+                return back()->with('erro', $recado);
+            }
+        }
 
         try {
             if ((int) $dados['rota_id'] !== (int) $dados['rota_origem']) {
@@ -170,6 +180,12 @@ class AlunoRotaController
             'residencia_latitude' => ['nullable', 'numeric'],
             'residencia_longitude' => ['nullable', 'numeric'],
         ]);
+
+        $recado = ListaEspera::recado((int) $dados['rota_id']);
+
+        if ($recado !== null) {
+            return back()->with('erro', $recado);
+        }
 
         try {
             AtribuicaoAluno::vincular(

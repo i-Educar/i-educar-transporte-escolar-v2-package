@@ -404,6 +404,10 @@ ok(SituacaoPedido::mover('recebida', 'encaminhar', 'escola') === 'em_analise', '
 ok(SituacaoPedido::mover('em_analise', 'deferir', 'escola') === null, 'escola não aceita o pedido');
 ok(SituacaoPedido::mover('em_analise', 'deferir', 'rede') === 'deferida', 'rede aceita o pedido em análise');
 ok(SituacaoPedido::mover('deferida', 'indeferir', 'rede') === null, 'pedido aceito não volta');
+ok(SituacaoPedido::mover('em_analise', 'esperar', 'rede') === 'espera', 'rede põe o pedido analisado na lista de espera');
+ok(SituacaoPedido::mover('em_analise', 'esperar', 'escola') === null, 'escola não põe o pedido na lista de espera');
+ok(SituacaoPedido::mover('espera', 'deferir', 'rede') === 'deferida', 'rede chama o aluno da lista quando há vaga');
+ok(SituacaoPedido::mover('espera', 'cancelar', 'familia') === 'cancelada', 'família sai da lista de espera');
 ok(str_contains(SituacaoPedido::frase('deferida'), 'aceito'), 'a família lê que o pedido foi aceito');
 ok($escola[Processos::SOLICITACOES]['visualiza'] === true && $escola[Processos::SOLICITACOES]['cadastra'] === true, 'escola vê e encaminha o pedido da própria escola');
 ok($escola[Processos::SOLICITACOES]['exclui'] === false, 'escola não apaga pedido');

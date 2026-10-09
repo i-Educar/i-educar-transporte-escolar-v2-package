@@ -55,7 +55,11 @@
                     <p><a href="https://www.openstreetmap.org/?mlat={{ $atendimento['mapa']['lat'] }}&amp;mlon={{ $atendimento['mapa']['lon'] }}#map=17/{{ $atendimento['mapa']['lat'] }}/{{ $atendimento['mapa']['lon'] }}">Abrir o mapa em outra página</a></p>
                 @endif
             @endif
-            @if(in_array($pedido->situacao, ['recebida', 'em_analise'], true))
+            @if($pedido->situacao === 'espera')
+                <h2>Lista de espera</h2>
+                <p>O pedido foi analisado e a rota não tem vaga agora. O aluno permanece na lista até surgir uma vaga ou até a família cancelar.</p>
+            @endif
+            @if(in_array($pedido->situacao, ['recebida', 'em_analise', 'espera'], true))
                 <p class="dica">Cancelar avisa a escola que a família não quer mais o transporte. Depois de aceito ou recusado, o cancelamento por aqui fecha.</p>
                 <form method="post" action="{{ url('/transporte-escolar/familia/cancelar') }}">
                     @csrf
