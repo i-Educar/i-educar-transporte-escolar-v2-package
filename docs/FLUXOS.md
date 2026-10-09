@@ -44,7 +44,7 @@ flowchart TD
     B --> H["Editar nome, ano, período e agrupamento"]
 ```
 
-Pedido recebido, em análise, aceito ou com documentação conferida ocupa a vaga. Quem já está na rota conta uma vez só, mesmo que também tenha pedido e mesmo sem matrícula ativa no ano. Lista de espera, recusa e cancelamento devolvem o lugar. O grupo também pode ser pausado ou bloqueado: se o processo está num grupo, os dois precisam estar abertos e no período.
+Pedido recebido, em análise, aceito ou com documentação conferida ocupa a vaga. Uma pessoa ocupa um assento por turno: outra matrícula no mesmo turno, na mesma rota ou em outra, não abre um segundo lugar no ônibus. Manhã e tarde são duas viagens. Quem já está na rota conta uma vez só, mesmo que também tenha pedido e mesmo sem matrícula ativa no ano. Lista de espera, recusa e cancelamento devolvem o lugar. O grupo também pode ser pausado ou bloqueado: se o processo está num grupo, os dois precisam estar abertos e no período.
 
 ## Pedido da família
 

@@ -384,7 +384,7 @@ class SolicitacaoController
             abort(404);
         }
 
-        $uso = DB::table('transporte_escolar.solicitacao')->where('oferta_id', $oferta)->selectRaw("count(*) as pedidos, count(*) filter (where situacao = 'deferida') as deferidos, count(*) filter (where situacao in ('recebida', 'em_analise', 'deferida', 'conferida')) as ocupadas")->first();
+        $uso = DB::table('transporte_escolar.solicitacao')->where('oferta_id', $oferta)->selectRaw("count(*) as pedidos, count(*) filter (where situacao = 'deferida') as deferidos")->first();
         $pedidos = (int) ($uso->pedidos ?? 0);
         $processoId = $pedidos > 0 ? (int) $atual->processo_id : (int) $request->input('processo_id', $atual->processo_id);
         $rotaId = $pedidos > 0 ? (int) $atual->rota_id : (int) $request->input('rota_id', $atual->rota_id);
@@ -430,7 +430,7 @@ class SolicitacaoController
             'idade_max' => $idadeMax,
             'series' => $series,
             'turmas' => $turmas,
-        ], $pedidos, $deferidos, (int) ($uso->ocupadas ?? 0));
+        ], $pedidos, $deferidos, OcupacaoOferta::ocupadas($oferta));
 
         if ($motivo !== null || $vagas < 1) {
             return redirect('/transporte-escolar/solicitacoes')->with('erro', $motivo ?? 'Informe ao menos uma vaga.');

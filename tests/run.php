@@ -527,6 +527,26 @@ $ofertasIrmas = [
 ];
 $usoRota = OcupacaoOferta::montar($ofertasIrmas, [], [$naRota]);
 ok($usoRota[4]->ocupadas === 1 && $usoRota[5]->ocupadas === 0, 'o mesmo aluno da rota não entra em cada oferta do processo');
+$duasMatriculas = [
+    (object) ['id' => 4, 'processo_id' => 2, 'rota_id' => 9, 'turno' => 'manha', 'periodo' => 'manha'],
+    (object) ['id' => 6, 'processo_id' => 2, 'rota_id' => 10, 'turno' => 'manha', 'periodo' => 'manha'],
+    (object) ['id' => 7, 'processo_id' => 2, 'rota_id' => 11, 'turno' => 'tarde', 'periodo' => 'tarde'],
+];
+$pedidoManha = (object) ['situacao' => 'deferida', 'oferta_id' => 4, 'processo_id' => 2, 'rota_id' => 9, 'vinculo_rota_id' => null, 'ref_cod_aluno' => 7];
+$outraMatricula = (object) ['situacao' => 'deferida', 'oferta_id' => 6, 'processo_id' => 2, 'rota_id' => 10, 'vinculo_rota_id' => null, 'ref_cod_aluno' => 7];
+$pedidoTarde = (object) ['situacao' => 'recebida', 'oferta_id' => 7, 'processo_id' => 2, 'rota_id' => 11, 'vinculo_rota_id' => null, 'ref_cod_aluno' => 7];
+$usoTurno = OcupacaoOferta::montar($duasMatriculas, [$pedidoManha, $outraMatricula, $pedidoTarde], [
+    (object) ['rota_id' => 9, 'ref_cod_aluno' => 7, 'turno' => 'manha', 'periodo' => 'manha'],
+    (object) ['rota_id' => 10, 'ref_cod_aluno' => 7, 'turno' => 'manha', 'periodo' => 'manha'],
+]);
+ok($usoTurno[4]->ocupadas + $usoTurno[6]->ocupadas === 1, 'duas matrículas no mesmo turno ocupam um assento');
+ok($usoTurno[7]->ocupadas === 1, 'o outro turno é outra viagem');
+$processosDaMesmaRota = [
+    (object) ['id' => 4, 'processo_id' => 2, 'rota_id' => 9, 'turno' => 'manha', 'periodo' => 'manha'],
+    (object) ['id' => 8, 'processo_id' => 3, 'rota_id' => 9, 'turno' => 'manha', 'periodo' => 'manha'],
+];
+$usoProcessos = OcupacaoOferta::montar($processosDaMesmaRota, [], [$naRota]);
+ok($usoProcessos[4]->ocupadas + $usoProcessos[8]->ocupadas === 1, 'o aluno da rota não ocupa vaga em cada processo');
 ok(ProcessoEdicao::processo(2026, 2027, 1) !== null, 'ano com pedido da família não muda');
 ok(ProcessoEdicao::processo(2026, 2027, 0) === null, 'ano sem pedido pode mudar');
 ok(ProcessoEdicao::oferta(['processo_id' => 1, 'rota_id' => 1, 'escola' => 2, 'turno' => 'manha', 'vagas' => 10, 'idade_min' => null, 'idade_max' => null, 'series' => [], 'turmas' => []], ['processo_id' => 1, 'rota_id' => 2, 'escola' => 2, 'turno' => 'manha', 'vagas' => 10, 'idade_min' => null, 'idade_max' => null, 'series' => [], 'turmas' => []], 1, 0, 1) !== null, 'rota com pedido não muda');

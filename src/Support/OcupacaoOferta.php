@@ -5,7 +5,7 @@ namespace iEducar\Packages\BuritiTransporteEscolar\Support;
 use Illuminate\Support\Facades\DB;
 
 /**
- * Uma pessoa na rota ocupa uma vaga. O pedido dela não soma de novo.
+ * Uma pessoa ocupa um assento por turno. Outra matrícula no mesmo turno não soma outro lugar.
  */
 final class OcupacaoOferta
 {
@@ -18,17 +18,21 @@ final class OcupacaoOferta
             ->join('transporte_escolar.rota as r', 'r.id', '=', 'o.rota_id')
             ->get(['o.id', 'o.processo_id', 'o.rota_id', 'o.turno', 'r.periodo', 'r.ano']);
         $pedidos = DB::table('transporte_escolar.solicitacao')->get([
+            'id',
             'oferta_id',
             'processo_id',
             'rota_id',
             'vinculo_rota_id',
             'ref_cod_aluno',
             'situacao',
+            'turno',
+            'nome_aluno',
+            'nascimento',
         ]);
         $vinculos = DB::table('transporte_escolar.aluno_rota as ar')
             ->join('transporte_escolar.rota as r', 'r.id', '=', 'ar.rota_id')
             ->whereColumn('ar.ano', 'r.ano')
-            ->get(['ar.rota_id', 'ar.ref_cod_aluno']);
+            ->get(['ar.rota_id', 'ar.ref_cod_aluno', 'ar.turno', 'r.periodo']);
 
         return self::montar($ofertas, $pedidos, $vinculos);
     }
@@ -49,7 +53,8 @@ final class OcupacaoOferta
     public static function montar(iterable $ofertas, iterable $pedidos, iterable $vinculos): array
     {
         $uso = [];
-        $ofertaDaRota = [];
+        $ofertaPorId = [];
+        $periodoPorRota = [];
 
         foreach ($ofertas as $oferta) {
             $id = (int) $oferta->id;
@@ -59,27 +64,11 @@ final class OcupacaoOferta
                 'espera' => 0,
                 'ocupadas' => 0,
             ];
-            $chave = (int) $oferta->processo_id . ':' . (int) $oferta->rota_id;
-            $combina = (string) $oferta->turno === (string) $oferta->periodo;
-            $atual = $ofertaDaRota[$chave] ?? null;
-
-            if ($atual === null || ($combina && !$atual['combina'])) {
-                $ofertaDaRota[$chave] = ['id' => $id, 'combina' => $combina];
-            }
+            $ofertaPorId[$id] = $oferta;
+            $periodoPorRota[(int) $oferta->rota_id] = (string) ($oferta->periodo ?? '');
         }
 
-        $naRota = [];
-
-        foreach ($vinculos as $vinculo) {
-            $rotaId = (int) $vinculo->rota_id;
-            $alunoId = (int) $vinculo->ref_cod_aluno;
-
-            if ($alunoId > 0) {
-                $naRota[$rotaId][$alunoId] = true;
-            }
-        }
-
-        $assento = [];
+        $pedidoDaPessoa = [];
 
         foreach ($pedidos as $pedido) {
             $ofertaId = (int) ($pedido->oferta_id ?? 0);
@@ -100,14 +89,55 @@ final class OcupacaoOferta
                 continue;
             }
 
+            $pessoa = self::pessoa($pedido);
+            $turno = self::turnoPedido($pedido, $ofertaPorId, $periodoPorRota);
             $rota = (int) ($pedido->vinculo_rota_id ?: $pedido->rota_id ?: 0);
-            $aluno = (int) ($pedido->ref_cod_aluno ?? 0);
 
-            if ($pedido->situacao !== SituacaoPedido::CONFERIDA && $aluno > 0 && $rota > 0 && isset($naRota[$rota][$aluno])) {
+            if ($pessoa !== null && $rota > 0) {
+                $pedidoDaPessoa[$pessoa][$turno][$rota] = self::destino($pedido, $ofertas) ?? $ofertaId;
+            }
+        }
+
+        $assento = [];
+
+        foreach ($vinculos as $vinculo) {
+            $alunoId = (int) $vinculo->ref_cod_aluno;
+            $rotaId = (int) $vinculo->rota_id;
+
+            if ($alunoId < 1 || $rotaId < 1) {
                 continue;
             }
 
-            if ($aluno > 0 && $rota > 0 && isset($assento[$rota][$aluno])) {
+            $pessoa = 'a:' . $alunoId;
+            $turno = trim((string) ($vinculo->turno ?? ''));
+
+            if ($turno === '') {
+                $turno = (string) ($vinculo->periodo ?? $periodoPorRota[$rotaId] ?? '');
+            }
+
+            if (isset($assento[$pessoa][$turno])) {
+                continue;
+            }
+
+            $destino = $pedidoDaPessoa[$pessoa][$turno][$rotaId] ?? self::ofertaDaRota($rotaId, $turno, $ofertas);
+
+            if ($destino === null || !isset($uso[$destino])) {
+                continue;
+            }
+
+            $uso[$destino]->ocupadas++;
+            $assento[$pessoa][$turno] = true;
+        }
+
+        foreach ($pedidos as $pedido) {
+            if (!ProcessoVaga::ocupa((string) $pedido->situacao)) {
+                continue;
+            }
+
+            $pessoa = self::pessoa($pedido) ?? ('u:' . spl_object_id($pedido));
+            $turno = self::turnoPedido($pedido, $ofertaPorId, $periodoPorRota);
+
+            if (isset($assento[$pessoa][$turno])) {
                 continue;
             }
 
@@ -118,31 +148,75 @@ final class OcupacaoOferta
             }
 
             $uso[$destino]->ocupadas++;
-
-            if ($aluno > 0 && $rota > 0) {
-                $assento[$rota][$aluno] = true;
-            }
-        }
-
-        foreach ($naRota as $rotaId => $alunos) {
-            foreach (array_keys($alunos) as $alunoId) {
-                if (isset($assento[$rotaId][$alunoId])) {
-                    continue;
-                }
-
-                $assento[$rotaId][$alunoId] = true;
-
-                foreach ($ofertaDaRota as $chave => $balde) {
-                    $rotaDaOferta = (int) substr($chave, (int) strpos($chave, ':') + 1);
-
-                    if ($rotaDaOferta === (int) $rotaId && isset($uso[$balde['id']])) {
-                        $uso[$balde['id']]->ocupadas++;
-                    }
-                }
-            }
+            $assento[$pessoa][$turno] = true;
         }
 
         return $uso;
+    }
+
+    /**
+     * @param array<int, object> $ofertaPorId
+     * @param array<int, string> $periodoPorRota
+     */
+    private static function turnoPedido(object $pedido, array $ofertaPorId, array $periodoPorRota): string
+    {
+        $ofertaId = (int) ($pedido->oferta_id ?? 0);
+
+        if ($ofertaId > 0 && isset($ofertaPorId[$ofertaId])) {
+            return (string) $ofertaPorId[$ofertaId]->turno;
+        }
+
+        $turno = trim((string) ($pedido->turno ?? ''));
+
+        if ($turno !== '') {
+            return $turno;
+        }
+
+        $rota = (int) ($pedido->vinculo_rota_id ?: $pedido->rota_id ?: 0);
+
+        return (string) ($periodoPorRota[$rota] ?? '');
+    }
+
+    private static function pessoa(object $pedido): ?string
+    {
+        $aluno = (int) ($pedido->ref_cod_aluno ?? 0);
+
+        if ($aluno > 0) {
+            return 'a:' . $aluno;
+        }
+
+        $nome = mb_strtolower(trim((string) ($pedido->nome_aluno ?? '')));
+
+        if ($nome !== '') {
+            return 'n:' . $nome . '|' . (string) ($pedido->nascimento ?? '');
+        }
+
+        $id = (int) ($pedido->id ?? 0);
+
+        return $id > 0 ? 'p:' . $id : null;
+    }
+
+    /**
+     * @param iterable<int, object> $ofertas
+     */
+    private static function ofertaDaRota(int $rotaId, string $turno, iterable $ofertas): ?int
+    {
+        $qualquer = null;
+
+        foreach ($ofertas as $oferta) {
+            if ((int) $oferta->rota_id !== $rotaId) {
+                continue;
+            }
+
+            $id = (int) $oferta->id;
+            $qualquer ??= $id;
+
+            if ((string) $oferta->turno === $turno) {
+                return $id;
+            }
+        }
+
+        return $qualquer;
     }
 
     /**
