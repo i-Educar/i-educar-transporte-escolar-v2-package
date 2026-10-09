@@ -17,6 +17,7 @@ use iEducar\Packages\BuritiTransporteEscolar\Support\SituacaoDocumento;
 use iEducar\Packages\BuritiTransporteEscolar\Support\AvisoTexto;
 use iEducar\Packages\BuritiTransporteEscolar\Support\ChavePush;
 use iEducar\Packages\BuritiTransporteEscolar\Support\Codigos;
+use iEducar\Packages\BuritiTransporteEscolar\Support\LocaisSimulados;
 use iEducar\Packages\BuritiTransporteEscolar\Support\TurnoMatricula;
 use iEducar\Packages\BuritiTransporteEscolar\Support\ComprovantePedido;
 use iEducar\Packages\BuritiTransporteEscolar\Services\SimulaCarga;
@@ -101,6 +102,7 @@ require __DIR__ . '/../src/Support/AuditoriaTransporte.php';
 require __DIR__ . '/../src/Support/PortalAberto.php';
 require __DIR__ . '/../src/Support/AtendimentoSetor.php';
 require __DIR__ . '/../src/Support/Coordenada.php';
+require __DIR__ . '/../src/Support/LocaisSimulados.php';
 require __DIR__ . '/../src/Support/FaixaEtaria.php';
 require __DIR__ . '/../src/Support/GradeCalor.php';
 require __DIR__ . '/../src/Support/PontosProximos.php';
@@ -577,5 +579,9 @@ ok(str_contains(implode("\n", DocumentoTexto::ordem([
 ok(TurnoMatricula::diverge('manha', 2) === true, 'matrícula da tarde diverge do transporte da manhã');
 ok(TurnoMatricula::diverge('manha', 1) === false, 'matrícula da manhã acompanha o transporte');
 ok(TurnoMatricula::diverge('integral', 2) === false, 'transporte integral cobre o turno da matrícula');
+$casa = LocaisSimulados::proximo(-29.16794, -51.17939, 4, 800);
+ok(Coordenada::dentroDoPais((string) $casa[0], (string) $casa[1]), 'a casa simulada fica no território');
+$borda = LocaisSimulados::proximo(-33.95, -53.5, 2, 20000);
+ok(Coordenada::dentroDoPais((string) $borda[0], (string) $borda[1]), 'ponto que sairia do país volta para um local real');
 
 exit($falhas === 0 ? 0 : 1);

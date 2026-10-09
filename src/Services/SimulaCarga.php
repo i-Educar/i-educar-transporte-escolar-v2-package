@@ -2,7 +2,11 @@
 
 namespace iEducar\Packages\BuritiTransporteEscolar\Services;
 
+use iEducar\Packages\BuritiTransporteEscolar\Support\AptidaoViagem;
 use iEducar\Packages\BuritiTransporteEscolar\Support\AvisoTexto;
+use iEducar\Packages\BuritiTransporteEscolar\Support\Coordenada;
+use iEducar\Packages\BuritiTransporteEscolar\Support\EstoqueSaldo;
+use iEducar\Packages\BuritiTransporteEscolar\Support\LocaisSimulados;
 use iEducar\Packages\BuritiTransporteEscolar\Support\ModeloAviso;
 use iEducar\Packages\BuritiTransporteEscolar\Support\ProtocoloSolicitacao;
 use Illuminate\Support\Carbon;
@@ -27,10 +31,11 @@ final class SimulaCarga
     }
 
     /**
-     * @return array{alunos_ano: int, vinculados: int, rotas: int, viagens: int, avisos: int, notificacoes: int, informes: int, pedidos: int, ocorrencias: int, paradas: int}
+     * @return array{alunos_ano: int, vinculados: int, rotas: int, viagens: int, avisos: int, notificacoes: int, informes: int, pedidos: int, ocorrencias: int, paradas: int, escolas: int, locais: int, frota: int}
      */
     public static function executar(int $ano): array
     {
+        $escolasMapa = self::escolasNoMapa();
         $empresa = self::empresa();
         $oficina = self::fornecedor('simula-oficina', 'Oficina simulada', self::cnpj(390000000001));
         $posto = self::fornecedor('simula-posto', 'Posto simulado', self::cnpj(390000000002));
@@ -68,6 +73,8 @@ final class SimulaCarga
         $lotacao = self::lotacao($ano, $empresa, $motoristas[0]);
         $longas = self::rotasLongas($ano, $empresa, $motoristas[0], $monitores[0]);
         $chamada = self::chamada($ano);
+        $locais = self::corrigirLocais();
+        $frota = self::conformidadeEstoque();
 
         return [
             'alunos_ano' => self::alunosDoAno($ano),
@@ -80,6 +87,9 @@ final class SimulaCarga
             'pedidos' => $pedidos,
             'ocorrencias' => self::ocorrencias($ano) + self::servicos($onibus, $oficina, $posto) + self::contrato($ano, $empresa) + self::offline(),
             'paradas' => $longas['paradas'],
+            'escolas' => $escolasMapa,
+            'locais' => $locais,
+            'frota' => $frota,
         ];
     }
 
@@ -254,7 +264,8 @@ final class SimulaCarga
                 'ref_cod_escola' => $escola->cod_escola,
             ]);
             $escolaPonto = self::ponto('simula-ponto-' . $escola->cod_escola . '-escola', Str::limit($escola->nome, 70, ''), $base[0], $base[1]);
-            $parada = self::ponto('simula-ponto-' . $escola->cod_escola . '-parada', 'Parada simulada', $base[0] + 0.008, $base[1] + 0.006);
+            $casa = LocaisSimulados::proximo($base[0], $base[1], (int) $escola->cod_escola + 3, 700);
+            $parada = self::ponto('simula-ponto-' . $escola->cod_escola . '-parada', 'Parada da linha', $casa[0], $casa[1]);
             $onibus = DB::table('transporte_escolar.veiculo')->where('id', $veiculo)->value('id');
             DB::table('transporte_escolar.itinerario')->insert([
                 ['rota_id' => $id, 'seq' => 1, 'ponto_id' => $parada, 'veiculo_id' => $onibus, 'hora' => '06:40:00', 'tipo' => 'I'],
@@ -279,6 +290,12 @@ final class SimulaCarga
         $id = DB::table('transporte_escolar.ponto')->where('origem_chave', $chave)->value('id');
 
         if ($id !== null) {
+            DB::table('transporte_escolar.ponto')->where('id', $id)->update([
+                'latitude' => round($lat, 7),
+                'longitude' => round($lng, 7),
+                'updated_at' => now(),
+            ]);
+
             return (int) $id;
         }
 
@@ -328,8 +345,8 @@ final class SimulaCarga
                 'ponto_id' => $parada,
                 'turno' => 'manha',
                 'ano' => $ano,
-                'residencia_latitude' => round($base[0] + 0.004 + ($indice * 0.0004), 7),
-                'residencia_longitude' => round($base[1] + 0.003 + ($indice * 0.0003), 7),
+                'residencia_latitude' => LocaisSimulados::proximo($base[0], $base[1], (int) $indice + 1, 220)[0],
+                'residencia_longitude' => LocaisSimulados::proximo($base[0], $base[1], (int) $indice + 1, 220)[1],
                 'created_at' => now(),
                 'updated_at' => now(),
             ]);
@@ -490,18 +507,21 @@ final class SimulaCarga
         }
 
         $catalogo = [
-            ['Ana Simulada', 'recebida', 'Simulação de transporte, 10', null],
-            ['Bruno Simulado', 'em_analise', 'Simulação de transporte, 11', null],
-            ['Carla Simulada', 'deferida', 'Simulação de transporte, 20', 'Pedido simulado aceito para a linha da manhã.'],
-            ['Diego Simulado', 'indeferida', 'Simulação de transporte, 21', 'Endereço simulado fora da área da linha.'],
-            ['Elisa Simulada', 'cancelada', 'Simulação de transporte, 22', 'Família simulada cancelou o pedido.'],
-            ['Fabio Simulado', 'recebida', 'Simulação de transporte, 23', null],
+            ['Ana Simulada', 'recebida', 'Rua Sinimbu, 120, Centro, Caxias do Sul', null],
+            ['Bruno Simulado', 'em_analise', 'Rua Pinheiro Machado, 840, Centro, Caxias do Sul', null],
+            ['Carla Simulada', 'deferida', 'Rua Os Dezoito do Forte, 455, São Pelegrino, Caxias do Sul', 'Pedido simulado aceito para a linha da manhã.'],
+            ['Diego Simulado', 'indeferida', 'Rua Visconde de Pelotas, 90, Centro, Caxias do Sul', 'Endereço simulado fora da área da linha.'],
+            ['Elisa Simulada', 'cancelada', 'Rua Feijó Júnior, 210, Pio X, Caxias do Sul', 'Família simulada cancelou o pedido.'],
+            ['Fabio Simulado', 'recebida', 'Rua Borges de Medeiros, 1500, Centro, Caxias do Sul', null],
         ];
         $criados = 0;
         $agora = now();
 
         foreach ($catalogo as $indice => [$nome, $situacao, $endereco, $motivo]) {
-            if (DB::table('transporte_escolar.solicitacao')->where('ano', $ano)->where('endereco', $endereco)->exists()) {
+            $existente = DB::table('transporte_escolar.solicitacao')->where('ano', $ano)->where('nome_aluno', $nome)->value('id');
+
+            if ($existente !== null) {
+                DB::table('transporte_escolar.solicitacao')->where('id', $existente)->update(['endereco' => $endereco]);
                 continue;
             }
 
@@ -620,15 +640,17 @@ final class SimulaCarga
         $paradas = [];
 
         for ($ordem = 1; $ordem <= $quantidade; $ordem++) {
+            $local = LocaisSimulados::proximo($base[0], $base[1], $ordem * 5, min(450 * $ordem, 4000));
+            $nome = LocaisSimulados::lugar($ordem)['nome'];
             $paradas[] = [
                 'id' => self::ponto(
                     'simula-ponto-longo-' . $periodo . '-' . $escola->cod_escola . '-' . $ordem,
-                    'Parada longa ' . $ordem,
-                    $base[0] + ($ordem * 0.015),
-                    $base[1] + ($ordem * 0.008)
+                    Str::limit($nome, 70, ''),
+                    $local[0],
+                    $local[1]
                 ),
-                'lat' => $base[0] + ($ordem * 0.015),
-                'lng' => $base[1] + ($ordem * 0.008),
+                'lat' => $local[0],
+                'lng' => $local[1],
             ];
         }
 
@@ -767,8 +789,8 @@ final class SimulaCarga
                 'ponto_id' => $parada['id'],
                 'turno' => $periodo,
                 'ano' => $ano,
-                'residencia_latitude' => round($parada['lat'] + (($indice % 5) * 0.0003), 7),
-                'residencia_longitude' => round($parada['lng'] + (($indice % 4) * 0.0003), 7),
+                'residencia_latitude' => LocaisSimulados::proximo($parada['lat'], $parada['lng'], (int) $indice + 11, 180)[0],
+                'residencia_longitude' => LocaisSimulados::proximo($parada['lat'], $parada['lng'], (int) $indice + 11, 180)[1],
                 'created_at' => now(),
                 'updated_at' => now(),
             ]);
@@ -1267,14 +1289,217 @@ final class SimulaCarga
      */
     private static function coordenada(object $escola): array
     {
-        $lat = is_numeric($escola->latitude) ? (float) $escola->latitude : null;
-        $lng = is_numeric($escola->longitude) ? (float) $escola->longitude : null;
-
-        if ($lat !== null && $lng !== null && abs($lat) <= 90 && abs($lng) <= 180 && ($lat !== 0.0 || $lng !== 0.0)) {
-            return [$lat, $lng];
+        if (Coordenada::dentroDoPais(isset($escola->latitude) ? (string) $escola->latitude : null, isset($escola->longitude) ? (string) $escola->longitude : null)) {
+            return [(float) $escola->latitude, (float) $escola->longitude];
         }
 
-        return [-15.793889 + (((int) $escola->cod_escola % 20) * 0.02), -47.882778];
+        $lugar = LocaisSimulados::lugar((int) $escola->cod_escola);
+
+        return [$lugar['lat'], $lugar['lng']];
+    }
+
+    private static function escolasNoMapa(): int
+    {
+        $gravadas = 0;
+
+        foreach (DB::table('pmieducar.escola')->where('ativo', 1)->orderBy('cod_escola')->get(['cod_escola', 'latitude', 'longitude']) as $indice => $escola) {
+            if (Coordenada::dentroDoPais((string) $escola->latitude, (string) $escola->longitude)) {
+                continue;
+            }
+
+            $lugar = LocaisSimulados::lugar((int) $indice);
+            DB::table('pmieducar.escola')->where('cod_escola', $escola->cod_escola)->update([
+                'latitude' => $lugar['lat'],
+                'longitude' => $lugar['lng'],
+            ]);
+            $gravadas++;
+        }
+
+        return $gravadas;
+    }
+
+    private static function corrigirLocais(): int
+    {
+        $gravados = 0;
+        $escolas = DB::table('pmieducar.escola')->where('ativo', 1)->get(['cod_escola', 'latitude', 'longitude'])->keyBy('cod_escola');
+
+        foreach (DB::table('transporte_escolar.ponto')->where('origem', 'simula')->orderBy('id')->get() as $ponto) {
+            $base = self::baseDoPonto((string) $ponto->origem_chave, $escolas);
+            $local = str_contains((string) $ponto->origem_chave, '-escola')
+                ? $base
+                : LocaisSimulados::proximo($base[0], $base[1], (int) $ponto->id, self::metrosDoPonto((string) $ponto->origem_chave));
+
+            if ((float) $ponto->latitude === $local[0] && (float) $ponto->longitude === $local[1]) {
+                continue;
+            }
+
+            DB::table('transporte_escolar.ponto')->where('id', $ponto->id)->update([
+                'latitude' => $local[0],
+                'longitude' => $local[1],
+                'updated_at' => now(),
+            ]);
+            $gravados++;
+        }
+
+        $pontos = DB::table('transporte_escolar.ponto')->get(['id', 'latitude', 'longitude'])->keyBy('id');
+
+        foreach (DB::table('transporte_escolar.aluno_rota as ar')
+            ->join('transporte_escolar.rota as r', 'r.id', '=', 'ar.rota_id')
+            ->get(['ar.ref_cod_aluno', 'ar.rota_id', 'ar.ponto_id', 'ar.residencia_latitude', 'ar.residencia_longitude', 'r.origem', 'r.origem_chave']) as $aluno) {
+            $simula = $aluno->origem === 'simula' || str_starts_with((string) $aluno->origem_chave, 'simula-');
+            $dentro = Coordenada::dentroDoPais((string) $aluno->residencia_latitude, (string) $aluno->residencia_longitude);
+
+            if (!$simula && $dentro) {
+                continue;
+            }
+
+            $ponto = $pontos[$aluno->ponto_id] ?? null;
+            $lat = $ponto !== null ? (float) $ponto->latitude : LocaisSimulados::lugar((int) $aluno->ref_cod_aluno)['lat'];
+            $lng = $ponto !== null ? (float) $ponto->longitude : LocaisSimulados::lugar((int) $aluno->ref_cod_aluno)['lng'];
+            $casa = LocaisSimulados::proximo($lat, $lng, (int) $aluno->ref_cod_aluno, 180);
+
+            if (!Coordenada::dentroDoPais((string) $aluno->residencia_latitude, (string) $aluno->residencia_longitude)
+                || abs((float) $aluno->residencia_latitude - $casa[0]) > 0.02
+                || abs((float) $aluno->residencia_longitude - $casa[1]) > 0.02) {
+                DB::table('transporte_escolar.aluno_rota')
+                    ->where('ref_cod_aluno', $aluno->ref_cod_aluno)
+                    ->where('rota_id', $aluno->rota_id)
+                    ->update([
+                        'residencia_latitude' => $casa[0],
+                        'residencia_longitude' => $casa[1],
+                        'updated_at' => now(),
+                    ]);
+                $gravados++;
+            }
+        }
+
+        return $gravados;
+    }
+
+    /**
+     * @param \Illuminate\Support\Collection<int, object> $escolas
+     * @return array{0: float, 1: float}
+     */
+    private static function baseDoPonto(string $chave, $escolas): array
+    {
+        if (preg_match('/(\d+)/', $chave, $id) === 1 && isset($escolas[(int) $id[1]])) {
+            $escola = $escolas[(int) $id[1]];
+
+            if (Coordenada::dentroDoPais((string) $escola->latitude, (string) $escola->longitude)) {
+                return [(float) $escola->latitude, (float) $escola->longitude];
+            }
+        }
+
+        $lugar = LocaisSimulados::lugar(abs(crc32($chave)));
+
+        return [$lugar['lat'], $lugar['lng']];
+    }
+
+    private static function metrosDoPonto(string $chave): int
+    {
+        if (preg_match('/-(\d+)$/', $chave, $ordem) === 1) {
+            return min(450 * (int) $ordem[1], 4000);
+        }
+
+        return 700;
+    }
+
+    private static function conformidadeEstoque(): int
+    {
+        if (!Schema::hasTable('transporte_escolar.autorizacao_veiculo') || !Schema::hasTable('transporte_escolar.estoque_item')) {
+            return 0;
+        }
+
+        $gravados = 0;
+        $veiculos = DB::table('transporte_escolar.veiculo')->where('origem', 'simula')->orderBy('id')->get(['id', 'origem_chave']);
+
+        foreach ($veiculos as $indice => $veiculo) {
+            $numero = 'SIM-' . strtoupper((string) $veiculo->origem_chave);
+            $validade = $indice === 1 ? now()->addDays(15)->toDateString() : now()->addYear()->toDateString();
+            $existe = DB::table('transporte_escolar.autorizacao_veiculo')->where('veiculo_id', $veiculo->id)->where('numero', $numero)->value('id');
+
+            if ($existe === null) {
+                DB::table('transporte_escolar.autorizacao_veiculo')->insert([
+                    'veiculo_id' => $veiculo->id,
+                    'orgao' => $indice % 2 === 0 ? 'detran' : 'ciretran',
+                    'numero' => $numero,
+                    'validade' => $validade,
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ]);
+                $gravados++;
+            }
+
+            foreach (array_keys(AptidaoViagem::ITENS) as $item) {
+                $conforme = !($veiculo->origem_chave === 'simula-van' && $item === 'tacografo');
+                DB::table('transporte_escolar.checklist_veiculo')->updateOrInsert(
+                    ['veiculo_id' => $veiculo->id, 'item' => $item],
+                    ['conforme' => $conforme, 'observacao' => $conforme ? null : 'Simulação: tacógrafo pendente', 'updated_at' => now(), 'created_at' => now()],
+                );
+            }
+
+            if (Schema::hasColumn('transporte_escolar.veiculo', 'licenciamento_vencimento')) {
+                DB::table('transporte_escolar.veiculo')->where('id', $veiculo->id)->whereNull('licenciamento_vencimento')->update([
+                    'licenciamento_vencimento' => now()->addMonths(8)->toDateString(),
+                ]);
+            }
+        }
+
+        if (Schema::hasColumn('transporte_escolar.motorista', 'curso_escolar_validade')) {
+            DB::table('transporte_escolar.motorista')->where('origem', 'simula')->whereNull('curso_escolar_validade')->update([
+                'curso_escolar_validade' => now()->addYear()->toDateString(),
+            ]);
+        }
+
+        $pecas = [
+            ['pneu', 'Pneu simulado 275/80', 4, 'PNEU-SIM-1', 8, null],
+            ['filtro', 'Filtro de óleo simulado', 4, 'FILTRO-SIM-1', 1, null],
+            ['oleo', 'Óleo 15W40 simulado', 10, 'OLEO-SIM-1', 18, now()->addYear()->toDateString()],
+            ['oleo', 'Óleo 15W40 simulado', 10, 'OLEO-SIM-VENCIDO', 2, now()->subDays(5)->toDateString()],
+            ['pastilha', 'Pastilha dianteira simulada', 2, 'PAST-SIM-1', 0, null],
+        ];
+
+        foreach ($pecas as [$tipo, $nome, $minimo, $lote, $quantidade, $validade]) {
+            $item = DB::table('transporte_escolar.estoque_item')->where('nome', $nome)->value('id');
+
+            if ($item === null) {
+                $item = DB::table('transporte_escolar.estoque_item')->insertGetId([
+                    'tipo' => $tipo,
+                    'nome' => $nome,
+                    'unidade' => EstoqueSaldo::unidadePadrao($tipo),
+                    'minimo' => $minimo,
+                    'ativo' => true,
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ]);
+                $gravados++;
+            }
+
+            if (DB::table('transporte_escolar.estoque_lote')->where('item_id', $item)->where('codigo', $lote)->exists()) {
+                continue;
+            }
+
+            $loteId = DB::table('transporte_escolar.estoque_lote')->insertGetId([
+                'item_id' => $item,
+                'codigo' => $lote,
+                'quantidade' => $quantidade,
+                'validade' => $validade,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+            DB::table('transporte_escolar.estoque_movimento')->insert([
+                'lote_id' => $loteId,
+                'tipo' => 'entrada',
+                'quantidade' => $quantidade,
+                'saldo_anterior' => 0,
+                'saldo_novo' => $quantidade,
+                'motivo' => 'Entrada simulada',
+                'created_at' => now(),
+            ]);
+            $gravados++;
+        }
+
+        return $gravados;
     }
 
     private static function juridica(string $nome, string $cnpj): int

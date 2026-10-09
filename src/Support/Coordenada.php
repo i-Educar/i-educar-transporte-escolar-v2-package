@@ -52,6 +52,15 @@ final class Coordenada
         return null;
     }
 
+    public static function dentroDoPais(?string $latitude, ?string $longitude): bool
+    {
+        if (trim((string) $latitude) === '' || trim((string) $longitude) === '') {
+            return false;
+        }
+
+        return self::noTerritorio($latitude, $longitude) === null;
+    }
+
     public static function valor(?string $numero): ?string
     {
         $numero = trim((string) $numero);

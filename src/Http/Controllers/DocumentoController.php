@@ -266,7 +266,7 @@ class DocumentoController
             ['Situacao', SituacaoDocumento::frase((string) $linha->situacao)],
             ['Veiculo', trim(($linha->placa ?: '') . ' ' . ($linha->veiculo ?? ''))],
             ['Data', date('d/m/Y', strtotime((string) $linha->data))],
-            ['Litros autorizados', number_format((float) ($linha->litros_autorizados ?? $linha->litros), 2, ',', '.')],
+            ['Litros autorizados', number_format((float) ($linha->litros_autorizados ?? $linha->litros), 2, ',', '.') . ' L'],
             ['Motorista', (string) ($linha->motorista ?: '-')],
             ['Posto', (string) ($linha->posto ?: '-')],
             ['Fonte', GastoRegra::FONTES[$linha->fonte] ?? (string) $linha->fonte],
@@ -274,7 +274,7 @@ class DocumentoController
         ];
 
         if ($confirmado) {
-            $campos[] = ['Litros abastecidos', number_format((float) $linha->litros, 2, ',', '.')];
+            $campos[] = ['Litros abastecidos', number_format((float) $linha->litros, 2, ',', '.') . ' L'];
             $campos[] = ['Valor pago', 'R$ ' . number_format((float) $linha->valor, 2, ',', '.')];
             $campos[] = ['Quilometragem', $linha->km === null ? '-' : number_format((float) $linha->km, 1, ',', '.')];
         }

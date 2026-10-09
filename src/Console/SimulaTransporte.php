@@ -50,6 +50,9 @@ class SimulaTransporte extends Command
         $this->line('Informes de prazo: ' . $resumo['informes']);
         $this->line('Pedidos da família: ' . $resumo['pedidos']);
         $this->line('Ocorrências e serviços: ' . $resumo['ocorrencias']);
+        $this->line('Escolas com coordenada atribuída: ' . $resumo['escolas']);
+        $this->line('Endereços corrigidos para o território: ' . $resumo['locais']);
+        $this->line('Conformidade e estoque: ' . $resumo['frota']);
 
         return self::SUCCESS;
     }

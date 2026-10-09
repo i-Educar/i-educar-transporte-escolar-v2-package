@@ -21,7 +21,7 @@
                             <td>{{ \iEducar\Packages\BuritiTransporteEscolar\Support\SituacaoDocumento::frase((string) ($bilhete->situacao ?? 'abastecido')) }}</td>
                             <td>{{ $bilhete->placa ?: $bilhete->veiculo }}</td>
                             <td>{{ $bilhete->litros_autorizados === null ? '—' : number_format((float) $bilhete->litros_autorizados, 2, ',', '.') }} L</td>
-                            <td>{{ number_format((float) $bilhete->litros, 2, ',', '.') }} L · {{ number_format((float) $bilhete->valor, 2, ',', '.') }}</td>
+                            <td>{{ number_format((float) $bilhete->litros, 2, ',', '.') }} L · R$ {{ number_format((float) $bilhete->valor, 2, ',', '.') }}</td>
                             <td class="acoes">
                                 @if($bilhete->protocolo)
                                     <a class="icone imprimir" href="{{ url('/transporte-escolar/bilhetes/'.$bilhete->id.'/pdf') }}" aria-label="Imprimir" title="Imprimir"><i class="fa fa-print" aria-hidden="true"></i></a>
@@ -67,7 +67,7 @@
                 </label>
                 <div class="linha">
                     <label>Data <input type="date" name="data" value="{{ date('Y-m-d') }}" required></label>
-                    <label>Litros autorizados <input name="litros_autorizados" required></label>
+                    <label>Litros autorizados (L) <input name="litros_autorizados" required inputmode="decimal"></label>
                 </div>
                 <div class="linha">
                     <label>Posto <input name="posto"></label>
@@ -85,8 +85,8 @@
                     <form method="post" action="{{ url('/transporte-escolar/bilhetes/'.$bilhete->id.'/situacao') }}">
                         @csrf
                         <input type="hidden" name="situacao" value="abastecido">
-                        <label>Litros do canhoto <input name="litros" required></label>
-                        <label>Valor do canhoto <input name="valor" required></label>
+                        <label>Litros do canhoto (L) <input name="litros" required inputmode="decimal"></label>
+                        <label>Valor do canhoto (R$) <input name="valor" required inputmode="decimal"></label>
                         <label>Quilometragem <input name="km"></label>
                         <button type="submit">Confirmar</button>
                     </form>
