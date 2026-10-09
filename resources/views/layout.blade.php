@@ -21,7 +21,6 @@
             --ok: #17663f;
             --ok-fundo: #e5f6ec;
             --nav: #15222b;
-            --rodape-altura: 58px;
             --nav-texto: #d5e0e6;
             --verde: var(--azul);
             --verde-escuro: var(--azul-escuro);
@@ -70,7 +69,7 @@
         .acao-topo { display: inline-flex; align-items: center; justify-content: center; flex: 0 0 auto; width: 40px; height: 40px; padding: 0; border: 1px solid #e7f2ff; border-radius: 4px; background: #fff; color: #0072ff; line-height: 1; text-decoration: none; cursor: pointer; font-size: 16px; }
         .acao-topo:hover, .acao-topo[aria-expanded="true"] { background: #e7f2ff; color: #0b555d; }
         .acao-topo svg { display: block; width: 22px; height: 22px; }
-        main { padding: 18px 20px calc(28px + var(--rodape-altura)); flex: 1; }
+        main { padding: 18px 20px 28px; flex: 1; }
         .flash { border-radius: 12px; padding: 12px 14px; margin: 0 0 16px; }
         .flash.ok { background: var(--ok-fundo); color: var(--ok); }
         .flash.erro { background: var(--erro-fundo); color: var(--erro); }
@@ -121,7 +120,7 @@
         .gaveta li a { display: grid; grid-template-columns: 28px 1fr; gap: 8px; padding: 8px; border-radius: 8px; color: var(--tinta); font-weight: 600; }
         .gaveta li a:hover { background: var(--azul-claro); }
         .gaveta li small { display: block; color: var(--suave); font-weight: 500; }
-        .toasts { position: fixed; right: 16px; bottom: calc(16px + var(--rodape-altura)); z-index: 60; display: grid; gap: 8px; width: min(360px, calc(100vw - 32px)); }
+        .toasts { position: fixed; right: 16px; bottom: 16px; z-index: 60; display: grid; gap: 8px; width: min(360px, calc(100vw - 32px)); }
         .toast { display: grid; grid-template-columns: 28px 1fr; gap: 8px; background: #fff; border: 1px solid var(--linha); border-left: 4px solid var(--destaque); border-radius: 12px; padding: 10px 12px; box-shadow: 0 10px 24px rgba(36, 50, 60, .12); }
         .toast.prazo { border-left-color: #b86e00; }
         .toast.pedido { border-left-color: #188ad1; }
@@ -298,8 +297,8 @@
         .modal select, .modal input:not([type="checkbox"]), .modal textarea { width: 100%; min-height: 38px; border-radius: 6px; background: #fff; font-weight: 500; color: var(--tinta); }
         .modal textarea { min-height: 88px; resize: vertical; }
         .modal select:focus, .modal input:focus, .modal textarea:focus { outline: 2px solid rgba(24, 138, 209, .28); border-color: #188ad1; }
-        footer.rodape-fixo { position: fixed; left: 248px; right: 0; bottom: 0; z-index: 25; height: var(--rodape-altura); background: var(--nav); color: var(--nav-texto); border-top: 3px solid var(--destaque); box-shadow: 0 -8px 18px rgba(21, 34, 43, .16); }
-        .rodape { height: 100%; padding: 0 18px; display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+        footer.rodape { background: var(--nav); color: var(--nav-texto); border-top: 3px solid var(--destaque); }
+        .rodape-miolo { min-height: 58px; padding: 10px 18px; display: flex; align-items: center; justify-content: space-between; gap: 16px; }
         .rodape-dev { display: flex; align-items: center; min-width: 0; }
         .rodape-dev a { display: inline-flex; align-items: center; gap: 10px; min-width: 0; color: #fff; font-size: 1.05rem; font-weight: 700; letter-spacing: .04em; text-decoration: none; }
         .rodape-dev a:hover { text-decoration: underline; }
@@ -313,7 +312,6 @@
             .hamburguer { display: inline-flex; }
             .lateral { position: fixed; z-index: 40; transform: translateX(-105%); transition: transform .15s ease; }
             .lateral.aberta { transform: none; box-shadow: 8px 0 24px rgba(21, 34, 43, .28); }
-            footer.rodape-fixo { left: 0; }
             .rodape-sistema { display: none; }
             .modal .linha, .modal .opcoes, .ficha { grid-template-columns: 1fr; }
         }
@@ -464,8 +462,8 @@
                     @yield('transporte')
                 </div>
             </main>
-            <footer class="rodape-fixo">
-                <div class="rodape">
+            <footer class="rodape">
+                <div class="rodape-miolo">
                     <div class="rodape-dev">
                         <a href="https://buriti.dev.br/public/" target="_blank" rel="noopener">
                             <img src="{{ url('/transporte-escolar/logo-buriti') }}" alt="" width="34" height="34">
