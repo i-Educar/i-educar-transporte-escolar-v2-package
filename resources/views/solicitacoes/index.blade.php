@@ -100,48 +100,16 @@
                     <label>Idade mínima em 31 de março <input name="idade_min" type="number" min="0" max="30" placeholder="Qualquer"></label>
                     <label>Idade máxima em 31 de março <input name="idade_max" type="number" min="0" max="30" placeholder="Qualquer"></label>
                 </div>
-                <p><label>Séries que podem pedir
-                    <select name="series[]" multiple size="6">
-                        @foreach($series as $serie)
-                            <option value="{{ $serie->cod_serie }}">{{ $serie->nm_serie }}</option>
-                        @endforeach
-                    </select>
-                </label></p>
-                <p class="lead" style="margin:0;">Sem série marcada, qualquer série desta escola pode pedir.</p>
-                <p><label>Turmas que podem pedir
-                    <select name="turmas[]" multiple size="6">
-                        @foreach($turmas as $turma)
-                            <option value="{{ $turma->cod_turma }}" data-escola="{{ $turma->ref_ref_cod_escola }}" data-ano="{{ $turma->ano }}">{{ $turma->ano }} · {{ $turma->nm_serie }} · {{ $turma->nm_turma }}</option>
-                        @endforeach
-                    </select>
-                </label></p>
-                <p class="lead" style="margin:0;">Sem turma marcada, qualquer turma da escola e do ano pode pedir.</p>
+                @include('transporte-escolar::solicitacoes.recorte', [
+                    'turmas' => $turmas,
+                    'escolasIds' => null,
+                    'modo' => 'qualquer',
+                    'seriesMarcadas' => [],
+                    'turmasMarcadas' => [],
+                ])
                 <button type="submit">Publicar vaga</button>
             </form>
         </dialog>
-            <script>
-                var formOferta = document.querySelector('form[action$="/oferta"]');
-                function filtraTurmas() {
-                    var partes = document.getElementById('rota_escola').value.split('|');
-                    var escola = partes[1] || '';
-                    var processo = formOferta.querySelector('[name="processo_id"]');
-                    var ano = processo.options[processo.selectedIndex].getAttribute('data-ano') || '';
-                    formOferta.querySelectorAll('[name="turmas[]"] option').forEach(function (opcao) {
-                        var cabe = opcao.getAttribute('data-escola') === escola && opcao.getAttribute('data-ano') === ano;
-                        opcao.hidden = !cabe;
-                        if (!cabe) {
-                            opcao.selected = false;
-                        }
-                    });
-                }
-                formOferta.addEventListener('change', filtraTurmas);
-                formOferta.addEventListener('submit', function () {
-                    var partes = document.getElementById('rota_escola').value.split('|');
-                    document.getElementById('rota_id').value = partes[0];
-                    document.getElementById('ref_cod_escola').value = partes[1];
-                });
-                filtraTurmas();
-            </script>
         @endif
         @if($grupos->isNotEmpty())
             <h2>Agrupamentos da família</h2>
@@ -281,7 +249,7 @@
                             <p><label>Processo
                                 <select name="processo_id">
                                     @foreach($processos as $processo)
-                                        <option value="{{ $processo->id }}" @selected((int) $oferta->processo_id === (int) $processo->id)>{{ $processo->ano }} · {{ $processo->nome }}</option>
+                                        <option value="{{ $processo->id }}" data-ano="{{ $processo->ano }}" @selected((int) $oferta->processo_id === (int) $processo->id)>{{ $processo->ano }} · {{ $processo->nome }}</option>
                                     @endforeach
                                 </select>
                             </label></p>
@@ -307,26 +275,109 @@
                                 <label>Idade mínima <input name="idade_min" type="number" min="0" max="30" value="{{ $oferta->idade_min }}"></label>
                                 <label>Idade máxima <input name="idade_max" type="number" min="0" max="30" value="{{ $oferta->idade_max }}"></label>
                             </div>
-                            <p><label>Séries
-                                <select name="series[]" multiple size="5">
-                                    @foreach($series as $serie)
-                                        <option value="{{ $serie->cod_serie }}" @selected(in_array((int) $serie->cod_serie, $seriesMarcadas, true))>{{ $serie->nm_serie }}</option>
-                                    @endforeach
-                                </select>
-                            </label></p>
-                            <p><label>Turmas
-                                <select name="turmas[]" multiple size="5">
-                                    @foreach($turmas as $turma)
-                                        <option value="{{ $turma->cod_turma }}" @selected(in_array((int) $turma->cod_turma, $turmasMarcadas, true))>{{ $turma->ano }} · {{ $turma->nm_turma }}</option>
-                                    @endforeach
-                                </select>
-                            </label></p>
+                            @if($turmasMarcadas !== [] && $seriesMarcadas !== [])
+                                <p class="lead">Esta vaga restringia série e turma juntas. A turma já define a série, então a escolha fica só nas turmas marcadas.</p>
+                            @endif
+                            @include('transporte-escolar::solicitacoes.recorte', [
+                                'turmas' => $turmas,
+                                'escolasIds' => $escolasRota[$oferta->rota_id] ?? [(int) $oferta->ref_cod_escola],
+                                'modo' => $turmasMarcadas !== [] ? 'turma' : ($seriesMarcadas !== [] ? 'serie' : 'qualquer'),
+                                'seriesMarcadas' => $seriesMarcadas,
+                                'turmasMarcadas' => $turmasMarcadas,
+                                'rotaId' => $oferta->rota_id,
+                                'ano' => $oferta->ano,
+                            ])
                         @endif
                         <button type="submit"><i class="fa fa-check" aria-hidden="true"></i> Gravar vaga</button>
                     </form>
                 </dialog>
             @endforeach
         @endif
+        <style>
+            .recorte-modos { display: grid; gap: 8px; margin: 8px 0 12px; }
+            .recorte-lista { max-height: 240px; overflow: auto; display: grid; gap: 6px; margin-top: 8px; }
+            .recorte-grupo { margin: 10px 0 0; font-size: .78rem; font-weight: 700; color: var(--suave); }
+        </style>
+        <script>
+            window.escolasDaRota = @json($escolasRota);
+            function anoDoRecorte(bloco) {
+                var form = bloco.closest('form');
+                var processo = form.querySelector('[name="processo_id"]');
+                if (processo && processo.options && processo.selectedIndex >= 0) {
+                    var ano = processo.options[processo.selectedIndex].getAttribute('data-ano');
+                    if (ano) {
+                        return ano;
+                    }
+                }
+                return bloco.getAttribute('data-ano') || '';
+            }
+            function escolasDoRecorte(bloco) {
+                var rota = bloco.getAttribute('data-rota');
+                if (!rota) {
+                    var campo = bloco.closest('form').querySelector('[name="rota_escola"]');
+                    rota = campo ? (campo.value || '').split('|')[0] : '';
+                }
+                var lista = (window.escolasDaRota && window.escolasDaRota[rota]) || [];
+                return lista.map(String);
+            }
+            function aplicarRecorte(bloco) {
+                var marcado = bloco.querySelector('input[name="recorte"]:checked');
+                var modo = marcado ? marcado.value : 'qualquer';
+                var ano = anoDoRecorte(bloco);
+                var escolas = escolasDoRecorte(bloco);
+                bloco.querySelectorAll('[data-painel-recorte]').forEach(function (painel) {
+                    var ativo = painel.getAttribute('data-painel-recorte') === modo;
+                    painel.hidden = !ativo;
+                    painel.querySelectorAll('input').forEach(function (campo) { campo.disabled = !ativo; });
+                });
+                bloco.querySelectorAll('[data-turma]').forEach(function (item) {
+                    var cabe = item.getAttribute('data-ano') === ano && escolas.indexOf(item.getAttribute('data-escola')) !== -1;
+                    item.hidden = !cabe;
+                    if (!cabe) {
+                        var campo = item.querySelector('input');
+                        if (campo) {
+                            campo.checked = false;
+                        }
+                    }
+                });
+                bloco.querySelectorAll('[data-grupo]').forEach(function (grupo) {
+                    grupo.hidden = !grupo.querySelector('[data-turma]:not([hidden])');
+                });
+                bloco.querySelectorAll('[data-serie-opcao]').forEach(function (item) {
+                    var serie = item.getAttribute('data-serie');
+                    var cabe = false;
+                    bloco.querySelectorAll('[data-turma]').forEach(function (turma) {
+                        if (!cabe && turma.getAttribute('data-serie') === serie && turma.getAttribute('data-ano') === ano && escolas.indexOf(turma.getAttribute('data-escola')) !== -1) {
+                            cabe = true;
+                        }
+                    });
+                    item.hidden = !cabe;
+                    if (!cabe) {
+                        var campo = item.querySelector('input');
+                        if (campo) {
+                            campo.checked = false;
+                        }
+                    }
+                });
+                bloco.querySelectorAll('[data-recorte-vazio]').forEach(function (aviso) {
+                    var painel = aviso.closest('[data-painel-recorte]');
+                    var tem = painel && painel.querySelector('[data-turma]:not([hidden]), [data-serie-opcao]:not([hidden])');
+                    aviso.hidden = !!tem;
+                });
+            }
+            document.querySelectorAll('[data-recorte]').forEach(function (bloco) {
+                bloco.closest('form').addEventListener('change', function () { aplicarRecorte(bloco); });
+                aplicarRecorte(bloco);
+            });
+            var formOferta = document.querySelector('form[action$="/oferta"]');
+            if (formOferta) {
+                formOferta.addEventListener('submit', function () {
+                    var partes = (document.getElementById('rota_escola').value || '').split('|');
+                    document.getElementById('rota_id').value = partes[0] || '';
+                    document.getElementById('ref_cod_escola').value = partes[1] || '';
+                });
+            }
+        </script>
     @endif
     <div data-painel>
         <div class="barra-dados">

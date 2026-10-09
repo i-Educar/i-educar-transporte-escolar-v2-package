@@ -52,10 +52,15 @@ class SolicitacaoController
         $series = DB::table('pmieducar.serie')->where('ativo', 1)->orderBy('nm_serie')->get(['cod_serie', 'nm_serie']);
         $turmas = DB::table('pmieducar.turma as t')
             ->leftJoin('pmieducar.serie as s', 's.cod_serie', '=', 't.ref_ref_cod_serie')
+            ->leftJoin('pmieducar.curso as c', 'c.cod_curso', '=', 's.ref_cod_curso')
+            ->leftJoin('pmieducar.escola as e', 'e.cod_escola', '=', 't.ref_ref_cod_escola')
+            ->leftJoin('cadastro.pessoa as ep', 'ep.idpes', '=', 'e.ref_idpes')
             ->where('t.ativo', 1)
-            ->orderByDesc('t.ano')
+            ->orderBy('ep.nome')
+            ->orderBy('c.nm_curso')
+            ->orderBy('s.nm_serie')
             ->orderBy('t.nm_turma')
-            ->get(['t.cod_turma', 't.nm_turma', 't.ano', 't.ref_ref_cod_escola', 't.ref_ref_cod_serie', 's.nm_serie']);
+            ->get(['t.cod_turma', 't.nm_turma', 't.ano', 't.ref_ref_cod_escola', 't.ref_ref_cod_serie', 's.nm_serie', 'c.nm_curso', 'ep.nome as escola']);
         $nomesSerie = $series->pluck('nm_serie', 'cod_serie');
         $nomesTurma = $turmas->pluck('nm_turma', 'cod_turma');
 
@@ -102,6 +107,11 @@ class SolicitacaoController
                 }),
             'series' => $series,
             'turmas' => $turmas,
+            'escolasRota' => DB::table('transporte_escolar.rota_escola')
+                ->get(['rota_id', 'ref_cod_escola'])
+                ->groupBy('rota_id')
+                ->map(static fn ($linhas) => $linhas->pluck('ref_cod_escola')->map(static fn ($id): int => (int) $id)->unique()->values()->all())
+                ->all(),
             'rotas' => DB::table('transporte_escolar.rota as r')
                 ->join('transporte_escolar.rota_escola as re', 're.rota_id', '=', 'r.id')
                 ->join('pmieducar.escola as e', 'e.cod_escola', '=', 're.ref_cod_escola')
@@ -283,18 +293,15 @@ class SolicitacaoController
         $idadeMax = $idadeMax === null || $idadeMax === '' ? null : (int) $idadeMax;
         $series = array_values(array_unique(array_filter(array_map('intval', (array) $request->input('series', [])))));
         $turmas = array_values(array_unique(array_filter(array_map('intval', (array) $request->input('turmas', [])))));
-        $seriesOk = $series === [] || DB::table('pmieducar.serie')->where('ativo', 1)->whereIn('cod_serie', $series)->count() === count($series);
-        $turmasOk = $turmas === [] || DB::table('pmieducar.turma')
-            ->where('ativo', 1)
-            ->where('ref_ref_cod_escola', $escola)
-            ->where('ano', $processo->ano ?? 0)
-            ->whereIn('cod_turma', $turmas)
-            ->count() === count($turmas);
+        $recorte = $this->recortePedido($request, $series, $turmas);
+        $series = $recorte['series'];
+        $turmas = $recorte['turmas'];
+        $recorteOk = $recorte['ok'] && $this->recorteCabe((int) ($rota->id ?? 0), (int) ($processo->ano ?? 0), $series, $turmas);
         $idadeOk = ($idadeMin === null || ($idadeMin >= 0 && $idadeMin <= 30))
             && ($idadeMax === null || ($idadeMax >= 0 && $idadeMax <= 30))
             && ($idadeMin === null || $idadeMax === null || $idadeMin <= $idadeMax);
 
-        if ($processo === null || $rota === null || (int) $rota->ano !== (int) $processo->ano || !$liga || !isset(Codigos::PERIODO[$turno]) || $vagas < 1 || !$seriesOk || !$turmasOk || !$idadeOk || !ProcessoVaga::recebePedido($processo->situacao ?? null, $grupo->situacao ?? null)) {
+        if ($processo === null || $rota === null || (int) $rota->ano !== (int) $processo->ano || !$liga || !isset(Codigos::PERIODO[$turno]) || $vagas < 1 || !$recorteOk || !$idadeOk || !ProcessoVaga::recebePedido($processo->situacao ?? null, $grupo->situacao ?? null)) {
             return redirect('/transporte-escolar/solicitacoes')->with('erro', 'A vaga precisa de processo, rota do mesmo ano, escola dessa rota, turno e regras de idade, série e turma coerentes.');
         }
 
@@ -344,6 +351,19 @@ class SolicitacaoController
         $idadeMax = $idadeMax === null || $idadeMax === '' ? null : (int) $idadeMax;
         $series = array_values(array_unique(array_filter(array_map('intval', (array) $request->input('series', [])))));
         $turmas = array_values(array_unique(array_filter(array_map('intval', (array) $request->input('turmas', [])))));
+        $deferidos = (int) ($uso->deferidos ?? 0);
+
+        if ($deferidos === 0) {
+            $recorte = $this->recortePedido($request, $series, $turmas);
+            $series = $recorte['series'];
+            $turmas = $recorte['turmas'];
+            $ano = (int) DB::table('transporte_escolar.processo_vaga')->where('id', $processoId)->value('ano');
+
+            if (!$recorte['ok'] || !$this->recorteCabe($rotaId, $ano, $series, $turmas)) {
+                return redirect('/transporte-escolar/solicitacoes')->with('erro', 'Série e turma precisam existir no ano do processo, em uma escola desta rota. Sem essa restrição, deixe a vaga aberta para qualquer série.');
+            }
+        }
+
         $motivo = ProcessoEdicao::oferta([
             'processo_id' => (int) $atual->processo_id,
             'rota_id' => (int) $atual->rota_id,
@@ -364,7 +384,7 @@ class SolicitacaoController
             'idade_max' => $idadeMax,
             'series' => $series,
             'turmas' => $turmas,
-        ], $pedidos, (int) ($uso->deferidos ?? 0), (int) ($uso->ocupadas ?? 0));
+        ], $pedidos, $deferidos, (int) ($uso->ocupadas ?? 0));
 
         if ($motivo !== null || $vagas < 1) {
             return redirect('/transporte-escolar/solicitacoes')->with('erro', $motivo ?? 'Informe ao menos uma vaga.');
@@ -374,11 +394,9 @@ class SolicitacaoController
             $processo = DB::table('transporte_escolar.processo_vaga')->where('id', $processoId)->first();
             $rota = DB::table('transporte_escolar.rota')->where('id', $rotaId)->first();
             $liga = $rota === null ? false : DB::table('transporte_escolar.rota_escola')->where('rota_id', $rotaId)->where('ref_cod_escola', $escola)->exists();
-            $seriesOk = $series === [] || DB::table('pmieducar.serie')->where('ativo', 1)->whereIn('cod_serie', $series)->count() === count($series);
-            $turmasOk = $turmas === [] || DB::table('pmieducar.turma')->where('ativo', 1)->where('ref_ref_cod_escola', $escola)->where('ano', $processo->ano ?? 0)->whereIn('cod_turma', $turmas)->count() === count($turmas);
             $idadeOk = ($idadeMin === null || ($idadeMin >= 0 && $idadeMin <= 30)) && ($idadeMax === null || ($idadeMax >= 0 && $idadeMax <= 30)) && ($idadeMin === null || $idadeMax === null || $idadeMin <= $idadeMax);
 
-            if ($processo === null || $rota === null || (int) $rota->ano !== (int) $processo->ano || !$liga || !isset(Codigos::PERIODO[$turno]) || !$seriesOk || !$turmasOk || !$idadeOk) {
+            if ($processo === null || $rota === null || (int) $rota->ano !== (int) $processo->ano || !$liga || !isset(Codigos::PERIODO[$turno]) || !$idadeOk) {
                 return redirect('/transporte-escolar/solicitacoes')->with('erro', 'A vaga precisa de processo, rota do mesmo ano, escola dessa rota, turno e regras coerentes.');
             }
         }
@@ -672,5 +690,54 @@ class SolicitacaoController
         ]);
 
         return redirect('/transporte-escolar/solicitacoes')->with('ok', 'Situação alterada para ' . ProcessoVaga::rotulo($proxima) . '.');
+    }
+
+    /**
+     * @param list<int> $series
+     * @param list<int> $turmas
+     * @return array{ok: bool, series: list<int>, turmas: list<int>}
+     */
+    private function recortePedido(Request $request, array $series, array $turmas): array
+    {
+        $recorte = (string) $request->input('recorte', 'qualquer');
+
+        if ($recorte === 'qualquer') {
+            return ['ok' => true, 'series' => [], 'turmas' => []];
+        }
+
+        if ($recorte === 'serie') {
+            return ['ok' => $series !== [], 'series' => $series, 'turmas' => []];
+        }
+
+        if ($recorte === 'turma') {
+            return ['ok' => $turmas !== [], 'series' => [], 'turmas' => $turmas];
+        }
+
+        return ['ok' => false, 'series' => $series, 'turmas' => $turmas];
+    }
+
+    /**
+     * @param list<int> $series
+     * @param list<int> $turmas
+     */
+    private function recorteCabe(int $rotaId, int $ano, array $series, array $turmas): bool
+    {
+        if ($series === [] && $turmas === []) {
+            return true;
+        }
+
+        $escolas = DB::table('transporte_escolar.rota_escola')->where('rota_id', $rotaId)->pluck('ref_cod_escola')->all();
+
+        if ($escolas === [] || $ano < 2000) {
+            return false;
+        }
+
+        $mapa = [];
+
+        foreach (DB::table('pmieducar.turma')->where('ativo', 1)->where('ano', $ano)->whereIn('ref_ref_cod_escola', $escolas)->get(['cod_turma', 'ref_ref_cod_serie']) as $linha) {
+            $mapa[(int) $linha->cod_turma] = (int) $linha->ref_ref_cod_serie;
+        }
+
+        return RegraOferta::recorteCabe($series, $turmas, $mapa);
     }
 }

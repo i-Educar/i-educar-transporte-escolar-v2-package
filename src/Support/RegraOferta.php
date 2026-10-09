@@ -64,4 +64,39 @@ final class RegraOferta
 
         return array_values(array_map(static fn ($id): int => (int) $id, $valor));
     }
+
+    /**
+     * Série e turma só cabem se existirem no mapa das turmas do ano, nas escolas da rota.
+     * Lista vazia não restringe. Se as duas listas vierem preenchidas, a turma precisa ser de uma série marcada.
+     *
+     * @param list<int> $series
+     * @param list<int> $turmas
+     * @param array<int, int> $turmaSerie
+     */
+    public static function recorteCabe(array $series, array $turmas, array $turmaSerie): bool
+    {
+        if ($series === [] && $turmas === []) {
+            return true;
+        }
+
+        $seriesValidas = array_fill_keys(array_map(static fn ($serie): int => (int) $serie, $turmaSerie), true);
+
+        foreach ($series as $serie) {
+            if (!isset($seriesValidas[$serie])) {
+                return false;
+            }
+        }
+
+        foreach ($turmas as $turma) {
+            if (!isset($turmaSerie[$turma])) {
+                return false;
+            }
+
+            if ($series !== [] && !in_array($turmaSerie[$turma], $series, true)) {
+                return false;
+            }
+        }
+
+        return true;
+    }
 }

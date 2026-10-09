@@ -494,6 +494,10 @@ ok(RegraOferta::cabeIdade(9, 6, 14) === true && RegraOferta::cabeIdade(5, 6, 14)
 ok(RegraOferta::cabeIdade(9, null, null) === true, 'vaga sem faixa de idade aceita o aluno');
 ok(RegraOferta::cabeLista(3, [1, 3]) === true && RegraOferta::cabeLista(2, [1, 3]) === false, 'série ou turma precisa estar na regra');
 ok(RegraOferta::cabeLista(null, []) === true, 'regra vazia não restringe série nem turma');
+ok(RegraOferta::recorteCabe([], [], []) === true, 'vaga sem série nem turma não restringe');
+ok(RegraOferta::recorteCabe([3], [], [10 => 3, 11 => 4]) === true && RegraOferta::recorteCabe([9], [], [10 => 3]) === false, 'série precisa ter turma no ano e nas escolas da rota');
+ok(RegraOferta::recorteCabe([], [10], [10 => 3]) === true && RegraOferta::recorteCabe([], [12], [10 => 3]) === false, 'turma de outro ano ou de escola fora da rota não entra');
+ok(RegraOferta::recorteCabe([4], [10], [10 => 3, 11 => 4]) === false, 'turma marcada precisa ser de uma série marcada');
 ok(PontosProximos::ordenar(-30.0, -51.0, [
     ['id' => 1, 'nome' => 'Perto', 'latitude' => -30.001, 'longitude' => -51.0, 'raio' => 200],
     ['id' => 2, 'nome' => 'Longe', 'latitude' => -30.05, 'longitude' => -51.0, 'raio' => 100],

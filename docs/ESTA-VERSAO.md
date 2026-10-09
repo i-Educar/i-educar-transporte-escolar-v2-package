@@ -12,7 +12,7 @@ Versão 1.5.2. Fases 0 a 5, ondas 1 a 8, portal da família, processo de vagas, 
 | Link de embarque e desembarque, sem aplicativo | `/transporte-escolar/avisos` |
 | QR Code, km da trilha e coordenada da casa | Viagem e aluno na rota |
 | Portal da família: pedir transporte e acompanhar o protocolo | `/transporte-escolar/familia` |
-| Agrupamento, processo com edição, pausa e bloqueio, vaga por idade, série e turma | `/transporte-escolar/solicitacoes` |
+| Agrupamento, processo com edição, pausa e bloqueio, vaga por idade e, se a rede precisar, série ou turma do ano nas escolas da rota | `/transporte-escolar/solicitacoes` |
 | Ficha do protocolo, distância até o ponto e mapa do endereço | Mesma tela e `/transporte-escolar/solicitacoes/{id}/mapa` |
 | Rota: incluir parada, criar ponto no mapa e ajustar coordenada em passos separados | `/transporte-escolar/rotas/{id}` |
 | Ordem e bilhete com protocolo, situação e PDF de duas vias na mesma folha | `/transporte-escolar/ordens` e `/transporte-escolar/bilhetes` |
