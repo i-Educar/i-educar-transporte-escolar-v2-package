@@ -9,6 +9,7 @@ use iEducar\Packages\BuritiTransporteEscolar\Support\Codigos;
 use iEducar\Packages\BuritiTransporteEscolar\Support\ComprovantePedido;
 use iEducar\Packages\BuritiTransporteEscolar\Support\ConferenciaPedido;
 use iEducar\Packages\BuritiTransporteEscolar\Support\HistoricoPedido;
+use iEducar\Packages\BuritiTransporteEscolar\Support\OcupacaoOferta;
 use iEducar\Packages\BuritiTransporteEscolar\Support\IdentidadeMunicipio;
 use iEducar\Packages\BuritiTransporteEscolar\Support\LocalizarEndereco;
 use iEducar\Packages\BuritiTransporteEscolar\Support\PdfSimples;
@@ -92,12 +93,7 @@ class SolicitacaoController
                 ->groupBy('processo_id')
                 ->get()
                 ->keyBy('processo_id'),
-            'usoOferta' => DB::table('transporte_escolar.solicitacao')
-                ->whereNotNull('oferta_id')
-                ->selectRaw("oferta_id, count(*) as pedidos, count(*) filter (where situacao = 'deferida') as deferidos, count(*) filter (where situacao = 'espera') as espera, count(*) filter (where situacao in ('recebida', 'em_analise', 'deferida', 'conferida')) as ocupadas")
-                ->groupBy('oferta_id')
-                ->get()
-                ->keyBy('oferta_id'),
+            'usoOferta' => collect(OcupacaoOferta::porId()),
             'ofertas' => DB::table('transporte_escolar.processo_vaga_oferta as o')
                 ->join('transporte_escolar.processo_vaga as p', 'p.id', '=', 'o.processo_id')
                 ->join('transporte_escolar.rota as r', 'r.id', '=', 'o.rota_id')
@@ -704,12 +700,7 @@ class SolicitacaoController
             return null;
         }
 
-        $ocupadas = (int) DB::table('transporte_escolar.solicitacao')
-            ->where('oferta_id', $pedido->oferta_id)
-            ->whereIn('situacao', [SituacaoPedido::RECEBIDA, SituacaoPedido::ANALISE, SituacaoPedido::DEFERIDA, SituacaoPedido::CONFERIDA])
-            ->count();
-
-        return ProcessoVaga::cabe((int) $vagas, $ocupadas);
+        return ProcessoVaga::cabe((int) $vagas, OcupacaoOferta::ocupadas((int) $pedido->oferta_id));
     }
 
     private function pedidoRede(int $solicitacao): ?object

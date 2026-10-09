@@ -63,12 +63,7 @@ class FamiliaPortalController
             $dados['escola'] = 'processo';
             $dados['turno'] = 'manha';
         } else {
-            $ocupadas = (int) DB::table('transporte_escolar.solicitacao')
-                ->where('oferta_id', $oferta->id)
-                ->whereIn('situacao', ['recebida', 'em_analise', 'deferida', 'conferida'])
-                ->count();
-
-            if (!ProcessoVaga::cabe((int) $oferta->vagas, $ocupadas)) {
+            if (!ProcessoVaga::cabe((int) $oferta->vagas, \iEducar\Packages\BuritiTransporteEscolar\Support\OcupacaoOferta::ocupadas((int) $oferta->id))) {
                 $erros[] = 'Esta rota não tem mais vaga neste processo.';
             }
 
@@ -341,17 +336,10 @@ class FamiliaPortalController
                 'pes.nome as escola',
             ]);
 
-        $ocupadas = DB::table('transporte_escolar.solicitacao')
-            ->whereIn('oferta_id', $ofertas->pluck('id')->all() ?: [0])
-            ->whereIn('situacao', ['recebida', 'em_analise', 'deferida', 'conferida'])
-            ->selectRaw('oferta_id, count(*) as n')
-            ->groupBy('oferta_id')
-            ->pluck('n', 'oferta_id');
-
         $mapa = [];
 
-        foreach ($ocupadas as $id => $quantidade) {
-            $mapa[(int) $id] = (int) $quantidade;
+        foreach (\iEducar\Packages\BuritiTransporteEscolar\Support\OcupacaoOferta::porId() as $id => $uso) {
+            $mapa[(int) $id] = (int) $uso->ocupadas;
         }
 
         return $ofertas->map(function ($item) use ($mapa) {

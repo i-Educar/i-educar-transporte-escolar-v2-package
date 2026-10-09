@@ -44,7 +44,7 @@ flowchart TD
     B --> H["Editar nome, ano, período e agrupamento"]
 ```
 
-Pedido recebido, em análise, aceito ou com documentação conferida ocupa a vaga. Lista de espera, recusa e cancelamento devolvem o lugar. O grupo também pode ser pausado ou bloqueado: se o processo está num grupo, os dois precisam estar abertos e no período.
+Pedido recebido, em análise, aceito ou com documentação conferida ocupa a vaga. Aluno já colocado na rota também ocupa a vaga daquela rota no processo, mesmo sem matrícula ativa no ano. Lista de espera, recusa e cancelamento devolvem o lugar. O grupo também pode ser pausado ou bloqueado: se o processo está num grupo, os dois precisam estar abertos e no período.
 
 ## Pedido da família
 
