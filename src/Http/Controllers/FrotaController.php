@@ -11,6 +11,7 @@ use iEducar\Packages\BuritiTransporteEscolar\Support\UsoPonto;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\View\View;
 use Symfony\Component\HttpFoundation\Response;
 
@@ -31,6 +32,7 @@ class FrotaController
             'podeGravar' => Acesso::permite($processo, 'gravar'),
             'podeExcluir' => Acesso::permite($processo, 'excluir'),
             'codigos' => Codigos::class,
+            'autorizacoes' => $recurso === 'veiculos' ? $this->autorizacoes() : [],
             'pagina' => $fatia['pagina'],
             'paginas' => $fatia['paginas'],
             'total' => $fatia['total'],
@@ -50,7 +52,10 @@ class FrotaController
 
             foreach (array_keys($colunas) as $campo) {
                 $valor = $linha->{$campo} ?? '';
-                $valores[] = $campo === 'ativo' ? ($valor ? 'Sim' : 'Não') : $valor;
+                $texto = trim((string) $valor);
+                $valores[] = $campo === 'ativo'
+                    ? ($valor ? 'Sim' : 'Não')
+                    : (preg_match('/^\d{4}-\d{2}-\d{2}/', $texto) ? \iEducar\Packages\BuritiTransporteEscolar\Support\DataTela::dia($texto) : $valor);
             }
 
             fputcsv($saida, $valores, ';');
@@ -412,6 +417,24 @@ class FrotaController
         abort_if($idpes === null, 422, 'CPF não encontrado em cadastro.fisica.');
 
         return (int) $idpes;
+    }
+
+    /**
+     * @return array<int, list<string>>
+     */
+    private function autorizacoes(): array
+    {
+        if (!Schema::hasTable('transporte_escolar.autorizacao_veiculo')) {
+            return [];
+        }
+
+        $mapa = [];
+
+        foreach (DB::table('transporte_escolar.autorizacao_veiculo')->get(['veiculo_id', 'validade']) as $linha) {
+            $mapa[(int) $linha->veiculo_id][] = (string) $linha->validade;
+        }
+
+        return $mapa;
     }
 
     private function linhas(string $recurso)

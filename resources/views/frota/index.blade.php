@@ -39,16 +39,23 @@
                                     $textoBusca[] = $valor;
                                 }
                             }
+                            $avisos = match ($recurso) {
+                                'veiculos' => \iEducar\Packages\BuritiTransporteEscolar\Support\AtencaoCadastro::veiculo($linha, $autorizacoes[$linha->id] ?? []),
+                                'motoristas' => \iEducar\Packages\BuritiTransporteEscolar\Support\AtencaoCadastro::motorista($linha),
+                                'empresas' => \iEducar\Packages\BuritiTransporteEscolar\Support\AtencaoCadastro::documento($linha->cnpj ?? null, 'CNPJ'),
+                                'pontos' => \iEducar\Packages\BuritiTransporteEscolar\Support\AtencaoCadastro::ponto($linha),
+                                default => [],
+                            };
                         @endphp
-                        <tr data-busca="{{ implode(' ', $textoBusca) }}">
+                        <tr class="{{ $avisos === [] ? '' : 'atencao' }}" data-busca="{{ implode(' ', $textoBusca) }}">
                             @if($recurso === 'veiculos')
-                                <td>{{ $linha->placa ?: '—' }}</td>
+                                <td>{{ $linha->placa ?: '—' }}@include('transporte-escolar::frota.atencao', ['avisos' => $avisos])</td>
                                 <td>{{ $linha->descricao }}</td>
                                 <td>{{ $linha->passageiros }}</td>
                                 <td>{{ $linha->ativo ? 'Sim' : 'Não' }}</td>
                                 <td class="acoes"><button type="button" class="icone ver" data-abre-modal="ver-{{ $loop->index }}" aria-label="Ver veículo" title="Ver"><i class="fa fa-eye" aria-hidden="true"></i></button>@if($podeGravar)<button type="button" class="icone editar" data-abre-modal="editar-{{ $linha->id }}" aria-label="Editar veículo" title="Editar"><i class="fa fa-pencil" aria-hidden="true"></i></button>@endif</td>
                             @elseif($recurso === 'motoristas')
-                                <td>{{ $linha->nome }}</td>
+                                <td>{{ $linha->nome }}@include('transporte-escolar::frota.atencao', ['avisos' => $avisos])</td>
                                 <td>{{ $linha->telefone ?: '—' }}</td>
                                 <td>{{ $linha->email ?: '—' }}</td>
                                 <td>{{ $linha->matricula_funcional ?: '—' }}</td>
@@ -62,7 +69,7 @@
                                 <td>{{ $linha->turno ?: '—' }}</td>
                                 <td class="acoes"><button type="button" class="icone ver" data-abre-modal="ver-{{ $loop->index }}" aria-label="Ver monitor" title="Ver"><i class="fa fa-eye" aria-hidden="true"></i></button>@if($podeGravar)<button type="button" class="icone editar" data-abre-modal="editar-{{ $linha->id }}" aria-label="Editar monitor" title="Editar"><i class="fa fa-pencil" aria-hidden="true"></i></button>@endif</td>
                             @elseif($recurso === 'empresas')
-                                <td>{{ $linha->nome }}</td>
+                                <td>{{ $linha->nome }}@include('transporte-escolar::frota.atencao', ['avisos' => $avisos])</td>
                                 <td>{{ $linha->cnpj ?: '—' }}</td>
                                 <td>{{ $linha->telefone ?: '—' }}</td>
                                 <td>{{ $linha->email ?: '—' }}</td>
@@ -73,7 +80,7 @@
                                 <td>{{ $linha->email ?: '—' }}</td>
                                 <td class="acoes"><button type="button" class="icone ver" data-abre-modal="ver-{{ $loop->index }}" aria-label="Ver fornecedor" title="Ver"><i class="fa fa-eye" aria-hidden="true"></i></button>@if($podeGravar)<button type="button" class="icone editar" data-abre-modal="editar-{{ $linha->id }}" aria-label="Editar fornecedor" title="Editar"><i class="fa fa-pencil" aria-hidden="true"></i></button>@endif</td>
                             @else
-                                <td>{{ $linha->descricao }}</td>
+                                <td>{{ $linha->descricao }}@include('transporte-escolar::frota.atencao', ['avisos' => $avisos])</td>
                                 <td>{{ $linha->latitude ?? '—' }}</td>
                                 <td>{{ $linha->longitude ?? '—' }}</td>
                                 <td>{{ $linha->raio_metros ?? '—' }}</td>
@@ -202,7 +209,7 @@
                     @foreach((array) $linha as $campo => $valor)
                         @continue(in_array($campo, ['id', 'created_at', 'updated_at', 'origem', 'origem_chave', 'ref_idpes'], true) || str_ends_with($campo, '_id'))
                         @php
-                            $rotuloCampo = ['nome' => 'Nome', 'cnpj' => 'CNPJ', 'observacao' => 'Observação', 'email' => 'E-mail', 'telefone' => 'Telefone', 'matricula_funcional' => 'Matrícula funcional', 'cnh' => 'CNH', 'tipo_cnh' => 'Categoria', 'vencimento_cnh' => 'Vencimento da CNH', 'curso_escolar_validade' => 'Curso de transporte escolar', 'vinculo' => 'Vínculo', 'salario_mensal' => 'Salário', 'turno' => 'Turno', 'encargo_percent' => 'Encargo %', 'carga_horaria' => 'Carga horária', 'placa' => 'Placa', 'descricao' => 'Descrição', 'renavam' => 'RENAVAM', 'chassi' => 'Chassi', 'marca' => 'Marca', 'ano_fabricacao' => 'Ano de fabricação', 'ano_modelo' => 'Ano do modelo', 'passageiros' => 'Passageiros', 'tipo_censo' => 'Tipo no Censo', 'malha' => 'Malha', 'adaptado_pcd' => 'Adaptado', 'exclusivo_escolar' => 'Exclusivo escolar', 'caminho_da_escola' => 'Caminho da Escola', 'consumo_medio_km_l' => 'Consumo km/l', 'qtd_pneus' => 'Pneus', 'ipva_vencimento' => 'IPVA', 'seguro_vencimento' => 'Seguro', 'licenciamento_vencimento' => 'Licenciamento', 'vistoria_vencimento' => 'Vistoria', 'ativo' => 'Ativo', 'latitude' => 'Latitude', 'longitude' => 'Longitude', 'raio_metros' => 'Raio (m)'][$campo] ?? null;
+                            $rotuloCampo = ['nome' => 'Nome', 'cnpj' => 'CNPJ', 'observacao' => 'Observação', 'email' => 'E-mail', 'telefone' => 'Telefone', 'matricula_funcional' => 'Matrícula funcional', 'cnh' => 'CNH', 'tipo_cnh' => 'Categoria', 'dt_habilitacao' => 'Habilitação', 'vencimento_cnh' => 'Vencimento da CNH', 'curso_escolar_validade' => 'Curso de transporte escolar', 'vinculo' => 'Vínculo', 'salario_mensal' => 'Salário', 'turno' => 'Turno', 'encargo_percent' => 'Encargo %', 'carga_horaria' => 'Carga horária', 'placa' => 'Placa', 'descricao' => 'Descrição', 'renavam' => 'RENAVAM', 'chassi' => 'Chassi', 'marca' => 'Marca', 'ano_fabricacao' => 'Ano de fabricação', 'ano_modelo' => 'Ano do modelo', 'passageiros' => 'Passageiros', 'tipo_censo' => 'Tipo no Censo', 'malha' => 'Malha', 'adaptado_pcd' => 'Adaptado', 'exclusivo_escolar' => 'Exclusivo escolar', 'caminho_da_escola' => 'Caminho da Escola', 'consumo_medio_km_l' => 'Consumo km/l', 'qtd_pneus' => 'Pneus', 'ipva_vencimento' => 'IPVA', 'seguro_vencimento' => 'Seguro', 'licenciamento_vencimento' => 'Licenciamento', 'vistoria_vencimento' => 'Vistoria', 'ativo' => 'Ativo', 'latitude' => 'Latitude', 'longitude' => 'Longitude', 'raio_metros' => 'Raio (m)'][$campo] ?? null;
                         @endphp
                         @continue($rotuloCampo === null)
                         <div>
@@ -217,7 +224,7 @@
                                 @elseif(in_array($campo, ['ativo', 'adaptado_pcd', 'caminho_da_escola', 'exclusivo_escolar'], true))
                                     {{ $valor ? 'Sim' : 'Não' }}
                                 @else
-                                    {{ $valor === null || $valor === '' ? '—' : $valor }}
+                                    {{ \iEducar\Packages\BuritiTransporteEscolar\Support\DataTela::dia($valor) }}
                                 @endif
                             </dd>
                         </div>

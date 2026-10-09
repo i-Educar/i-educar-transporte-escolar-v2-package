@@ -19,7 +19,7 @@
                 <thead><tr><th>Rota</th><th>Tipo</th><th>Km informado</th><th>Km calculado</th></tr></thead>
                 <tbody>
                     @forelse($rotas as $rota)
-                        <tr data-busca="{{ $rota->descricao }} {{ $codigos::TIPO_ROTA[$rota->tipo_rota] ?? $rota->tipo_rota }}">
+                        <tr class="{{ empty($divergencias[$rota->id]) ? '' : 'atencao' }}" data-busca="{{ $rota->descricao }} {{ $codigos::TIPO_ROTA[$rota->tipo_rota] ?? $rota->tipo_rota }}">
                             <td>
                                 <a href="{{ url('/transporte-escolar/rotas/'.$rota->id) }}">{{ $rota->descricao }}</a>
                                 @if(!empty($divergencias[$rota->id]))

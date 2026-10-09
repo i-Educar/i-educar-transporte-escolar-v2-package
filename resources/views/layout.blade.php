@@ -200,6 +200,8 @@
         .selo.ok { background: #e7f6ef; color: #0f6b4c; }
         .selo.alerta { background: #fdeceb; color: #9b2c2c; }
         .selo.prazo { background: #fff6e8; color: #b86e00; }
+        .conteudo tr.atencao td:first-child { box-shadow: inset 3px 0 0 #9b2c2c; }
+        .conteudo tr.atencao .selos-atencao { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
         .paginas { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; justify-content: flex-end; margin: 10px 0 16px; color: var(--suave); }
         .paginas a, .conteudo .paginas button, .paginas .atual, .paginas .mudo { display: inline-flex; align-items: center; justify-content: center; min-width: 34px; min-height: 32px; padding: 4px 8px; border: 1px solid var(--linha); border-radius: 4px; background: #fff; color: var(--azul); font: inherit; font-weight: 700; text-decoration: none; cursor: pointer; }
         .paginas .atual, .conteudo .paginas button[aria-current="page"] { background: var(--azul); color: #fff; border-color: var(--azul); }
