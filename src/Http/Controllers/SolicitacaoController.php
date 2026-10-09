@@ -8,6 +8,7 @@ use iEducar\Packages\BuritiTransporteEscolar\Support\AtendimentoSetor;
 use iEducar\Packages\BuritiTransporteEscolar\Support\Codigos;
 use iEducar\Packages\BuritiTransporteEscolar\Support\ComprovantePedido;
 use iEducar\Packages\BuritiTransporteEscolar\Support\ConferenciaPedido;
+use iEducar\Packages\BuritiTransporteEscolar\Support\HistoricoPedido;
 use iEducar\Packages\BuritiTransporteEscolar\Support\IdentidadeMunicipio;
 use iEducar\Packages\BuritiTransporteEscolar\Support\LocalizarEndereco;
 use iEducar\Packages\BuritiTransporteEscolar\Support\PdfSimples;
@@ -23,6 +24,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 use Illuminate\View\View;
 use RuntimeException;
@@ -69,8 +71,14 @@ class SolicitacaoController
         $nomesSerie = $series->pluck('nm_serie', 'cod_serie');
         $nomesTurma = $turmas->pluck('nm_turma', 'cod_turma');
 
+        $pedidos = $consulta->limit(80)->get();
+        $historicos = Schema::hasTable('transporte_escolar.solicitacao_historico')
+            ? DB::table('transporte_escolar.solicitacao_historico')->whereIn('solicitacao_id', $pedidos->pluck('id')->all() ?: [0])->orderBy('em')->get()->groupBy('solicitacao_id')
+            : collect();
+
         return view('transporte-escolar::solicitacoes.index', [
-            'pedidos' => $consulta->limit(80)->get(),
+            'pedidos' => $pedidos,
+            'historicos' => $historicos,
             'rede' => $escolas === null,
             'processos' => DB::table('transporte_escolar.processo_vaga as p')
                 ->leftJoin('transporte_escolar.processo_grupo as g', 'g.id', '=', 'p.grupo_id')
@@ -86,7 +94,7 @@ class SolicitacaoController
                 ->keyBy('processo_id'),
             'usoOferta' => DB::table('transporte_escolar.solicitacao')
                 ->whereNotNull('oferta_id')
-                ->selectRaw("oferta_id, count(*) as pedidos, count(*) filter (where situacao = 'deferida') as deferidos, count(*) filter (where situacao in ('recebida', 'em_analise', 'deferida')) as ocupadas")
+                ->selectRaw("oferta_id, count(*) as pedidos, count(*) filter (where situacao = 'deferida') as deferidos, count(*) filter (where situacao in ('recebida', 'em_analise', 'deferida', 'conferida')) as ocupadas")
                 ->groupBy('oferta_id')
                 ->get()
                 ->keyBy('oferta_id'),
@@ -343,7 +351,7 @@ class SolicitacaoController
             abort(404);
         }
 
-        $uso = DB::table('transporte_escolar.solicitacao')->where('oferta_id', $oferta)->selectRaw("count(*) as pedidos, count(*) filter (where situacao = 'deferida') as deferidos, count(*) filter (where situacao in ('recebida', 'em_analise', 'deferida')) as ocupadas")->first();
+        $uso = DB::table('transporte_escolar.solicitacao')->where('oferta_id', $oferta)->selectRaw("count(*) as pedidos, count(*) filter (where situacao = 'deferida') as deferidos, count(*) filter (where situacao in ('recebida', 'em_analise', 'deferida', 'conferida')) as ocupadas")->first();
         $pedidos = (int) ($uso->pedidos ?? 0);
         $processoId = $pedidos > 0 ? (int) $atual->processo_id : (int) $request->input('processo_id', $atual->processo_id);
         $rotaId = $pedidos > 0 ? (int) $atual->rota_id : (int) $request->input('rota_id', $atual->rota_id);
@@ -470,6 +478,13 @@ class SolicitacaoController
             'motivo_situacao' => trim((string) $request->input('motivo')) ?: null,
             'atualizado_em' => now(),
         ]);
+        $pedido->situacao = $proxima;
+        HistoricoPedido::registrar(
+            (int) $pedido->id,
+            $proxima,
+            HistoricoPedido::lugar($pedido, (string) DB::table('transporte_escolar.rota')->where('id', $pedido->rota_id)->value('descricao')),
+            trim((string) $request->input('motivo')) ?: null,
+        );
 
         return redirect('/transporte-escolar/solicitacoes')->with('ok', 'Situação do protocolo ' . $pedido->protocolo . ' atualizada.');
     }
@@ -535,13 +550,50 @@ class SolicitacaoController
             abort(404);
         }
 
-        $dados = $request->validate([
-            'aluno_id' => ['required', 'integer'],
-            'matricula_id' => ['required', 'integer'],
-            'rota_id' => ['required', 'integer'],
-            'turno' => ['required', 'in:manha,tarde,noite,integral'],
-            'documentos' => ['accepted'],
-        ]);
+        $alunoId = (int) $request->input('aluno_id');
+        $matriculaId = (int) $request->input('matricula_id');
+        $rotaId = (int) $request->input('rota_id');
+        $turno = (string) $request->input('turno');
+        $voltar = fn (string $mensagem) => redirect('/transporte-escolar/solicitacoes')->with('erro', $mensagem)->with('conferir', $solicitacao);
+
+        if ($alunoId < 1 || $matriculaId < 1) {
+            return $voltar('Escolha a matrícula na lista antes de conferir. Só marcar a documentação não inclui o aluno na rota.');
+        }
+
+        if (!isset(Codigos::PERIODO[$turno]) || $rotaId < 1) {
+            return $voltar('Escolha a rota e o turno para incluir o aluno.');
+        }
+
+        $exigidos = HistoricoPedido::exigidos(
+            Schema::hasColumn('transporte_escolar.processo_vaga', 'documentos_exigidos')
+                ? DB::table('transporte_escolar.processo_vaga')->where('id', $pedido->processo_id)->value('documentos_exigidos')
+                : null,
+        );
+        $marcados = array_map('strval', (array) $request->input('exigido', []));
+        $faltam = [];
+
+        if ($exigidos === []) {
+            if (!$request->boolean('documentos')) {
+                return $voltar('Assinale que a documentação foi conferida.');
+            }
+        } else {
+            foreach ($exigidos as $indice => $nome) {
+                if (!in_array((string) $indice, $marcados, true)) {
+                    $faltam[] = $nome;
+                }
+            }
+
+            if ($faltam !== []) {
+                return $voltar('Falta assinalar: ' . implode(', ', $faltam) . '.');
+            }
+        }
+
+        $dados = [
+            'aluno_id' => $alunoId,
+            'matricula_id' => $matriculaId,
+            'rota_id' => $rotaId,
+            'turno' => $turno,
+        ];
 
         $matricula = $this->matriculasDoPedido($pedido)
             ->where('a.cod_aluno', (int) $dados['aluno_id'])
@@ -549,7 +601,7 @@ class SolicitacaoController
             ->first();
 
         if ($matricula === null) {
-            return back()->with('erro', 'A matrícula escolhida não está ativa no ano do pedido.');
+            return $voltar('A matrícula escolhida não está ativa no ano do pedido.');
         }
 
         try {
@@ -569,17 +621,26 @@ class SolicitacaoController
                 (int) $dados['matricula_id'],
             );
         } catch (RuntimeException $e) {
-            return back()->with('erro', $e->getMessage());
+            return $voltar($e->getMessage());
         }
 
+        $rotaNome = (string) DB::table('transporte_escolar.rota')->where('id', $dados['rota_id'])->value('descricao');
         DB::table('transporte_escolar.solicitacao')->where('id', $pedido->id)->update([
+            'situacao' => SituacaoPedido::CONFERIDA,
             'ref_cod_aluno' => (int) $dados['aluno_id'],
             'vinculo_rota_id' => (int) $dados['rota_id'],
             'documentos_em' => now(),
             'atualizado_em' => now(),
         ]);
+        $pedido->situacao = SituacaoPedido::CONFERIDA;
+        HistoricoPedido::registrar(
+            (int) $pedido->id,
+            SituacaoPedido::CONFERIDA,
+            HistoricoPedido::lugar($pedido, $rotaNome),
+            $exigidos === [] ? 'Documentação conferida, sem rol obrigatório neste processo.' : 'Documentos assinalados: ' . implode(', ', $exigidos) . '.',
+        );
 
-        return redirect('/transporte-escolar/solicitacoes')->with('ok', 'Documentação conferida. O aluno entrou na rota.');
+        return redirect('/transporte-escolar/solicitacoes')->with('ok', 'Documentação conferida. O aluno entrou na rota ' . $rotaNome . '.');
     }
 
     private function temVaga(object $pedido): ?bool
@@ -596,7 +657,7 @@ class SolicitacaoController
 
         $ocupadas = (int) DB::table('transporte_escolar.solicitacao')
             ->where('oferta_id', $pedido->oferta_id)
-            ->whereIn('situacao', [SituacaoPedido::RECEBIDA, SituacaoPedido::ANALISE, SituacaoPedido::DEFERIDA])
+            ->whereIn('situacao', [SituacaoPedido::RECEBIDA, SituacaoPedido::ANALISE, SituacaoPedido::DEFERIDA, SituacaoPedido::CONFERIDA])
             ->count();
 
         return ProcessoVaga::cabe((int) $vagas, $ocupadas);
@@ -849,6 +910,10 @@ class SolicitacaoController
 
         if ($comGrupo) {
             $dados['grupo_id'] = $grupo?->id;
+
+            if (Schema::hasColumn('transporte_escolar.processo_vaga', 'documentos_exigidos')) {
+                $dados['documentos_exigidos'] = HistoricoPedido::gravarExigidos(preg_split('/\r\n|\r|\n/', (string) $request->input('documentos_exigidos')) ?: []);
+            }
         }
 
         $ids = $comGrupo

@@ -4,6 +4,7 @@ namespace iEducar\Packages\BuritiTransporteEscolar\Http\Controllers;
 
 use iEducar\Packages\BuritiTransporteEscolar\Providers\TransporteEscolarServiceProvider;
 use iEducar\Packages\BuritiTransporteEscolar\Support\AtendimentoSetor;
+use iEducar\Packages\BuritiTransporteEscolar\Support\HistoricoPedido;
 use iEducar\Packages\BuritiTransporteEscolar\Support\ComprovantePedido;
 use iEducar\Packages\BuritiTransporteEscolar\Support\NomeExibicao;
 use iEducar\Packages\BuritiTransporteEscolar\Support\PedidoFamilia;
@@ -64,7 +65,7 @@ class FamiliaPortalController
         } else {
             $ocupadas = (int) DB::table('transporte_escolar.solicitacao')
                 ->where('oferta_id', $oferta->id)
-                ->whereIn('situacao', ['recebida', 'em_analise', 'deferida'])
+                ->whereIn('situacao', ['recebida', 'em_analise', 'deferida', 'conferida'])
                 ->count();
 
             if (!ProcessoVaga::cabe((int) $oferta->vagas, $ocupadas)) {
@@ -108,7 +109,7 @@ class FamiliaPortalController
         $sequencia = (int) DB::table('transporte_escolar.solicitacao')->where('ano', $ano)->max('sequencia') + 1;
         $protocolo = ProtocoloSolicitacao::montar($ano, $sequencia);
 
-        DB::table('transporte_escolar.solicitacao')->insert([
+        $pedidoId = DB::table('transporte_escolar.solicitacao')->insertGetId([
             'ano' => $ano,
             'sequencia' => $sequencia,
             'protocolo' => $protocolo,
@@ -129,6 +130,7 @@ class FamiliaPortalController
             'pedido_em' => now(),
             'atualizado_em' => now(),
         ]);
+        HistoricoPedido::registrar($pedidoId, SituacaoPedido::RECEBIDA, 'Portal da família', null, 'Família');
 
         return redirect('/transporte-escolar/familia/protocolo')->with('protocolo_novo', $protocolo);
     }
@@ -238,6 +240,8 @@ class FamiliaPortalController
             'situacao' => $proxima,
             'atualizado_em' => now(),
         ]);
+        $pedido->situacao = $proxima;
+        HistoricoPedido::registrar((int) $pedido->id, $proxima, HistoricoPedido::lugar($pedido), null, 'Família');
 
         return redirect('/transporte-escolar/familia/protocolo')->with('ok', 'Pedido cancelado. Guarde o protocolo ' . $protocolo . '.');
     }
@@ -339,7 +343,7 @@ class FamiliaPortalController
 
         $ocupadas = DB::table('transporte_escolar.solicitacao')
             ->whereIn('oferta_id', $ofertas->pluck('id')->all() ?: [0])
-            ->whereIn('situacao', ['recebida', 'em_analise', 'deferida'])
+            ->whereIn('situacao', ['recebida', 'em_analise', 'deferida', 'conferida'])
             ->selectRaw('oferta_id, count(*) as n')
             ->groupBy('oferta_id')
             ->pluck('n', 'oferta_id');

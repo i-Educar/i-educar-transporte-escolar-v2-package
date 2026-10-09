@@ -14,6 +14,8 @@ final class SituacaoPedido
 
     public const DEFERIDA = 'deferida';
 
+    public const CONFERIDA = 'conferida';
+
     public const INDEFERIDA = 'indeferida';
 
     public const ESPERA = 'espera';
@@ -63,6 +65,7 @@ final class SituacaoPedido
             self::RECEBIDA => 'A secretaria recebeu o pedido e ainda não começou a análise.',
             self::ANALISE => 'A escola ou a secretaria está analisando o pedido.',
             self::DEFERIDA => 'O pedido foi aceito. A família leva os documentos ao setor de transporte.',
+            self::CONFERIDA => 'Documentação conferida. O aluno está na rota.',
             self::INDEFERIDA => 'O pedido não foi aceito.',
             self::ESPERA => 'O pedido foi analisado. Não há vaga nesta rota agora. O aluno está na lista de espera.',
             self::CANCELADA => 'A família cancelou o pedido.',

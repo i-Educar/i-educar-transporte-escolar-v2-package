@@ -10,7 +10,7 @@ final class AtendimentoSetor
 {
     public static function publicar(string $situacao): bool
     {
-        return $situacao === SituacaoPedido::DEFERIDA;
+        return in_array($situacao, [SituacaoPedido::DEFERIDA, SituacaoPedido::CONFERIDA], true);
     }
 
     /**

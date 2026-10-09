@@ -84,6 +84,7 @@ final class ProcessoVaga
             SituacaoPedido::RECEBIDA,
             SituacaoPedido::ANALISE,
             SituacaoPedido::DEFERIDA,
+            SituacaoPedido::CONFERIDA,
         ], true);
     }
 }

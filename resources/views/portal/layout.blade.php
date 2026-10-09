@@ -62,7 +62,7 @@
         .ok { background: var(--ok-fundo); color: var(--ok); }
         .protocolo { font-size: 1.45rem; letter-spacing: .04em; font-weight: 800; margin: 8px 0; }
         .selo { display: inline-block; border-radius: 999px; padding: 4px 10px; font-size: .85rem; font-weight: 700; background: var(--verde-claro); color: var(--verde); }
-        .selo.deferida { background: var(--ok-fundo); color: var(--ok); }
+        .selo.deferida, .selo.conferida { background: var(--ok-fundo); color: var(--ok); }
         .selo.indeferida, .selo.cancelada { background: var(--erro-fundo); color: var(--erro); }
         .selo.em_analise { background: var(--ambar-claro); color: var(--ambar); }
         footer { background: #fff; border-top: 1px solid var(--linha); }
