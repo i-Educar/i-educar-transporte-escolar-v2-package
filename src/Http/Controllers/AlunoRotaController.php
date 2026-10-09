@@ -8,6 +8,7 @@ use iEducar\Packages\BuritiTransporteEscolar\Support\FotoIdentificacao;
 use iEducar\Packages\BuritiTransporteEscolar\Support\Pagina;
 use iEducar\Packages\BuritiTransporteEscolar\Support\ResponsaveisAluno;
 use iEducar\Packages\BuritiTransporteEscolar\Support\VisaoRede;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -127,10 +128,43 @@ class AlunoRotaController
         return back()->with('ok', 'Vínculo do aluno atualizado.');
     }
 
+    public function buscar(Request $request): JsonResponse
+    {
+        $ano = (int) $request->input('ano', date('Y'));
+        $q = trim((string) $request->input('q', ''));
+        $digitos = preg_replace('/\D/', '', $q) ?? '';
+
+        if (mb_strlen($q) < 2) {
+            return response()->json(['alunos' => []]);
+        }
+
+        $linhas = RedeConsulta::matriculasAtivas($ano)
+            ->addSelect('m.cod_matricula')
+            ->where(function ($consulta) use ($q, $digitos) {
+                $consulta->where('p.nome', 'ilike', '%' . $q . '%');
+
+                if ($digitos !== '' && ctype_digit($digitos)) {
+                    $consulta->orWhere('m.cod_matricula', (int) $digitos)
+                        ->orWhereRaw("regexp_replace(coalesce(f.cpf::text, ''), '\\D', '', 'g') = ?", [$digitos]);
+                }
+            })
+            ->limit(8)
+            ->get();
+
+        return response()->json([
+            'alunos' => $linhas->map(static fn ($linha): array => [
+                'id' => (int) $linha->cod_aluno,
+                'matricula' => (int) $linha->cod_matricula,
+                'rotulo' => trim($linha->cod_matricula . ' · ' . $linha->nome . ' · ' . ($linha->escola ?: '') . ' · ' . ($linha->nm_serie ?: '') . ' ' . ($linha->nm_turma ?: '')),
+            ])->values(),
+        ]);
+    }
+
     public function store(Request $request): RedirectResponse
     {
         $dados = $request->validate([
             'aluno_id' => ['required', 'integer'],
+            'matricula_id' => ['nullable', 'integer'],
             'rota_id' => ['required', 'integer'],
             'turno' => ['required', 'in:manha,tarde,noite,integral'],
             'residencia_latitude' => ['nullable', 'numeric'],
@@ -145,6 +179,7 @@ class AlunoRotaController
                 $dados['turno'] ?? null,
                 isset($dados['residencia_latitude']) ? (float) $dados['residencia_latitude'] : null,
                 isset($dados['residencia_longitude']) ? (float) $dados['residencia_longitude'] : null,
+                isset($dados['matricula_id']) ? (int) $dados['matricula_id'] : null,
             );
         } catch (RuntimeException $e) {
             return back()->with('erro', $e->getMessage());

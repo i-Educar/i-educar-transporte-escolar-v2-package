@@ -9,7 +9,7 @@ use RuntimeException;
 
 final class AtribuicaoAluno
 {
-    public static function vincular(int $alunoId, int $rotaId, ?int $pontoId, ?string $turno, ?float $latitude = null, ?float $longitude = null): void
+    public static function vincular(int $alunoId, int $rotaId, ?int $pontoId, ?string $turno, ?float $latitude = null, ?float $longitude = null, ?int $matriculaId = null): void
     {
         $rota = DB::table('transporte_escolar.rota')->where('id', $rotaId)->first();
 
@@ -17,9 +17,13 @@ final class AtribuicaoAluno
             throw new RuntimeException('Rota não encontrada.');
         }
 
-        $matricula = RedeConsulta::matriculasAtivas((int) $rota->ano)
-            ->where('a.cod_aluno', $alunoId)
-            ->first();
+        $matriculas = RedeConsulta::matriculasAtivas((int) $rota->ano)->where('a.cod_aluno', $alunoId);
+
+        if ($matriculaId !== null && $matriculaId > 0) {
+            $matriculas->where('m.cod_matricula', $matriculaId);
+        }
+
+        $matricula = $matriculas->first();
 
         if ($matricula === null) {
             throw new RuntimeException('O aluno não tem matrícula ativa neste ano na escola que você pode ver.');

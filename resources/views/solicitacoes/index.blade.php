@@ -394,11 +394,20 @@
                     <td>{{ $pedido->protocolo }}</td>
                     <td>{{ $pedido->nome_aluno }}</td>
                     <td>{{ $pedido->escola_informada }}</td>
-                    <td>{{ \iEducar\Packages\BuritiTransporteEscolar\Support\SituacaoPedido::frase($pedido->situacao) }}</td>
+                    <td>
+                        @if(!empty($pedido->documentos_em))
+                            Documentação conferida. Aluno na rota {{ $pedido->rota_vinculada ?: 'informada' }}.
+                        @else
+                            {{ \iEducar\Packages\BuritiTransporteEscolar\Support\SituacaoPedido::frase($pedido->situacao) }}
+                        @endif
+                    </td>
                     <td class="acoes">
                         @php $segue = \iEducar\Packages\BuritiTransporteEscolar\Support\ProcessoVaga::recebePedido($pedido->situacao_processo ?? null, $pedido->situacao_grupo ?? null, $pedido->situacao_oferta ?? null); @endphp
                         <button type="button" class="icone ver" data-abre-modal="pedido-{{ $pedido->id }}" aria-label="Ver protocolo" title="Ver protocolo"><i class="fa fa-eye" aria-hidden="true"></i></button>
                         <a class="icone imprimir" href="{{ url('/transporte-escolar/solicitacoes/'.$pedido->id.'/pdf') }}" aria-label="Imprimir" title="Imprimir"><i class="fa fa-print" aria-hidden="true"></i></a>
+                        @if($rede && $pedido->situacao === 'deferida')
+                            <button type="button" class="icone editar" data-abre-modal="pedido-{{ $pedido->id }}" aria-label="Conferir documentação" title="Conferir documentação"><i class="fa fa-file-text-o" aria-hidden="true"></i></button>
+                        @endif
                         @if($segue && $pedido->situacao === 'recebida')
                             <form method="post" action="{{ url('/transporte-escolar/solicitacoes/'.$pedido->id) }}">
                                 @csrf
@@ -461,7 +470,10 @@
                     <div><dt>Escola</dt><dd>{{ $pedido->escola_informada }}</dd></div>
                     <div><dt>Turno</dt><dd>{{ $turno }}</dd></div>
                     <div><dt>Processo</dt><dd>{{ $pedido->processo ?: '—' }}</dd></div>
-                    <div><dt>Rota</dt><dd>{{ $pedido->rota ?: '—' }}</dd></div>
+                    <div><dt>Rota pedida</dt><dd>{{ $pedido->rota ?: '—' }}</dd></div>
+                    @if(!empty($pedido->documentos_em))
+                        <div class="largo"><dt>Inclusão na rota</dt><dd>Documentação conferida. Aluno na rota {{ $pedido->rota_vinculada ?: 'informada' }}.</dd></div>
+                    @endif
                     <div><dt>Série</dt><dd>{{ $pedido->nm_serie ?: '—' }}</dd></div>
                     <div><dt>Turma</dt><dd>{{ $pedido->nm_turma ?: '—' }}</dd></div>
                     @if($pedido->motivo_situacao)
@@ -489,9 +501,97 @@
                         </div>
                     </form>
                 @endif
+                @if($rede && $pedido->situacao === 'deferida')
+                    <div data-conferencia data-url="{{ url('/transporte-escolar/solicitacoes/'.$pedido->id.'/matriculas') }}">
+                        <h3 style="margin:16px 18px 0;">Conferir documentação e incluir na rota</h3>
+                        <p class="lead" style="padding:0 18px;">Localize a matrícula do ano do pedido. O quadro abaixo diz se há divergência com o que a família pediu.</p>
+                        @if(!empty($pedido->documentos_em))
+                            <p class="lead" style="padding:0 18px;">Este protocolo já foi conferido. Uma nova inclusão troca a rota gravada neste pedido.</p>
+                        @endif
+                        <p><label>Nome, matrícula ou CPF <input data-q value="{{ $pedido->nome_aluno }}"></label></p>
+                        <p><button type="button" class="botao claro" data-buscar>Buscar matrícula</button></p>
+                        <div data-lista></div>
+                        <div data-avisos class="lead" style="padding:0 18px;"></div>
+                        <form method="post" action="{{ url('/transporte-escolar/solicitacoes/'.$pedido->id.'/vincular') }}">
+                            @csrf
+                            <input type="hidden" name="aluno_id" value="{{ $pedido->ref_cod_aluno }}">
+                            <input type="hidden" name="matricula_id" value="">
+                            <p><label>Rota
+                                <select name="rota_id" required>
+                                    @foreach($rotas->unique('id') as $rota)
+                                        @if((int) $rota->ano === (int) $pedido->ano)
+                                            <option value="{{ $rota->id }}" @selected((int) ($pedido->vinculo_rota_id ?: $pedido->rota_id) === (int) $rota->id)>{{ $rota->ano }} · {{ $rota->descricao }}</option>
+                                        @endif
+                                    @endforeach
+                                </select>
+                            </label></p>
+                            <p><label>Turno
+                                <select name="turno" required>
+                                    @foreach(\iEducar\Packages\BuritiTransporteEscolar\Support\Codigos::PERIODO as $codigo => $rotulo)
+                                        <option value="{{ $codigo }}" @selected($pedido->turno === $codigo)>{{ $rotulo }}</option>
+                                    @endforeach
+                                </select>
+                            </label></p>
+                            <p><label><input type="checkbox" name="documentos" value="1" required> Documentação conferida no setor</label></p>
+                            <button type="submit">Incluir na rota</button>
+                        </form>
+                    </div>
+                @endif
             </div>
         </dialog>
     @endforeach
+    <script>
+        document.querySelectorAll('[data-conferencia]').forEach(function (bloco) {
+            var lista = bloco.querySelector('[data-lista]');
+            var avisos = bloco.querySelector('[data-avisos]');
+            var aluno = bloco.querySelector('[name=aluno_id]');
+            var matricula = bloco.querySelector('[name=matricula_id]');
+            var rota = bloco.querySelector('[name=rota_id]');
+            var turno = bloco.querySelector('[name=turno]');
+            function endereco(extra) {
+                return bloco.getAttribute('data-url') + '?' + extra + '&rota_id=' + encodeURIComponent(rota.value || '') + '&turno=' + encodeURIComponent(turno.value || '');
+            }
+            function pintar(item) {
+                aluno.value = item.id || '';
+                matricula.value = item.matricula || '';
+                avisos.innerHTML = '';
+                (item.avisos || []).forEach(function (texto) {
+                    var p = document.createElement('p');
+                    p.textContent = texto;
+                    avisos.appendChild(p);
+                });
+            }
+            bloco.querySelector('[data-buscar]').addEventListener('click', function () {
+                lista.innerHTML = '';
+                fetch(endereco('q=' + encodeURIComponent(bloco.querySelector('[data-q]').value || '')), { headers: { 'Accept': 'application/json' } })
+                    .then(function (resposta) { return resposta.json(); })
+                    .then(function (dados) {
+                        if (!dados.alunos || !dados.alunos.length) {
+                            lista.textContent = 'Nenhuma matrícula ativa encontrada neste ano.';
+                            return;
+                        }
+                        dados.alunos.forEach(function (item) {
+                            var botao = document.createElement('button');
+                            botao.type = 'button';
+                            botao.className = 'botao claro';
+                            botao.style.display = 'block';
+                            botao.style.margin = '0 18px 8px';
+                            botao.textContent = item.rotulo + (item.ok ? ' · sem divergência' : ' · com divergência');
+                            botao.addEventListener('click', function () { pintar(item); });
+                            lista.appendChild(botao);
+                        });
+                    });
+            });
+            function atualizar() {
+                if (!aluno.value) return;
+                fetch(endereco('aluno_id=' + encodeURIComponent(aluno.value) + '&matricula_id=' + encodeURIComponent(matricula.value || '')), { headers: { 'Accept': 'application/json' } })
+                    .then(function (resposta) { return resposta.json(); })
+                    .then(pintar);
+            }
+            rota.addEventListener('change', atualizar);
+            turno.addEventListener('change', atualizar);
+        });
+    </script>
     @if($rede)
         @foreach($grupos as $grupo)
             <dialog class="modal" id="ver-grupo-{{ $grupo->id }}">

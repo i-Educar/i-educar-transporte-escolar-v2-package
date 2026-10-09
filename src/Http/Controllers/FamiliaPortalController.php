@@ -247,6 +247,10 @@ class FamiliaPortalController
         $pedido->aluno_publico = NomeExibicao::exibir((string) $pedido->nome_aluno, false);
         $pedido->escola_publica = NomeExibicao::exibir((string) $pedido->escola_informada, false);
 
+        if (!empty($pedido->vinculo_rota_id) && empty($pedido->rota_vinculada)) {
+            $pedido->rota_vinculada = (string) DB::table('transporte_escolar.rota')->where('id', $pedido->vinculo_rota_id)->value('descricao');
+        }
+
         if (trim((string) ($pedido->contato_escola ?? '')) === '') {
             $pedido->contato_escola = (string) DB::table('pmieducar.escola as e')
                 ->leftJoin('cadastro.pessoa as p', 'p.idpes', '=', 'e.ref_idpes_gestor')

@@ -22,6 +22,7 @@
         <input type="hidden" name="q" value="{{ $busca }}">
         <button type="submit" class="botao claro" name="modo" value="selecionadas"><i class="fa fa-id-card" aria-hidden="true"></i> Emitir selecionadas</button>
         <button type="submit" class="botao claro" name="modo" value="todas"><i class="fa fa-id-card" aria-hidden="true"></i> Emitir todas</button>
+        <button type="button" class="botao" data-abre-modal="incluir-aluno"><i class="fa fa-user-plus" aria-hidden="true"></i> Incluir aluno</button>
     </form>
 
     <div data-painel>
@@ -123,5 +124,77 @@
             </form>
         </dialog>
     @endforeach
+
+    <dialog class="modal" id="incluir-aluno">
+        <div class="modal-cabeca">
+            <h2>Incluir aluno na rota</h2>
+            <button type="button" data-fecha-modal aria-label="Fechar">&times;</button>
+        </div>
+        <div data-incluir-aluno data-url="{{ url('/transporte-escolar/alunos/busca') }}" data-ano="{{ $ano }}">
+            <p class="lead" style="padding:0 18px;">Busque uma matrícula ativa deste ano. A rota precisa atender a escola dessa matrícula.</p>
+            <p><label>Nome, matrícula ou CPF <input data-q placeholder="Digite ao menos 2 caracteres"></label></p>
+            <p><button type="button" class="botao claro" data-buscar>Buscar matrícula</button></p>
+            <div data-lista></div>
+            <form method="post" action="{{ url('/transporte-escolar/alunos') }}">
+                @csrf
+                <input type="hidden" name="aluno_id" value="">
+                <input type="hidden" name="matricula_id" value="">
+                <p data-escolhido class="lead" style="padding:0 18px;">Nenhuma matrícula escolhida.</p>
+                <label>Rota
+                    <select name="rota_id" required>
+                        <option value="">Escolha a rota</option>
+                        @foreach($rotas as $rota)
+                            <option value="{{ $rota->id }}">{{ $rota->descricao }}</option>
+                        @endforeach
+                    </select>
+                </label>
+                <label>Turno
+                    <select name="turno" required>
+                        <option value="">Escolha o turno</option>
+                        @foreach(\iEducar\Packages\BuritiTransporteEscolar\Support\Codigos::PERIODO as $codigo => $rotulo)
+                            <option value="{{ $codigo }}">{{ $rotulo }}</option>
+                        @endforeach
+                    </select>
+                </label>
+                <button type="submit">Incluir na rota</button>
+            </form>
+        </div>
+    </dialog>
+    <script>
+        (function () {
+            var bloco = document.querySelector('[data-incluir-aluno]');
+            if (!bloco) return;
+            var lista = bloco.querySelector('[data-lista]');
+            var escolhido = bloco.querySelector('[data-escolhido]');
+            var aluno = bloco.querySelector('[name=aluno_id]');
+            var matricula = bloco.querySelector('[name=matricula_id]');
+            bloco.querySelector('[data-buscar]').addEventListener('click', function () {
+                var q = bloco.querySelector('[data-q]').value || '';
+                lista.innerHTML = '';
+                fetch(bloco.getAttribute('data-url') + '?ano=' + encodeURIComponent(bloco.getAttribute('data-ano')) + '&q=' + encodeURIComponent(q), { headers: { 'Accept': 'application/json' } })
+                    .then(function (resposta) { return resposta.json(); })
+                    .then(function (dados) {
+                        if (!dados.alunos || !dados.alunos.length) {
+                            lista.textContent = 'Nenhuma matrícula ativa encontrada.';
+                            return;
+                        }
+                        dados.alunos.forEach(function (item) {
+                            var botao = document.createElement('button');
+                            botao.type = 'button';
+                            botao.className = 'botao claro';
+                            botao.style.display = 'block';
+                            botao.style.margin = '0 18px 8px';
+                            botao.textContent = item.rotulo;
+                            botao.addEventListener('click', function () {
+                                aluno.value = item.id;
+                                matricula.value = item.matricula;
+                                escolhido.textContent = item.rotulo;
+                            });
+                            lista.appendChild(botao);
+                        });
+                    });
+            });
+        }());
+    </script>
 
 @endsection

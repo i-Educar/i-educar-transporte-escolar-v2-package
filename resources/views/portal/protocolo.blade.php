@@ -31,7 +31,10 @@
             @if(!empty($pedido->contato_escola))<p>Responsável da escola: {{ $pedido->contato_escola }}</p>@endif
             @if(!empty($pedido->contato_setor))<p>Setor de transporte: {{ $pedido->contato_setor }}</p>@endif
             @if($pedido->motivo_situacao)<p>{{ $pedido->motivo_situacao }}</p>@endif
-            @if(\iEducar\Packages\BuritiTransporteEscolar\Support\AtendimentoSetor::publicar($pedido->situacao))
+            @if(\iEducar\Packages\BuritiTransporteEscolar\Support\AtendimentoSetor::publicar($pedido->situacao) && !empty($pedido->documentos_em))
+                <h2>Documentação conferida</h2>
+                <p>O aluno foi incluído na rota {{ $pedido->rota_vinculada ?: 'de transporte escolar' }}.</p>
+            @elseif(\iEducar\Packages\BuritiTransporteEscolar\Support\AtendimentoSetor::publicar($pedido->situacao))
                 <h2>Leve os documentos ao setor de {{ $atendimento['setor'] }}</h2>
                 <p>O pedido foi aceito. A inclusão na rota acontece depois que a família apresenta os documentos nesse setor.</p>
                 @if($atendimento['documentos'] !== '')

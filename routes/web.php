@@ -49,6 +49,7 @@ Route::prefix('transporte-escolar')->group(function () {
     Route::post('/motoristas/carteirinhas', [CarteirinhaController::class, 'motoristas'])->middleware('transporte.processo:' . Processos::MOTORISTAS . ',ver');
     Route::post('/monitores/carteirinhas', [CarteirinhaController::class, 'monitores'])->middleware('transporte.processo:' . Processos::MONITORES . ',ver');
     Route::post('/alunos/carteirinhas', [CarteirinhaController::class, 'alunos'])->middleware('transporte.processo:' . Processos::ALUNOS . ',ver');
+    Route::get('/alunos/busca', [AlunoRotaController::class, 'buscar'])->middleware('transporte.processo:' . Processos::ALUNOS . ',ver');
     Route::get('/alunos', [AlunoRotaController::class, 'index'])->middleware('transporte.processo:' . Processos::ALUNOS . ',ver');
     Route::post('/alunos', [AlunoRotaController::class, 'store'])->middleware('transporte.processo:' . Processos::ALUNOS . ',gravar');
     Route::post('/alunos/atualizar', [AlunoRotaController::class, 'atualizar'])->middleware('transporte.processo:' . Processos::ALUNOS . ',gravar');
@@ -132,6 +133,8 @@ Route::prefix('transporte-escolar')->group(function () {
     Route::post('/solicitacoes/oferta', [SolicitacaoController::class, 'oferta'])->middleware('transporte.processo:' . Processos::SOLICITACOES . ',gravar');
     Route::post('/solicitacoes/oferta/{oferta}/situacao', [SolicitacaoController::class, 'situacaoOferta'])->middleware('transporte.processo:' . Processos::SOLICITACOES . ',gravar');
     Route::post('/solicitacoes/oferta/{oferta}', [SolicitacaoController::class, 'editarOferta'])->middleware('transporte.processo:' . Processos::SOLICITACOES . ',gravar');
+    Route::get('/solicitacoes/{solicitacao}/matriculas', [SolicitacaoController::class, 'matriculas'])->middleware('transporte.processo:' . Processos::SOLICITACOES . ',ver');
+    Route::post('/solicitacoes/{solicitacao}/vincular', [SolicitacaoController::class, 'vincular'])->middleware('transporte.processo:' . Processos::SOLICITACOES . ',gravar');
     Route::post('/solicitacoes/{solicitacao}', [SolicitacaoController::class, 'situacao'])->middleware('transporte.processo:' . Processos::SOLICITACOES . ',gravar');
     Route::get('/solicitacoes/{solicitacao}/pdf', [SolicitacaoController::class, 'pdf'])->middleware('transporte.processo:' . Processos::SOLICITACOES . ',ver');
     Route::get('/solicitacoes/{solicitacao}/proximos', [SolicitacaoController::class, 'proximos'])->middleware('transporte.processo:' . Processos::SOLICITACOES . ',ver');

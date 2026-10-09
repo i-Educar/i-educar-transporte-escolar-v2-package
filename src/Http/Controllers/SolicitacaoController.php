@@ -2,9 +2,12 @@
 
 namespace iEducar\Packages\BuritiTransporteEscolar\Http\Controllers;
 
+use iEducar\Packages\BuritiTransporteEscolar\Services\AtribuicaoAluno;
+use iEducar\Packages\BuritiTransporteEscolar\Services\RedeConsulta;
 use iEducar\Packages\BuritiTransporteEscolar\Support\AtendimentoSetor;
 use iEducar\Packages\BuritiTransporteEscolar\Support\Codigos;
 use iEducar\Packages\BuritiTransporteEscolar\Support\ComprovantePedido;
+use iEducar\Packages\BuritiTransporteEscolar\Support\ConferenciaPedido;
 use iEducar\Packages\BuritiTransporteEscolar\Support\IdentidadeMunicipio;
 use iEducar\Packages\BuritiTransporteEscolar\Support\LocalizarEndereco;
 use iEducar\Packages\BuritiTransporteEscolar\Support\PdfSimples;
@@ -22,6 +25,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\View\View;
+use RuntimeException;
 use Symfony\Component\HttpFoundation\Response;
 
 class SolicitacaoController
@@ -31,13 +35,14 @@ class SolicitacaoController
         $escolas = VisaoRede::escolas();
         $consulta = DB::table('transporte_escolar.solicitacao as s')
             ->leftJoin('transporte_escolar.rota as r', 'r.id', '=', 's.rota_id')
+            ->leftJoin('transporte_escolar.rota as rv', 'rv.id', '=', 's.vinculo_rota_id')
             ->leftJoin('transporte_escolar.processo_vaga as pv', 'pv.id', '=', 's.processo_id')
             ->leftJoin('transporte_escolar.processo_grupo as pg', 'pg.id', '=', 'pv.grupo_id')
             ->leftJoin('transporte_escolar.processo_vaga_oferta as of', 'of.id', '=', 's.oferta_id')
             ->leftJoin('pmieducar.serie as ser', 'ser.cod_serie', '=', 's.ref_cod_serie')
             ->leftJoin('pmieducar.turma as tur', 'tur.cod_turma', '=', 's.ref_cod_turma')
             ->orderByDesc('s.id')
-            ->select(['s.*', 'r.descricao as rota', 'pv.nome as processo', 'pv.situacao as situacao_processo', 'pg.situacao as situacao_grupo', 'of.situacao as situacao_oferta', 'ser.nm_serie', 'tur.nm_turma']);
+            ->select(['s.*', 'r.descricao as rota', 'rv.descricao as rota_vinculada', 'pv.nome as processo', 'pv.situacao as situacao_processo', 'pg.situacao as situacao_grupo', 'of.situacao as situacao_oferta', 'ser.nm_serie', 'tur.nm_turma']);
 
         if ($escolas === []) {
             $consulta->whereRaw('1 = 0');
@@ -451,6 +456,161 @@ class SolicitacaoController
         ]);
 
         return redirect('/transporte-escolar/solicitacoes')->with('ok', 'Situação do protocolo ' . $pedido->protocolo . ' atualizada.');
+    }
+
+    public function matriculas(Request $request, int $solicitacao): JsonResponse
+    {
+        $pedido = $this->pedidoRede($solicitacao);
+
+        if ($pedido === null || $pedido->situacao !== SituacaoPedido::DEFERIDA) {
+            abort(404);
+        }
+
+        $rotaId = (int) $request->input('rota_id', $pedido->rota_id);
+        $turno = (string) $request->input('turno', $pedido->turno);
+        $alunoId = (int) $request->input('aluno_id', 0);
+        $matriculaId = (int) $request->input('matricula_id', 0);
+
+        if ($alunoId > 0) {
+            $escolhida = $this->matriculasDoPedido($pedido)->where('a.cod_aluno', $alunoId);
+
+            if ($matriculaId > 0) {
+                $escolhida->where('m.cod_matricula', $matriculaId);
+            }
+
+            $matricula = $escolhida->first();
+
+            if ($matricula === null) {
+                return response()->json(['ok' => false, 'avisos' => ['Não há matrícula ativa deste aluno no ano do pedido.']]);
+            }
+
+            return response()->json($this->leitura($pedido, $matricula, $rotaId, $turno));
+        }
+
+        $q = trim((string) $request->input('q', ''));
+        $digitos = preg_replace('/\D/', '', $q) ?? '';
+
+        if (mb_strlen($q) < 2) {
+            return response()->json(['alunos' => []]);
+        }
+
+        $linhas = $this->matriculasDoPedido($pedido)
+            ->where(function ($consulta) use ($q, $digitos) {
+                $consulta->where('p.nome', 'ilike', '%' . $q . '%');
+
+                if ($digitos !== '' && ctype_digit($digitos)) {
+                    $consulta->orWhere('m.cod_matricula', (int) $digitos)
+                        ->orWhereRaw("regexp_replace(coalesce(f.cpf::text, ''), '\\D', '', 'g') = ?", [$digitos]);
+                }
+            })
+            ->limit(8)
+            ->get();
+
+        return response()->json([
+            'alunos' => $linhas->map(fn ($linha): array => $this->leitura($pedido, $linha, $rotaId, $turno))->values(),
+        ]);
+    }
+
+    public function vincular(Request $request, int $solicitacao): RedirectResponse
+    {
+        $pedido = $this->pedidoRede($solicitacao);
+
+        if ($pedido === null || $pedido->situacao !== SituacaoPedido::DEFERIDA) {
+            abort(404);
+        }
+
+        $dados = $request->validate([
+            'aluno_id' => ['required', 'integer'],
+            'matricula_id' => ['required', 'integer'],
+            'rota_id' => ['required', 'integer'],
+            'turno' => ['required', 'in:manha,tarde,noite,integral'],
+            'documentos' => ['accepted'],
+        ]);
+
+        $matricula = $this->matriculasDoPedido($pedido)
+            ->where('a.cod_aluno', (int) $dados['aluno_id'])
+            ->where('m.cod_matricula', (int) $dados['matricula_id'])
+            ->first();
+
+        if ($matricula === null) {
+            return back()->with('erro', 'A matrícula escolhida não está ativa no ano do pedido.');
+        }
+
+        try {
+            $rotaAnterior = (int) ($pedido->vinculo_rota_id ?? 0);
+
+            if ($rotaAnterior > 0 && $rotaAnterior !== (int) $dados['rota_id'] && (int) ($pedido->ref_cod_aluno ?? 0) === (int) $dados['aluno_id']) {
+                AtribuicaoAluno::desvincular((int) $dados['aluno_id'], $rotaAnterior);
+            }
+
+            AtribuicaoAluno::vincular(
+                (int) $dados['aluno_id'],
+                (int) $dados['rota_id'],
+                null,
+                $dados['turno'],
+                null,
+                null,
+                (int) $dados['matricula_id'],
+            );
+        } catch (RuntimeException $e) {
+            return back()->with('erro', $e->getMessage());
+        }
+
+        DB::table('transporte_escolar.solicitacao')->where('id', $pedido->id)->update([
+            'ref_cod_aluno' => (int) $dados['aluno_id'],
+            'vinculo_rota_id' => (int) $dados['rota_id'],
+            'documentos_em' => now(),
+            'atualizado_em' => now(),
+        ]);
+
+        return redirect('/transporte-escolar/solicitacoes')->with('ok', 'Documentação conferida. O aluno entrou na rota.');
+    }
+
+    private function pedidoRede(int $solicitacao): ?object
+    {
+        if (VisaoRede::escolas() !== null) {
+            abort(403, 'Só o setor de transporte confere a documentação e inclui o aluno na rota.');
+        }
+
+        return DB::table('transporte_escolar.solicitacao')->where('id', $solicitacao)->first();
+    }
+
+    private function matriculasDoPedido(object $pedido)
+    {
+        return RedeConsulta::matriculasAtivas((int) $pedido->ano)
+            ->addSelect(['m.cod_matricula', 'f.data_nasc', 'm.ref_ref_cod_serie as cod_serie', 'mt.ref_cod_turma as cod_turma']);
+    }
+
+    /**
+     * @return array{id: int, matricula: int, rotulo: string, ok: bool, avisos: list<string>}
+     */
+    private function leitura(object $pedido, object $matricula, int $rotaId, string $turno): array
+    {
+        $rota = DB::table('transporte_escolar.rota')->where('id', $rotaId)->first();
+
+        if ($rota !== null) {
+            $rota->escolas = DB::table('transporte_escolar.rota_escola')->where('rota_id', $rota->id)->pluck('ref_cod_escola')->map(static fn ($id): int => (int) $id)->all();
+        }
+
+        $atuais = DB::table('transporte_escolar.aluno_rota as ar')
+            ->join('transporte_escolar.rota as r', 'r.id', '=', 'ar.rota_id')
+            ->where('ar.ref_cod_aluno', $matricula->cod_aluno)
+            ->where('ar.ano', (int) $pedido->ano)
+            ->pluck('r.descricao')
+            ->all();
+        $avisos = ConferenciaPedido::avisos($pedido, $matricula, $rota, $turno, $atuais);
+
+        if ($avisos === []) {
+            $avisos[] = 'Nenhuma divergência entre o pedido, a matrícula e a rota.';
+        }
+
+        return [
+            'id' => (int) $matricula->cod_aluno,
+            'matricula' => (int) $matricula->cod_matricula,
+            'rotulo' => trim($matricula->cod_matricula . ' · ' . $matricula->nome . ' · ' . ($matricula->escola ?: '') . ' · ' . ($matricula->nm_serie ?: '') . ' ' . ($matricula->nm_turma ?: '')),
+            'ok' => count($avisos) === 1 && str_starts_with($avisos[0], 'Nenhuma'),
+            'avisos' => $avisos,
+        ];
     }
 
     public function pdf(int $solicitacao): Response
