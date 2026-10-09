@@ -11,13 +11,21 @@
     <style>
         .painel-tela { display: grid; gap: 12px; }
         .painel-kpis { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; margin: 0; align-items: stretch; }
-        .kpi-coluna { display: flex; flex-direction: column; min-width: 0; position: relative; overflow: hidden; background: linear-gradient(180deg, color-mix(in srgb, var(--cor, var(--azul)) 9%, #fff), #fff 88px); border: 1px solid color-mix(in srgb, var(--cor, var(--azul)) 28%, #d5e2ea); border-radius: 14px; padding: 16px 16px 14px; box-shadow: 0 8px 22px rgba(21, 34, 43, .04); }
+        .kpi-coluna { display: flex; flex-direction: column; min-width: 0; position: relative; overflow: visible; background: linear-gradient(180deg, color-mix(in srgb, var(--cor, var(--azul)) 9%, #fff), #fff 62px); border: 1px solid color-mix(in srgb, var(--cor, var(--azul)) 28%, #d5e2ea); border-radius: 14px; padding: 11px 16px 10px; box-shadow: 0 8px 22px rgba(21, 34, 43, .04); }
         .kpi-coluna header { display: flex; align-items: center; gap: 8px; margin: 0; color: var(--suave); font-size: .68rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; line-height: 1.25; }
-        .kpi-coluna header i { width: 32px; height: 32px; border-radius: 10px; display: grid; place-items: center; flex: none; color: var(--cor, var(--azul)); background: #fff; border: 1px solid color-mix(in srgb, var(--cor, var(--azul)) 22%, #e6edf2); box-shadow: 0 4px 10px color-mix(in srgb, var(--cor, var(--azul)) 16%, transparent); }
-        .kpi-coluna .geral { margin: 14px 0 0; font-size: 2rem; font-weight: 800; letter-spacing: -.04em; line-height: .95; color: var(--tinta); font-variant-numeric: tabular-nums; }
-        .kpi-coluna .geral small { display: block; margin-top: 6px; color: var(--cor, var(--azul)); font-size: .66rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
-        .kpi-coluna ul { list-style: none; display: grid; gap: 6px; margin: 14px 0 0; padding: 0; overflow: auto; max-height: 220px; }
-        .kpi-coluna li { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 10px; align-items: center; padding: 8px 10px; border: 1px solid color-mix(in srgb, var(--cor, var(--azul)) 18%, #e3ebf0); border-radius: 8px; background: color-mix(in srgb, var(--cor, var(--azul)) 7%, #fff); font-size: .76rem; }
+        .kpi-coluna header i { width: 26px; height: 26px; border-radius: 8px; display: grid; place-items: center; flex: none; color: var(--cor, var(--azul)); background: #fff; border: 1px solid color-mix(in srgb, var(--cor, var(--azul)) 22%, #e6edf2); box-shadow: 0 4px 10px color-mix(in srgb, var(--cor, var(--azul)) 16%, transparent); }
+        .kpi-coluna .geral { margin: 8px 0 0; font-size: 1.65rem; font-weight: 800; letter-spacing: -.04em; line-height: .95; color: var(--tinta); font-variant-numeric: tabular-nums; }
+        .kpi-coluna .geral small { display: block; margin-top: 4px; color: var(--cor, var(--azul)); font-size: .66rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+        .kpi-coluna ul { list-style: none; display: grid; gap: 4px; margin: 8px 0 0; padding: 0; }
+        .kpi-coluna li { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 10px; align-items: center; padding: 5px 8px; border: 1px solid color-mix(in srgb, var(--cor, var(--azul)) 18%, #e3ebf0); border-radius: 8px; background: color-mix(in srgb, var(--cor, var(--azul)) 7%, #fff); font-size: .72rem; }
+        .kpi-colunas { display: flex; align-items: flex-end; gap: 6px; height: 108px; margin: 8px 0 0; }
+        .kpi-barra { position: relative; flex: 1 1 0; min-width: 0; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; gap: 4px; outline: none; }
+        .kpi-barra .haste { width: min(16px, 100%); flex: 1; display: flex; align-items: flex-end; background: color-mix(in srgb, var(--cor, var(--azul)) 12%, #eef3f6); border-radius: 5px; overflow: hidden; }
+        .kpi-barra .haste i { display: block; width: 100%; min-height: 4px; background: var(--cor, var(--azul)); border-radius: 5px 5px 0 0; }
+        .kpi-barra em { font-style: normal; font-size: .62rem; line-height: 1; color: var(--suave); max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: center; }
+        .kpi-dica { display: none; position: absolute; z-index: 8; left: 50%; bottom: calc(100% + 6px); transform: translateX(-50%); width: max-content; max-width: 220px; background: #15222b; color: #fff; border-radius: 6px; padding: 6px 8px; font-size: .72rem; line-height: 1.35; box-shadow: 0 8px 18px rgba(21, 34, 43, .2); pointer-events: none; }
+        .kpi-dica strong { display: block; color: #fff; font-weight: 700; }
+        .kpi-barra:hover .kpi-dica, .kpi-barra:focus .kpi-dica, .kpi-barra:focus-visible .kpi-dica { display: block; }
         .kpi-coluna li span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--suave); }
         .kpi-coluna li strong { justify-self: end; color: var(--tinta); font-weight: 800; font-variant-numeric: tabular-nums; }
         .kpi-faixa { grid-column: 1 / -1; height: 4px; border-radius: 99px; background: #eef2f5; overflow: hidden; }
@@ -83,29 +91,58 @@
                 <article class="kpi-coluna" style="--cor: {{ $cores[$cartao['tom']] ?? '#1f4e66' }}">
                     <header><i class="fa {{ $cartao['icone'] }}" aria-hidden="true"></i> {{ $cartao['rotulo'] }}</header>
                     <p class="geral">{{ $cartao['valor'] }} <small>Total</small></p>
-                    <ul>
-                        @forelse($cartao['itens'] as $item)
-                            @php
-                                $texto = trim((string) $item['valor']);
-                                $parte = preg_match('/^\d+(?:[.,]\d+)?$/', $texto) === 1
-                                    ? (float) str_replace(',', '.', $texto)
+                    @if(count($cartao['itens']) > 4)
+                        @php
+                            $medidas = array_map(static function (array $item): ?float {
+                                return preg_match('/\d+(?:[.,]\d+)?/', (string) $item['valor'], $achado) === 1
+                                    ? (float) str_replace(',', '.', $achado[0])
                                     : null;
-                                $tetoCard = is_numeric($cartao['valor']) ? (float) $cartao['valor'] : 0;
-                                $largura = $parte !== null && $tetoCard > 0
-                                    ? min(100, max(4, (int) round($parte / $tetoCard * 100)))
-                                    : null;
-                            @endphp
-                            <li>
-                                <span>{{ $item['rotulo'] }}</span>
-                                <strong>{{ $item['valor'] }}</strong>
-                                @if($largura !== null)
-                                    <span class="kpi-faixa" aria-hidden="true"><i style="width: {{ $largura }}%"></i></span>
-                                @endif
-                            </li>
-                        @empty
-                            <li><span>Nenhum item neste recorte</span><strong>0</strong></li>
-                        @endforelse
-                    </ul>
+                            }, $cartao['itens']);
+                            $tetoBarras = max(array_filter($medidas, static fn (?float $valor): bool => $valor !== null) ?: [0]);
+                        @endphp
+                        <div class="kpi-colunas">
+                            @foreach($cartao['itens'] as $indice => $item)
+                                @php
+                                    $medida = $medidas[$indice];
+                                    $alturaBarra = $medida === null
+                                        ? 100
+                                        : ($tetoBarras > 0 ? min(100, max(8, (int) round($medida / $tetoBarras * 100))) : 8);
+                                    $legenda = mb_strlen((string) $item['rotulo']) > 10
+                                        ? mb_substr((string) $item['rotulo'], 0, 9) . '…'
+                                        : $item['rotulo'];
+                                @endphp
+                                <div class="kpi-barra" tabindex="0">
+                                    <span class="haste" aria-hidden="true"><i style="height: {{ $alturaBarra }}%"></i></span>
+                                    <em>{{ $legenda }}</em>
+                                    <span class="kpi-dica"><strong>{{ $item['rotulo'] }}</strong>{{ $item['valor'] }}</span>
+                                </div>
+                            @endforeach
+                        </div>
+                    @else
+                        <ul>
+                            @forelse($cartao['itens'] as $item)
+                                @php
+                                    $texto = trim((string) $item['valor']);
+                                    $parte = preg_match('/^\d+(?:[.,]\d+)?$/', $texto) === 1
+                                        ? (float) str_replace(',', '.', $texto)
+                                        : null;
+                                    $tetoCard = is_numeric($cartao['valor']) ? (float) $cartao['valor'] : 0;
+                                    $largura = $parte !== null && $tetoCard > 0
+                                        ? min(100, max(4, (int) round($parte / $tetoCard * 100)))
+                                        : null;
+                                @endphp
+                                <li>
+                                    <span>{{ $item['rotulo'] }}</span>
+                                    <strong>{{ $item['valor'] }}</strong>
+                                    @if($largura !== null)
+                                        <span class="kpi-faixa" aria-hidden="true"><i style="width: {{ $largura }}%"></i></span>
+                                    @endif
+                                </li>
+                            @empty
+                                <li><span>Nenhum item neste recorte</span><strong>0</strong></li>
+                            @endforelse
+                        </ul>
+                    @endif
                 </article>
             @endforeach
         </div>
