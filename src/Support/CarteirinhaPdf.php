@@ -313,8 +313,18 @@ final class CarteirinhaPdf
         $larguraTexto = max(8, (int) floor(($largura - 12) / 4.2));
         $linhas = [];
 
-        foreach (preg_split("/\n/", $valor) ?: ['-'] as $bloco) {
-            array_push($linhas, ...self::quebrar(trim((string) $bloco), $larguraTexto));
+        $blocos = preg_split("/\n/", $valor) ?: ['-'];
+
+        if (count($blocos) > 1) {
+            foreach ($blocos as $bloco) {
+                $bloco = trim((string) $bloco);
+
+                if ($bloco !== '') {
+                    $linhas[] = self::cortar($bloco, $largura - 12, 7);
+                }
+            }
+        } else {
+            array_push($linhas, ...self::quebrar(trim((string) ($blocos[0] ?? '')), $larguraTexto));
         }
 
         $comandos = [

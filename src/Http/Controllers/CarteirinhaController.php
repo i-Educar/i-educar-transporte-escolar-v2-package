@@ -103,10 +103,20 @@ class CarteirinhaController
         foreach ($linhas as $linha) {
             $veiculo = $frota[(int) $linha->rota_id] ?? null;
             $bloco = $responsaveis[(int) $linha->ref_cod_aluno] ?? ['ieducar' => [], 'transporte' => ['nome' => '', 'telefone' => '']];
-            $nomes = array_map(static fn (array $item): string => trim($item['nome'] . ($item['telefone'] !== '' ? '  ' . $item['telefone'] : '')), $bloco['ieducar']);
+            $nomes = [];
 
-            if ($bloco['transporte']['nome'] !== '') {
-                $nomes[] = trim($bloco['transporte']['nome'] . ($bloco['transporte']['telefone'] !== '' ? '  ' . $bloco['transporte']['telefone'] : ''));
+            foreach ($bloco['ieducar'] as $item) {
+                $linhaResponsavel = ResponsaveisAluno::linha($item['nome'], $item['telefone']);
+
+                if ($linhaResponsavel !== '') {
+                    $nomes[] = $linhaResponsavel;
+                }
+            }
+
+            $extra = ResponsaveisAluno::linha($bloco['transporte']['nome'], $bloco['transporte']['telefone']);
+
+            if ($extra !== '') {
+                $nomes[] = $extra;
             }
             $hora = $inicios[(int) $linha->rota_id] ?? '';
             $pessoas[] = [

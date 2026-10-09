@@ -25,7 +25,7 @@ final class ResponsaveisAluno
             return $mapa;
         }
 
-        $fone = static fn (string $coluna): string => "(select string_agg(trim(to_char(ddd, 'FM999')) || ' ' || fone::text, ', ' order by tipo desc) from cadastro.fone_pessoa where idpes = {$coluna})";
+        $fone = static fn (string $coluna): string => "(select string_agg(regexp_replace(coalesce(to_char(ddd, 'FM999'), '') || coalesce(fone::text, ''), '[^0-9]', '', 'g'), ',' order by tipo desc) from cadastro.fone_pessoa where idpes = {$coluna} and fone is not null)";
 
         foreach (DB::table('pmieducar.aluno as a')
             ->join('cadastro.fisica as f', 'f.idpes', '=', 'a.ref_idpes')
@@ -56,7 +56,7 @@ final class ResponsaveisAluno
             foreach (DB::table('transporte_escolar.responsavel_transporte')->whereIn('ref_cod_aluno', $alunos)->get(['ref_cod_aluno', 'nome', 'telefone']) as $linha) {
                 $mapa[(int) $linha->ref_cod_aluno]['transporte'] = [
                     'nome' => (string) $linha->nome,
-                    'telefone' => (string) ($linha->telefone ?: ''),
+                    'telefone' => self::mascara((string) ($linha->telefone ?: '')),
                 ];
             }
         }
@@ -128,7 +128,7 @@ final class ResponsaveisAluno
             $itens[] = [
                 'papel' => $papel,
                 'nome' => $nome,
-                'telefone' => trim((string) $telefone),
+                'telefone' => self::mascara((string) $telefone),
             ];
         };
 
@@ -137,5 +137,53 @@ final class ResponsaveisAluno
         $adicionar('Responsável', $linha->nome_resp_pessoa ?: $linha->nome_responsavel, $linha->fone_resp, $linha->idpes_responsavel);
 
         return $itens;
+    }
+
+    public static function mascara(string $texto): string
+    {
+        $partes = preg_split('/\s*,\s*/', trim($texto)) ?: [];
+        $saida = [];
+
+        foreach ($partes as $parte) {
+            $digitos = preg_replace('/\D+/', '', $parte) ?? '';
+
+            if (str_starts_with($digitos, '55') && strlen($digitos) > 11) {
+                $digitos = substr($digitos, 2);
+            }
+
+            $saida[] = match (strlen($digitos)) {
+                11 => sprintf('(%s) %s-%s', substr($digitos, 0, 2), substr($digitos, 2, 5), substr($digitos, 7)),
+                10 => sprintf('(%s) %s-%s', substr($digitos, 0, 2), substr($digitos, 2, 4), substr($digitos, 6)),
+                9 => substr($digitos, 0, 5) . '-' . substr($digitos, 5),
+                8 => substr($digitos, 0, 4) . '-' . substr($digitos, 4),
+                default => $digitos !== '' ? $digitos : trim($parte),
+            };
+        }
+
+        return implode(', ', array_values(array_filter($saida, static fn (string $item): bool => $item !== '')));
+    }
+
+    public static function linha(string $nome, string $telefone, int $limite = 68): string
+    {
+        $nome = trim($nome);
+        $telefone = self::mascara($telefone);
+
+        if ($nome === '') {
+            return '';
+        }
+
+        if ($telefone === '') {
+            return mb_strlen($nome) <= $limite ? $nome : rtrim(mb_substr($nome, 0, $limite - 1)) . '.';
+        }
+
+        $sufixo = '  ' . $telefone;
+
+        if (mb_strlen($nome . $sufixo) <= $limite) {
+            return $nome . $sufixo;
+        }
+
+        $corte = max(1, $limite - mb_strlen($sufixo));
+
+        return rtrim(mb_substr($nome, 0, max(1, $corte - 1))) . '.' . $sufixo;
     }
 }
