@@ -19,13 +19,17 @@
     <p class="lead">A matrícula é feita no i-Educar. Quem não tem matrícula ativa neste ano fica nesta lista, com o aviso abaixo do nome. @if($admin) O perfil institucional vê o nome completo. @else O perfil da escola vê o primeiro nome e a inicial do sobrenome. @endif</p>
     <form method="get" class="acao" style="margin-bottom:12px;">
         <label>Ano <input name="ano" value="{{ $ano }}" size="6"></label>
-        <label>Nome, matrícula ou CPF <input name="q" value="{{ $busca }}"></label>
+        <label>Aluno, rota, matrícula, cartão ou responsável <input name="q" value="{{ $busca }}"></label>
+        <input type="hidden" name="ordem" value="{{ $ordem }}">
+        <input type="hidden" name="direcao" value="{{ $direcao }}">
         <button type="submit">Buscar no ano</button>
     </form>
     <form id="carteirinhas" class="acao" method="post" action="{{ url('/transporte-escolar/alunos/carteirinhas') }}" target="_blank" data-carteirinhas>
         @csrf
         <input type="hidden" name="ano" value="{{ $ano }}">
         <input type="hidden" name="q" value="{{ $busca }}">
+        <input type="hidden" name="ordem" value="{{ $ordem }}">
+        <input type="hidden" name="direcao" value="{{ $direcao }}">
         <button type="submit" class="botao claro" name="modo" value="selecionadas"><i class="fa fa-id-card" aria-hidden="true"></i> Emitir selecionadas</button>
         <button type="submit" class="botao claro" name="modo" value="todas"><i class="fa fa-id-card" aria-hidden="true"></i> Emitir todas</button>
         <button type="button" class="botao" data-abre-modal="incluir-aluno"><i class="fa fa-user-plus" aria-hidden="true"></i> Incluir aluno</button>
@@ -33,66 +37,79 @@
 
     <div data-painel>
         <h2>Alunos Transportados</h2>
-        <div class="barra-dados">
-            <label class="filtro"><i class="fa fa-search" aria-hidden="true"></i><input type="search" data-filtro-tabela placeholder="Filtrar a página carregada"></label>
-        </div>
+        @php
+            $linkOrdem = function (string $coluna) use ($ano, $busca, $ordem, $direcao) {
+                $proxima = $ordem === $coluna && $direcao === 'asc' ? 'desc' : 'asc';
+
+                return url('/transporte-escolar/alunos') . '?' . http_build_query([
+                    'ano' => $ano,
+                    'q' => $busca,
+                    'ordem' => $coluna,
+                    'direcao' => $proxima,
+                ]);
+            };
+        @endphp
         <div class="tabela-wrap">
             <table>
-                <thead><tr><th><input type="checkbox" data-marca-todas aria-label="Selecionar esta página" title="Selecionar esta página"></th><th>Matrícula</th><th>Aluno</th><th>Rota</th><th>Cartão</th><th>Responsável</th><th></th></tr></thead>
-                <tbody>
-                    @foreach($semMatricula as $vinculo)
-                        @php($nome = $mostrar($vinculo->nome))
-                        <tr data-busca="{{ $vinculo->protocolo }} {{ $nome }} {{ $vinculo->descricao }}">
-                            <td></td>
-                            <td>—</td>
-                            <td>{{ $nome }}
-                                @foreach($vinculo->avisos as $aviso)
-                                    <span class="aviso-rota">{{ $aviso }}</span>
-                                @endforeach
-                            </td>
-                            <td>{{ $vinculo->descricao }}</td>
-                            <td>—</td>
-                            <td>—</td>
-                            <td class="acoes">
-                                <button type="button" class="icone ver" data-abre-modal="conferir-{{ $vinculo->id }}" aria-label="Conferir" title="Conferir"><i class="fa fa-eye" aria-hidden="true"></i></button>
-                            </td>
-                        </tr>
+                <thead><tr>
+                    <th><input type="checkbox" data-marca-todas aria-label="Selecionar esta página" title="Selecionar esta página"></th>
+                    @foreach(['matricula' => 'Matrícula', 'aluno' => 'Aluno', 'rota' => 'Rota', 'cartao' => 'Cartão', 'responsavel' => 'Responsável'] as $coluna => $titulo)
+                        <th @if($ordem === $coluna) aria-sort="{{ $direcao === 'asc' ? 'ascending' : 'descending' }}" @endif><a href="{{ $linkOrdem($coluna) }}">{{ $titulo }}</a></th>
                     @endforeach
-                    @forelse($vinculos as $vinculo)
+                    <th></th>
+                </tr></thead>
+                <tbody>
+                    @forelse($linhas as $vinculo)
                         @php($nome = $mostrar($vinculo->nome))
-                        <tr data-busca="{{ $vinculo->cod_matricula }} {{ $nome }} {{ $vinculo->descricao }} {{ collect($vinculo->responsaveis)->pluck('nome')->implode(' ') }} {{ $vinculo->transporte_nome }}">
-                            <td><input type="checkbox" name="vinculos[]" value="{{ $vinculo->ref_cod_aluno }}:{{ $vinculo->rota_id }}" form="carteirinhas" data-carteirinha aria-label="Selecionar {{ $nome }}"></td>
-                            <td>{{ $vinculo->cod_matricula ?: '—' }}</td>
-                            <td>{{ $nome }}
-                                @foreach($vinculo->avisos ?? [] as $aviso)
-                                    <span class="aviso-rota">{{ $aviso }}</span>
-                                @endforeach
-                            </td>
-                            <td>{{ $vinculo->descricao }}</td>
-                            <td>{{ $vinculo->cartao ?: '—' }}</td>
-                            <td class="responsaveis">
-                                @include('transporte-escolar::alunos.responsaveis', ['vinculo' => $vinculo])
-                            </td>
-                            <td class="acoes">
-                                <button type="button" class="icone ver" data-abre-modal="detalhe-{{ $vinculo->ref_cod_aluno }}-{{ $vinculo->rota_id }}" aria-label="Ver detalhes" title="Ver detalhes"><i class="fa fa-eye" aria-hidden="true"></i></button>
-                                <button type="button" class="icone editar" data-abre-modal="editar-{{ $vinculo->ref_cod_aluno }}-{{ $vinculo->rota_id }}" aria-label="Editar" title="Editar"><i class="fa fa-pencil" aria-hidden="true"></i></button>
-                                <form method="post" action="{{ url('/transporte-escolar/alunos/remover') }}">
-                                    @csrf
-                                    <input type="hidden" name="aluno_id" value="{{ $vinculo->ref_cod_aluno }}">
-                                    <input type="hidden" name="rota_id" value="{{ $vinculo->rota_id }}">
-                                    <button type="submit" class="icone cancelar" aria-label="Retirar da rota" title="Retirar"><i class="fa fa-times" aria-hidden="true"></i></button>
-                                </form>
-                            </td>
-                        </tr>
-                    @empty
-                        @if($semMatricula->isEmpty())
-                            <tr data-vazio><td colspan="7" class="vazio">Nenhum aluno transportado.</td></tr>
+                        @if($vinculo->origem === 'sem')
+                            <tr>
+                                <td></td>
+                                <td>—</td>
+                                <td>{{ $nome }}
+                                    @foreach($vinculo->avisos as $aviso)
+                                        <span class="aviso-rota">{{ $aviso }}</span>
+                                    @endforeach
+                                </td>
+                                <td>{{ $vinculo->descricao }}</td>
+                                <td>—</td>
+                                <td>—</td>
+                                <td class="acoes">
+                                    <button type="button" class="icone ver" data-abre-modal="conferir-{{ $vinculo->id }}" aria-label="Conferir" title="Conferir"><i class="fa fa-eye" aria-hidden="true"></i></button>
+                                </td>
+                            </tr>
+                        @else
+                            <tr>
+                                <td><input type="checkbox" name="vinculos[]" value="{{ $vinculo->ref_cod_aluno }}:{{ $vinculo->rota_id }}" form="carteirinhas" data-carteirinha aria-label="Selecionar {{ $nome }}"></td>
+                                <td>{{ $vinculo->cod_matricula ?: '—' }}</td>
+                                <td>{{ $nome }}
+                                    @foreach($vinculo->avisos ?? [] as $aviso)
+                                        <span class="aviso-rota">{{ $aviso }}</span>
+                                    @endforeach
+                                </td>
+                                <td>{{ $vinculo->descricao }}</td>
+                                <td>{{ $vinculo->cartao ?: '—' }}</td>
+                                <td class="responsaveis">
+                                    @include('transporte-escolar::alunos.responsaveis', ['vinculo' => $vinculo])
+                                </td>
+                                <td class="acoes">
+                                    <button type="button" class="icone ver" data-abre-modal="detalhe-{{ $vinculo->ref_cod_aluno }}-{{ $vinculo->rota_id }}" aria-label="Ver detalhes" title="Ver detalhes"><i class="fa fa-eye" aria-hidden="true"></i></button>
+                                    <button type="button" class="icone editar" data-abre-modal="editar-{{ $vinculo->ref_cod_aluno }}-{{ $vinculo->rota_id }}" aria-label="Editar" title="Editar"><i class="fa fa-pencil" aria-hidden="true"></i></button>
+                                    <form method="post" action="{{ url('/transporte-escolar/alunos/remover') }}">
+                                        @csrf
+                                        <input type="hidden" name="aluno_id" value="{{ $vinculo->ref_cod_aluno }}">
+                                        <input type="hidden" name="rota_id" value="{{ $vinculo->rota_id }}">
+                                        <button type="submit" class="icone cancelar" aria-label="Retirar da rota" title="Retirar"><i class="fa fa-times" aria-hidden="true"></i></button>
+                                    </form>
+                                </td>
+                            </tr>
                         @endif
+                    @empty
+                        <tr data-vazio><td colspan="7" class="vazio">Nenhum aluno transportado.</td></tr>
                     @endforelse
                 </tbody>
             </table>
         </div>
-        @include('transporte-escolar::paginacao', ['pagina' => $pagina['pagina'], 'paginas' => $pagina['paginas'], 'total' => $pagina['total'], 'url' => url('/transporte-escolar/alunos'), 'consulta' => ['ano' => $ano, 'q' => $busca]])
+        @include('transporte-escolar::paginacao', ['pagina' => $pagina['pagina'], 'paginas' => $pagina['paginas'], 'total' => $pagina['total'], 'url' => url('/transporte-escolar/alunos'), 'consulta' => ['ano' => $ano, 'q' => $busca, 'ordem' => $ordem, 'direcao' => $direcao]])
     </div>
 
     @foreach($semMatricula as $vinculo)

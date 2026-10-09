@@ -14,6 +14,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\View\View;
 use RuntimeException;
 
@@ -23,7 +24,12 @@ class AlunoRotaController
     {
         $ano = (int) $request->input('ano', date('Y'));
         $busca = trim((string) $request->input('q', ''));
+        [$ordem, $direcao, $coluna] = $this->ordenacao($request);
         $ids = RedeConsulta::rotas($ano)->pluck('r.id')->all() ?: [0];
+        $temResponsavel = Schema::hasTable('transporte_escolar.responsavel_transporte');
+        $responsavelSql = $temResponsavel
+            ? "COALESCE(NULLIF(rt.nome, ''), f.nome_responsavel)"
+            : 'f.nome_responsavel';
         $vinculos = DB::table('transporte_escolar.aluno_rota as ar')
             ->join('transporte_escolar.rota as r', 'r.id', '=', 'ar.rota_id')
             ->join('pmieducar.aluno as a', 'a.cod_aluno', '=', 'ar.ref_cod_aluno')
@@ -40,33 +46,31 @@ class AlunoRotaController
             })
             ->leftJoin('pmieducar.turma as t', 't.cod_turma', '=', 'mt.ref_cod_turma')
             ->leftJoin(DB::raw('(SELECT idpes, min(fone)::text AS fone FROM cadastro.fone_pessoa GROUP BY idpes) tel'), 'tel.idpes', '=', 'a.ref_idpes')
+            ->when($temResponsavel, function ($consulta) {
+                $consulta->leftJoin('transporte_escolar.responsavel_transporte as rt', 'rt.ref_cod_aluno', '=', 'ar.ref_cod_aluno');
+            })
             ->where('ar.ano', $ano)
             ->whereIn('r.id', $ids)
-            ->when($busca !== '', function ($consulta) use ($busca) {
-                $consulta->where(function ($q) use ($busca) {
+            ->when($busca !== '', function ($consulta) use ($busca, $temResponsavel) {
+                $consulta->where(function ($q) use ($busca, $temResponsavel) {
                     $q->where('p.nome', 'ilike', '%' . $busca . '%')
+                        ->orWhere('r.descricao', 'ilike', '%' . $busca . '%')
+                        ->orWhere('ar.cartao', 'ilike', '%' . $busca . '%')
+                        ->orWhere('f.nome_responsavel', 'ilike', '%' . $busca . '%')
                         ->orWhere('m.cod_matricula', ctype_digit($busca) ? (int) $busca : 0)
                         ->orWhereRaw("regexp_replace(coalesce(f.cpf::text, ''), '\\D', '', 'g') = ?", [preg_replace('/\D/', '', $busca) ?: '0']);
+
+                    if ($temResponsavel) {
+                        $q->orWhere('rt.nome', 'ilike', '%' . $busca . '%');
+                    }
                 });
             })
-            ->selectRaw('DISTINCT ON (ar.ref_cod_aluno, ar.rota_id) ar.ref_cod_aluno, ar.rota_id, p.nome, r.descricao, ar.turno, ar.cartao, ar.residencia_latitude, ar.residencia_longitude, m.cod_matricula, r.periodo, t.turma_turno_id, pe.nome as escola, s.nm_serie, t.nm_turma, f.nome_responsavel, tel.fone')
+            ->selectRaw(
+                'DISTINCT ON (ar.ref_cod_aluno, ar.rota_id) ar.ref_cod_aluno, ar.rota_id, p.nome, r.descricao, ar.turno, ar.cartao, ar.residencia_latitude, ar.residencia_longitude, m.cod_matricula, r.periodo, t.turma_turno_id, pe.nome as escola, s.nm_serie, t.nm_turma, ' . $responsavelSql . ' as responsavel, tel.fone, NULL::bigint as solicitacao_id, NULL::varchar as protocolo, \'aluno\'::varchar as origem',
+            )
             ->orderBy('ar.ref_cod_aluno')
             ->orderBy('ar.rota_id')
             ->orderByRaw('m.cod_matricula DESC NULLS LAST');
-        $alunos = DB::query()->fromSub($vinculos, 'alunos')->orderBy('nome');
-        $total = (clone $alunos)->count();
-        $pagina = Pagina::fatia($total, (int) $request->input('pagina', 1));
-        $lista = $alunos->offset($pagina['inicio'])->limit($pagina['tamanho'])->get();
-        $responsaveis = ResponsaveisAluno::mapa($lista->pluck('ref_cod_aluno')->all());
-
-        foreach ($lista as $linha) {
-            $bloco = $responsaveis[(int) $linha->ref_cod_aluno] ?? ['ieducar' => [], 'transporte' => ['nome' => '', 'telefone' => '']];
-            $linha->responsaveis = $bloco['ieducar'];
-            $linha->transporte_nome = $bloco['transporte']['nome'];
-            $linha->transporte_telefone = $bloco['transporte']['telefone'];
-            $linha->avisos = $this->avisosVinculo($linha);
-        }
-
         $semMatricula = DB::table('transporte_escolar.solicitacao as s')
             ->join('transporte_escolar.rota as r', 'r.id', '=', 's.vinculo_rota_id')
             ->where('s.situacao', 'conferida')
@@ -76,34 +80,73 @@ class AlunoRotaController
             ->when($busca !== '', function ($consulta) use ($busca) {
                 $consulta->where(function ($q) use ($busca) {
                     $q->where('s.nome_aluno', 'ilike', '%' . $busca . '%')
-                        ->orWhere('s.protocolo', 'ilike', '%' . $busca . '%');
+                        ->orWhere('s.protocolo', 'ilike', '%' . $busca . '%')
+                        ->orWhere('r.descricao', 'ilike', '%' . $busca . '%');
                 });
             })
-            ->orderBy('s.nome_aluno')
-            ->get(['s.id', 's.protocolo', 's.nome_aluno', 's.vinculo_rota_id', 'r.descricao', 'r.periodo'])
-            ->map(function ($linha) {
-                $linha->nome = $linha->nome_aluno;
-                $linha->rota_id = $linha->vinculo_rota_id;
-                $linha->cod_matricula = null;
+            ->selectRaw("NULL::integer as ref_cod_aluno, s.vinculo_rota_id as rota_id, s.nome_aluno as nome, r.descricao, r.periodo as turno, NULL::varchar as cartao, NULL::numeric as residencia_latitude, NULL::numeric as residencia_longitude, NULL::integer as cod_matricula, r.periodo, NULL::integer as turma_turno_id, NULL::varchar as escola, NULL::varchar as nm_serie, NULL::varchar as nm_turma, NULL::varchar as responsavel, NULL::text as fone, s.id as solicitacao_id, s.protocolo, 'sem'::varchar as origem");
+        $alunos = DB::query()->fromSub($vinculos, 'alunos')->unionAll($semMatricula);
+        $consulta = DB::query()->fromSub($alunos, 'lista')->orderByRaw($coluna . ' ' . $direcao . ' NULLS LAST')->orderBy('rota_id');
+        $total = (clone $consulta)->count();
+        $pagina = Pagina::fatia($total, (int) $request->input('pagina', 1));
+        $lista = $consulta->offset($pagina['inicio'])->limit($pagina['tamanho'])->get();
+        $responsaveis = ResponsaveisAluno::mapa($lista->pluck('ref_cod_aluno')->filter()->all());
+
+        foreach ($lista as $linha) {
+            if ($linha->origem === 'sem') {
+                $linha->id = $linha->solicitacao_id;
                 $linha->avisos = ['Sem matrícula ativa neste ano. A matrícula é feita no i-Educar.'];
-                $linha->cartao = null;
                 $linha->responsaveis = [];
                 $linha->transporte_nome = '';
+                $linha->transporte_telefone = '';
 
-                return $linha;
-            });
+                continue;
+            }
+
+            $bloco = $responsaveis[(int) $linha->ref_cod_aluno] ?? ['ieducar' => [], 'transporte' => ['nome' => '', 'telefone' => '']];
+            $linha->responsaveis = $bloco['ieducar'];
+            $linha->transporte_nome = $bloco['transporte']['nome'];
+            $linha->transporte_telefone = $bloco['transporte']['telefone'];
+            $linha->avisos = $this->avisosVinculo($linha);
+        }
 
         return view('transporte-escolar::alunos.index', [
             'ano' => $ano,
             'busca' => $busca,
+            'ordem' => $ordem,
+            'direcao' => $direcao,
             'admin' => VisaoRede::escolas() === null,
             'rotas' => $rotas = RedeConsulta::rotas($ano)->get(),
             'espera' => ListaEspera::porRota($rotas->pluck('id')->all()),
-            'vinculos' => $lista,
-            'semMatricula' => $pagina['pagina'] === 1 ? $semMatricula : collect(),
-            'fotos' => FotoIdentificacao::mapa('aluno', $lista->pluck('ref_cod_aluno')->all()),
+            'linhas' => $lista,
+            'vinculos' => $lista->where('origem', 'aluno')->values(),
+            'semMatricula' => $lista->where('origem', 'sem')->values(),
+            'fotos' => FotoIdentificacao::mapa('aluno', $lista->pluck('ref_cod_aluno')->filter()->all()),
             'pagina' => $pagina,
         ]);
+    }
+
+    /**
+     * @return array{0: string, 1: string, 2: string}
+     */
+    private function ordenacao(Request $request): array
+    {
+        $colunas = [
+            'matricula' => 'cod_matricula',
+            'aluno' => 'nome',
+            'rota' => 'descricao',
+            'cartao' => 'cartao',
+            'responsavel' => 'responsavel',
+        ];
+        $ordem = (string) $request->input('ordem', 'aluno');
+
+        if (!isset($colunas[$ordem])) {
+            $ordem = 'aluno';
+        }
+
+        $direcao = $request->input('direcao') === 'desc' ? 'desc' : 'asc';
+
+        return [$ordem, $direcao, $colunas[$ordem]];
     }
 
     public function atualizar(Request $request): RedirectResponse
