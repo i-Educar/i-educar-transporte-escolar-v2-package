@@ -557,10 +557,6 @@ class SolicitacaoController
         $turno = (string) ($rotaEscolhida->periodo ?? '');
         $voltar = fn (string $mensagem) => redirect('/transporte-escolar/solicitacoes')->with('erro', $mensagem)->with('conferir', $solicitacao);
 
-        if ($alunoId < 1 || $matriculaId < 1) {
-            return $voltar('Escolha a matrícula na lista antes de conferir. Só marcar a documentação não inclui o aluno na rota.');
-        }
-
         if ($rotaEscolhida === null || !isset(Codigos::PERIODO[$turno])) {
             return $voltar('A rota escolhida não tem um turno definido.');
         }
@@ -589,47 +585,48 @@ class SolicitacaoController
             }
         }
 
-        $dados = [
-            'aluno_id' => $alunoId,
-            'matricula_id' => $matriculaId,
-            'rota_id' => $rotaId,
-            'turno' => $turno,
-        ];
+        $rotaNome = (string) $rotaEscolhida->descricao;
+        $documentos = $exigidos === [] ? 'Documentação conferida, sem rol obrigatório neste processo.' : 'Documentos assinalados: ' . implode(', ', $exigidos) . '.';
+        $avisos = [];
+        $alunoGravado = null;
 
-        $matricula = $this->matriculasDoPedido($pedido)
-            ->where('a.cod_aluno', (int) $dados['aluno_id'])
-            ->where('m.cod_matricula', (int) $dados['matricula_id'])
-            ->first();
+        if ($alunoId > 0 && $matriculaId > 0) {
+            $matricula = $this->matriculasDoPedido($pedido)
+                ->where('a.cod_aluno', $alunoId)
+                ->where('m.cod_matricula', $matriculaId)
+                ->first();
 
-        if ($matricula === null) {
-            return $voltar('A matrícula escolhida não está ativa no ano do pedido.');
-        }
-
-        try {
-            $rotaAnterior = (int) ($pedido->vinculo_rota_id ?? 0);
-
-            if ($rotaAnterior > 0 && $rotaAnterior !== (int) $dados['rota_id'] && (int) ($pedido->ref_cod_aluno ?? 0) === (int) $dados['aluno_id']) {
-                AtribuicaoAluno::desvincular((int) $dados['aluno_id'], $rotaAnterior);
+            if ($matricula === null) {
+                return $voltar('A matrícula escolhida não está ativa no ano do pedido.');
             }
 
-            AtribuicaoAluno::vincular(
-                (int) $dados['aluno_id'],
-                (int) $dados['rota_id'],
-                null,
-                $dados['turno'],
-                null,
-                null,
-                (int) $dados['matricula_id'],
-            );
-        } catch (RuntimeException $e) {
-            return $voltar($e->getMessage());
+            $turnoMatricula = Codigos::periodoTurma(isset($matricula->turma_turno_id) ? (int) $matricula->turma_turno_id : null);
+
+            if ($turnoMatricula !== null && $turnoMatricula !== $turno) {
+                $avisos[] = 'A matrícula está no turno ' . (Codigos::PERIODO[$turnoMatricula] ?? $turnoMatricula) . ' e a rota é ' . Codigos::PERIODO[$turno] . '.';
+            }
+
+            try {
+                $rotaAnterior = (int) ($pedido->vinculo_rota_id ?? 0);
+
+                if ($rotaAnterior > 0 && $rotaAnterior !== $rotaId && (int) ($pedido->ref_cod_aluno ?? 0) === $alunoId) {
+                    AtribuicaoAluno::desvincular($alunoId, $rotaAnterior);
+                }
+
+                AtribuicaoAluno::vincular($alunoId, $rotaId, null, $turno, null, null, $matriculaId);
+            } catch (RuntimeException $e) {
+                return $voltar($e->getMessage());
+            }
+
+            $alunoGravado = $alunoId;
+        } else {
+            $avisos[] = 'Sem matrícula ativa. O aluno entrou na rota e o aviso permanece até a matrícula ser informada.';
         }
 
-        $rotaNome = (string) DB::table('transporte_escolar.rota')->where('id', $dados['rota_id'])->value('descricao');
         DB::table('transporte_escolar.solicitacao')->where('id', $pedido->id)->update([
             'situacao' => SituacaoPedido::CONFERIDA,
-            'ref_cod_aluno' => (int) $dados['aluno_id'],
-            'vinculo_rota_id' => (int) $dados['rota_id'],
+            'ref_cod_aluno' => $alunoGravado,
+            'vinculo_rota_id' => $rotaId,
             'documentos_em' => now(),
             'atualizado_em' => now(),
         ]);
@@ -638,10 +635,16 @@ class SolicitacaoController
             (int) $pedido->id,
             SituacaoPedido::CONFERIDA,
             HistoricoPedido::lugar($pedido, $rotaNome),
-            $exigidos === [] ? 'Documentação conferida, sem rol obrigatório neste processo.' : 'Documentos assinalados: ' . implode(', ', $exigidos) . '.',
+            $documentos . ($avisos === [] ? '' : ' ' . implode(' ', $avisos)),
         );
 
-        return redirect('/transporte-escolar/solicitacoes')->with('ok', 'Documentação conferida. O aluno entrou na rota ' . $rotaNome . '.');
+        $texto = 'Documentação conferida. O aluno entrou na rota ' . $rotaNome . '.';
+
+        if ($avisos !== []) {
+            $texto .= ' ' . implode(' ', $avisos);
+        }
+
+        return redirect('/transporte-escolar/solicitacoes')->with('ok', $texto);
     }
 
     private function temVaga(object $pedido): ?bool
@@ -676,7 +679,7 @@ class SolicitacaoController
     private function matriculasDoPedido(object $pedido)
     {
         return RedeConsulta::matriculasAtivas((int) $pedido->ano)
-            ->addSelect(['m.cod_matricula', 'f.data_nasc', 'm.ref_ref_cod_serie as cod_serie', 'mt.ref_cod_turma as cod_turma']);
+            ->addSelect(['m.cod_matricula', 'f.data_nasc', 'm.ref_ref_cod_serie as cod_serie', 'mt.ref_cod_turma as cod_turma', 't.turma_turno_id']);
     }
 
     /**

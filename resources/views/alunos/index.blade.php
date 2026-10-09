@@ -5,6 +5,8 @@
         td.responsaveis, dd.responsaveis { white-space: normal; }
         td.responsaveis span, dd.responsaveis span { display: block; line-height: 1.35; }
         td.responsaveis span + span, dd.responsaveis span + span { margin-top: 2px; }
+        .aviso-rota { display: block; margin-top: 4px; color: #9b2c2c; font-size: .82rem; font-weight: 600; }
+        .pendencia { background: #fff; border: 1px solid #e7c7c7; border-radius: 8px; padding: 12px; margin: 0 0 10px; display: grid; gap: 8px; }
     </style>
     @php
         $mostrar = fn ($nome) => \iEducar\Packages\BuritiTransporteEscolar\Support\NomeExibicao::exibir((string) $nome, $admin);
@@ -25,6 +27,33 @@
         <button type="button" class="botao" data-abre-modal="incluir-aluno"><i class="fa fa-user-plus" aria-hidden="true"></i> Incluir aluno</button>
     </form>
 
+    @if($pendencias->isNotEmpty())
+        <h2>Na rota sem matrícula</h2>
+        <p class="lead">Estes alunos foram conferidos e entraram na rota. O aviso sai quando a matrícula ativa é informada.</p>
+        @foreach($pendencias as $pendencia)
+            <article class="pendencia" data-pendencia data-url="{{ url('/transporte-escolar/alunos/busca') }}" data-ano="{{ $ano }}">
+                <strong>{{ $pendencia->nome_aluno }}</strong>
+                <span class="aviso-rota">Sem matrícula ativa. Protocolo {{ $pendencia->protocolo }} · {{ $pendencia->descricao }} · {{ \iEducar\Packages\BuritiTransporteEscolar\Support\Codigos::PERIODO[$pendencia->periodo] ?? $pendencia->periodo }}</span>
+                <form method="post" action="{{ url('/transporte-escolar/alunos/sanar') }}">
+                    @csrf
+                    <input type="hidden" name="solicitacao_id" value="{{ $pendencia->id }}">
+                    <input type="hidden" name="aluno_id" value="">
+                    <input type="hidden" name="matricula_id" value="">
+                    <div class="linha">
+                        <label>Nome, matrícula ou CPF <input data-q value="{{ $pendencia->nome_aluno }}"></label>
+                        <p><button type="button" class="botao claro" data-buscar>Buscar matrícula</button></p>
+                    </div>
+                    <label>Matrícula encontrada
+                        <select data-escolha required>
+                            <option value="">Escolha a matrícula para sanar o aviso</option>
+                        </select>
+                    </label>
+                    <button type="submit">Informar matrícula</button>
+                </form>
+            </article>
+        @endforeach
+    @endif
+
     <div data-painel>
         <h2>Alunos Transportados</h2>
         <div class="barra-dados">
@@ -39,7 +68,11 @@
                         <tr data-busca="{{ $vinculo->cod_matricula }} {{ $nome }} {{ $vinculo->descricao }} {{ collect($vinculo->responsaveis)->pluck('nome')->implode(' ') }} {{ $vinculo->transporte_nome }}">
                             <td><input type="checkbox" name="vinculos[]" value="{{ $vinculo->ref_cod_aluno }}:{{ $vinculo->rota_id }}" form="carteirinhas" data-carteirinha aria-label="Selecionar {{ $nome }}"></td>
                             <td>{{ $vinculo->cod_matricula ?: '—' }}</td>
-                            <td>{{ $nome }}</td>
+                            <td>{{ $nome }}
+                                @foreach($vinculo->avisos ?? [] as $aviso)
+                                    <span class="aviso-rota">{{ $aviso }}</span>
+                                @endforeach
+                            </td>
                             <td>{{ $vinculo->descricao }}</td>
                             <td>{{ $vinculo->cartao ?: '—' }}</td>
                             <td class="responsaveis">
@@ -74,7 +107,11 @@
             </div>
             @include('transporte-escolar::frota.fotos', ['lista' => $fotos[$vinculo->ref_cod_aluno] ?? [], 'carteirinha' => true])
             <dl class="ficha">
-                <dt>Matrícula</dt><dd>{{ $vinculo->cod_matricula ?: '—' }}</dd>
+                <dt>Matrícula</dt><dd>{{ $vinculo->cod_matricula ?: '—' }}
+                    @foreach($vinculo->avisos ?? [] as $aviso)
+                        <span class="aviso-rota">{{ $aviso }}</span>
+                    @endforeach
+                </dd>
                 <dt>Aluno</dt><dd>{{ $nome }}</dd>
                 <dt>Escola</dt><dd>{{ $vinculo->escola ?: '—' }}</dd>
                 <dt>Série e turma</dt><dd>{{ $vinculo->nm_serie ?: '—' }} · {{ $vinculo->nm_turma ?: '—' }}</dd>
@@ -161,6 +198,34 @@
         </div>
     </dialog>
     <script>
+        document.querySelectorAll('[data-pendencia]').forEach(function (bloco) {
+            var escolha = bloco.querySelector('[data-escolha]');
+            var aluno = bloco.querySelector('[name=aluno_id]');
+            var matricula = bloco.querySelector('[name=matricula_id]');
+            var achados = [];
+            bloco.querySelector('[data-buscar]').addEventListener('click', function () {
+                var q = bloco.querySelector('[data-q]').value || '';
+                fetch(bloco.getAttribute('data-url') + '?ano=' + encodeURIComponent(bloco.getAttribute('data-ano')) + '&q=' + encodeURIComponent(q), { headers: { 'Accept': 'application/json' } })
+                    .then(function (resposta) { return resposta.json(); })
+                    .then(function (dados) {
+                        achados = dados.alunos || [];
+                        escolha.innerHTML = '<option value="">Escolha a matrícula para sanar o aviso</option>';
+                        aluno.value = '';
+                        matricula.value = '';
+                        achados.forEach(function (item, indice) {
+                            var opcao = document.createElement('option');
+                            opcao.value = String(indice);
+                            opcao.textContent = item.rotulo;
+                            escolha.appendChild(opcao);
+                        });
+                    });
+            });
+            escolha.addEventListener('change', function () {
+                var item = achados[Number(escolha.value)];
+                aluno.value = item ? item.id : '';
+                matricula.value = item ? item.matricula : '';
+            });
+        });
         (function () {
             var bloco = document.querySelector('[data-incluir-aluno]');
             if (!bloco) return;

@@ -15,6 +15,11 @@ final class Codigos
         'integral' => 'Integral',
     ];
 
+    public static function periodoTurma(?int $id): ?string
+    {
+        return [1 => 'manha', 2 => 'tarde', 3 => 'noite', 4 => 'integral'][$id ?? 0] ?? null;
+    }
+
     public const MALHA = ['P' => 'Pavimentada', 'N' => 'Não pavimentada'];
 
     public const VINCULO = [

@@ -560,7 +560,7 @@
                             <p class="flash erro">{{ session('erro') }}</p>
                         @endif
                         <div class="conferencia-caixa">
-                            <p class="lead">Busque a matrícula e escolha uma linha. Sem essa escolha o aluno não entra na rota.</p>
+                            <p class="lead">A matrícula pode ficar em branco. Sem ela, o aluno entra na rota e o aviso permanece na lista até ser informado. Se o turno da turma for outro, o aviso também permanece.</p>
                             <div class="linha">
                                 <label>Nome, matrícula ou CPF <input data-q value="{{ $pedido->nome_aluno }}"></label>
                                 <p><button type="button" class="botao claro" data-buscar>Buscar matrícula</button></p>

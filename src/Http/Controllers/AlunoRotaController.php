@@ -4,7 +4,9 @@ namespace iEducar\Packages\BuritiTransporteEscolar\Http\Controllers;
 
 use iEducar\Packages\BuritiTransporteEscolar\Services\AtribuicaoAluno;
 use iEducar\Packages\BuritiTransporteEscolar\Services\RedeConsulta;
+use iEducar\Packages\BuritiTransporteEscolar\Support\Codigos;
 use iEducar\Packages\BuritiTransporteEscolar\Support\FotoIdentificacao;
+use iEducar\Packages\BuritiTransporteEscolar\Support\HistoricoPedido;
 use iEducar\Packages\BuritiTransporteEscolar\Support\ListaEspera;
 use iEducar\Packages\BuritiTransporteEscolar\Support\Pagina;
 use iEducar\Packages\BuritiTransporteEscolar\Support\ResponsaveisAluno;
@@ -58,6 +60,8 @@ class AlunoRotaController
                     'ar.residencia_latitude',
                     'ar.residencia_longitude',
                     'm.cod_matricula',
+                    'r.periodo',
+                    't.turma_turno_id',
                     'pe.nome as escola',
                     's.nm_serie',
                     't.nm_turma',
@@ -75,7 +79,23 @@ class AlunoRotaController
             $linha->responsaveis = $bloco['ieducar'];
             $linha->transporte_nome = $bloco['transporte']['nome'];
             $linha->transporte_telefone = $bloco['transporte']['telefone'];
+            $linha->avisos = $this->avisosVinculo($linha);
         }
+
+        $pendencias = DB::table('transporte_escolar.solicitacao as s')
+            ->join('transporte_escolar.rota as r', 'r.id', '=', 's.vinculo_rota_id')
+            ->where('s.situacao', 'conferida')
+            ->whereNull('s.ref_cod_aluno')
+            ->where('s.ano', $ano)
+            ->whereIn('r.id', $ids)
+            ->when($busca !== '', function ($consulta) use ($busca) {
+                $consulta->where(function ($q) use ($busca) {
+                    $q->where('s.nome_aluno', 'ilike', '%' . $busca . '%')
+                        ->orWhere('s.protocolo', 'ilike', '%' . $busca . '%');
+                });
+            })
+            ->orderBy('s.nome_aluno')
+            ->get(['s.id', 's.protocolo', 's.nome_aluno', 's.vinculo_rota_id', 'r.descricao', 'r.periodo']);
 
         return view('transporte-escolar::alunos.index', [
             'ano' => $ano,
@@ -84,6 +104,7 @@ class AlunoRotaController
             'rotas' => $rotas = RedeConsulta::rotas($ano)->get(),
             'espera' => ListaEspera::porRota($rotas->pluck('id')->all()),
             'vinculos' => $lista,
+            'pendencias' => $pendencias,
             'fotos' => FotoIdentificacao::mapa('aluno', $lista->pluck('ref_cod_aluno')->all()),
             'pagina' => $pagina,
         ]);
@@ -221,6 +242,42 @@ class AlunoRotaController
         return back()->with('ok', 'Cartão do aluno atualizado.');
     }
 
+    public function sanar(Request $request): RedirectResponse
+    {
+        $dados = $request->validate([
+            'solicitacao_id' => ['required', 'integer'],
+            'aluno_id' => ['required', 'integer'],
+            'matricula_id' => ['required', 'integer'],
+        ]);
+        $pedido = DB::table('transporte_escolar.solicitacao')->where('id', (int) $dados['solicitacao_id'])->first();
+
+        if ($pedido === null || $pedido->situacao !== 'conferida' || (int) ($pedido->vinculo_rota_id ?? 0) < 1) {
+            return back()->with('erro', 'Este pedido não está aguardando matrícula na rota.');
+        }
+
+        $rota = DB::table('transporte_escolar.rota')->where('id', $pedido->vinculo_rota_id)->first();
+        $turno = (string) ($rota->periodo ?? '');
+
+        if ($rota === null || !isset(Codigos::PERIODO[$turno])) {
+            return back()->with('erro', 'A rota deste pedido não tem um turno definido.');
+        }
+
+        try {
+            AtribuicaoAluno::vincular((int) $dados['aluno_id'], (int) $rota->id, null, $turno, null, null, (int) $dados['matricula_id']);
+        } catch (RuntimeException $e) {
+            return back()->with('erro', $e->getMessage());
+        }
+
+        DB::table('transporte_escolar.solicitacao')->where('id', $pedido->id)->update([
+            'ref_cod_aluno' => (int) $dados['aluno_id'],
+            'atualizado_em' => now(),
+        ]);
+        $pedido->situacao = 'conferida';
+        HistoricoPedido::registrar((int) $pedido->id, 'conferida', HistoricoPedido::lugar($pedido, (string) $rota->descricao), 'Matrícula informada depois da conferência.');
+
+        return back()->with('ok', 'Matrícula ligada à rota ' . $rota->descricao . '. Se o turno da turma for outro, o aviso continua na lista.');
+    }
+
     public function destroy(Request $request): RedirectResponse
     {
         $dados = $request->validate([
@@ -235,6 +292,27 @@ class AlunoRotaController
         }
 
         return back()->with('ok', 'Aluno retirado da rota.');
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function avisosVinculo(object $linha): array
+    {
+        $avisos = [];
+
+        if (empty($linha->cod_matricula)) {
+            $avisos[] = 'Sem matrícula ativa neste ano.';
+        }
+
+        $turnoMatricula = Codigos::periodoTurma(isset($linha->turma_turno_id) ? (int) $linha->turma_turno_id : null);
+        $turnoRota = (string) ($linha->periodo ?: $linha->turno);
+
+        if ($turnoMatricula !== null && $turnoRota !== '' && $turnoMatricula !== $turnoRota) {
+            $avisos[] = 'A matrícula está no turno ' . (Codigos::PERIODO[$turnoMatricula] ?? $turnoMatricula) . ' e a rota é ' . (Codigos::PERIODO[$turnoRota] ?? $turnoRota) . '.';
+        }
+
+        return $avisos;
     }
 
     private function comContato($consulta)

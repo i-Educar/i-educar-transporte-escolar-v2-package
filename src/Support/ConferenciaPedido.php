@@ -55,6 +55,12 @@ final class ConferenciaPedido
             $avisos[] = 'O turno escolhido não é o período da rota.';
         }
 
+        $turnoMatricula = Codigos::periodoTurma(isset($matricula->turma_turno_id) ? (int) $matricula->turma_turno_id : null);
+
+        if ($turnoMatricula !== null && $turno !== '' && $turnoMatricula !== $turno) {
+            $avisos[] = 'A matrícula está no turno ' . (Codigos::PERIODO[$turnoMatricula] ?? $turnoMatricula) . ' e a rota é ' . (Codigos::PERIODO[$turno] ?? $turno) . '.';
+        }
+
         $escolas = $rota->escolas ?? [];
 
         if ($rota !== null && $escolas !== [] && !in_array((int) $matricula->cod_escola, array_map('intval', $escolas), true)) {
