@@ -241,7 +241,7 @@
                             @foreach($categorias as $categoria)
                                 <div class="coluna-gasto" tabindex="0">
                                     <strong>R$ {{ number_format($categoria['valor'], 2, ',', '.') }}</strong>
-                                    <span class="haste"><i style="height: {{ max(8, (int) round($categoria['valor'] / $teto * 100)) }}%"></i></span>
+                                    <span class="haste"><i style="height: {{ $teto > 0 ? max(8, (int) round($categoria['valor'] / $teto * 100)) : 8 }}%"></i></span>
                                     <em>{{ $categoria['rotulo'] }}</em>
                                     <div class="dica-gasto" role="tooltip">
                                         <strong>{{ $categoria['rotulo'] }} · R$ {{ number_format($categoria['valor'], 2, ',', '.') }}</strong>

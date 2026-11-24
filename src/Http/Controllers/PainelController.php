@@ -118,7 +118,7 @@ class PainelController
             'custo' => $custo,
             'categorias' => $categorias,
             'porFonte' => $porFonte,
-            'teto' => $categorias === [] ? 1 : max(array_column($categorias, 'valor')),
+            'teto' => max(1.0, (float) ($categorias === [] ? 0 : max(array_column($categorias, 'valor')))),
             'mapa' => $mapa,
             'avisos' => $avisos,
         ]);
