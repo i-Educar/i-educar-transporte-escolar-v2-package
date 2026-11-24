@@ -61,6 +61,8 @@ use iEducar\Packages\BuritiTransporteEscolar\Support\CapacidadeViagem;
 use iEducar\Packages\BuritiTransporteEscolar\Support\OcupacaoOferta;
 use iEducar\Packages\BuritiTransporteEscolar\Support\ProtocoloSolicitacao;
 use iEducar\Packages\BuritiTransporteEscolar\Support\SituacaoPedido;
+use iEducar\Packages\BuritiTransporteEscolar\Support\PassagemControle;
+use iEducar\Packages\BuritiTransporteEscolar\Support\EmpenhoVerba;
 
 require __DIR__ . '/../src/Support/Processos.php';
 require __DIR__ . '/../src/Support/PermissaoMatriz.php';
@@ -648,5 +650,25 @@ ok(DataTela::dia('2026-10-09') === '09/10/2026' && DataTela::dia('2026-10-09 14:
 ok(AtencaoCadastro::prazo('2000-01-01', 'CNH')[0]['texto'] === 'CNH vencido', 'documento vencido pede atenção');
 ok(AtencaoCadastro::prazo(date('Y-m-d', strtotime('+400 days')), 'CNH') === [], 'documento longe não marca a linha');
 ok(AtencaoCadastro::documento('', 'CNPJ')[0]['tom'] === 'alerta', 'cadastro sem documento fica em atenção');
+
+require __DIR__ . '/../src/Support/PassagemControle.php';
+require __DIR__ . '/../src/Support/EmpenhoVerba.php';
+$pass = PassagemControle::consolidar([
+    ['tipo' => 'unitario', 'quantidade' => 100, 'sentido' => 'recebido'],
+    ['tipo' => 'unitario', 'quantidade' => 40, 'sentido' => 'entregue', 'rede' => 'municipal'],
+    ['tipo' => 'unitario', 'quantidade' => 10, 'sentido' => 'entregue', 'rede' => 'estadual'],
+]);
+ok($pass['total_recebido'] === 100 && $pass['total_entregue'] === 50, 'passagens: recebido e entregue');
+ok($pass['saldo_por_tipo']['unitario'] === 50, 'passagens: saldo por tipo');
+ok(($pass['por_rede']['municipal'] ?? 0) === 40, 'passagens: entrega por rede');
+ok(PassagemControle::saldoNegativo(['x' => -1]) === true, 'passagens: saldo negativo detectado');
+$emp = EmpenhoVerba::agrupar([
+    ['empenho' => 'E1', 'verba' => 'PNATE', 'fornecedor' => 'Posto A', 'valor' => 100.5],
+    ['empenho' => 'E2', 'verba' => 'PNATE', 'fornecedor' => 'Posto B', 'valor' => 50],
+    ['empenho' => 'E3', 'verba' => 'Municipal', 'fornecedor' => 'Oficina', 'valor' => 20],
+]);
+ok($emp['por_verba']['PNATE']['total'] === 150.5, 'empenho: total por verba PNATE');
+ok(count($emp['por_verba']['PNATE']['fornecedores']) === 2, 'empenho: fornecedores distintos');
+ok($emp['total_geral'] === 170.5, 'empenho: total geral');
 
 exit($falhas === 0 ? 0 : 1);
