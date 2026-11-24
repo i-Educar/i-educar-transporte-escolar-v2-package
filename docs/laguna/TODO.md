@@ -2,6 +2,12 @@
 
 > Pacote: `buriti/i-educar-transporte-escolar-v2` · TR **5.4** · Prioridade **P1**
 
+
+## Onda 1 (finalizada 2026-11-24)
+
+- [x] Matriz PoC / evidências / testes da onda
+- [ ] Ensaio UI roteiro R1 (humano)
+
 ## Backlog Laguna
 
 - [ ] Checklist 5.4.x
