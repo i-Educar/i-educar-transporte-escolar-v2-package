@@ -45,7 +45,15 @@
             <form method="post" enctype="multipart/form-data">
                 @csrf
                 <label>Ano <input name="ano" value="{{ date('Y') }}" required></label>
-                <label>Arquivo <input type="file" name="arquivo" required accept=".csv,.txt,.xlsx,.xls"></label>
+                @include('buriti-ui::campo-anexo', [
+                    'campo' => 'arquivo',
+                    'rotulo' => 'Planilha ou arquivo do SETE',
+                    'tituloAcao' => 'Soltar o arquivo aqui',
+                    'ajuda' => 'CSV, TXT ou Excel — arraste ou toque para escolher.',
+                    'accept' => '.csv,.txt,.xlsx,.xls',
+                    'obrigatorio' => true,
+                    'icone' => 'fa-file-excel-o',
+                ])
                 <button type="submit">Importar</button>
             </form>
         </dialog>

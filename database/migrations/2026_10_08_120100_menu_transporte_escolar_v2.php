@@ -13,7 +13,7 @@ return new class extends Migration
     {
         $raiz = Menu::query()->updateOrCreate(['process' => Processos::RAIZ], [
             'parent_id' => null,
-            'title' => 'Transporte escolar',
+            'title' => 'Transporte',
             'description' => 'Transporte Escolar v2',
             'link' => '/transporte-escolar',
             'icon' => 'fa-bus',

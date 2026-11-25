@@ -2,7 +2,7 @@
 <html lang="pt-BR">
 <head>
     <meta charset="utf-8">
-    <title>Transporte escolar</title>
+    <title>Transporte</title>
 </head>
 <body>
     <p>{{ $aviso->texto }}</p>

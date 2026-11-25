@@ -170,7 +170,14 @@
             </label>
             <label>Valor <input name="valor" inputmode="decimal" required></label>
             <label>Descrição <input name="descricao"></label>
-            <label>Comprovante <input type="file" name="comprovante"></label>
+            @include('buriti-ui::campo-anexo', [
+                'campo' => 'comprovante',
+                'rotulo' => 'Comprovante (nota ou foto)',
+                'tituloAcao' => 'Soltar o comprovante aqui',
+                'ajuda' => 'Foto da nota fiscal ou PDF — como no WhatsApp.',
+                'accept' => 'image/*,.pdf,application/pdf',
+                'icone' => 'fa-camera',
+            ])
             <button type="submit">Lançar</button>
         </form>
     </dialog>

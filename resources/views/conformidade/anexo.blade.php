@@ -25,7 +25,7 @@
     </main>
     <footer>
         <div><strong>{{ $assunto }}</strong> · {{ $data }}</div>
-        <div>Propriedade do sistema · {{ $municipio }} · Transporte escolar · i-Educar · Consulta interna, sem destinação externa</div>
+        <div>Propriedade do sistema · {{ $municipio }} · Transporte · i-Educar · Consulta interna, sem destinação externa</div>
     </footer>
 </body>
 </html>

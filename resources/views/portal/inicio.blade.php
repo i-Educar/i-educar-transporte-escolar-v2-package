@@ -1,6 +1,6 @@
 @extends('transporte-escolar::portal.layout')
 
-@section('titulo', 'Transporte escolar para a família')
+@section('titulo', 'Transporte para a família')
 
 @section('portal')
     <h1>Peça o ônibus da escola</h1>

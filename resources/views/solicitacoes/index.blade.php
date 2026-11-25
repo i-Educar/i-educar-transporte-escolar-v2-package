@@ -31,7 +31,7 @@
             <form method="post" action="{{ url('/transporte-escolar/solicitacoes/grupo') }}">
                 @csrf
                 <p class="lead" style="padding:0 18px;">A família escolhe o agrupamento e, dentro dele, o processo que cabe na idade, na série e na turma.</p>
-                <p><label>Nome <input name="nome" required placeholder="Transporte escolar 2026"></label></p>
+                <p><label>Nome <input name="nome" required placeholder="Transporte 2026"></label></p>
                 <p><label>Ano letivo <input name="ano" type="number" value="{{ date('Y') }}" required></label></p>
                 <p><label>Início <input name="inicio" type="date" required></label></p>
                 <p><label>Fim <input name="fim" type="date" required></label></p>

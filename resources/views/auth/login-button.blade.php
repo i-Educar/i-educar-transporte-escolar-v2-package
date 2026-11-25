@@ -4,6 +4,6 @@
 @if(!empty($transporteUrl))
     <a class="school-transport" href="{{ $transporteUrl }}">
         <i class="fa fa-bus" aria-hidden="true"></i>
-        Transporte escolar
+        Transporte
     </a>
 @endif

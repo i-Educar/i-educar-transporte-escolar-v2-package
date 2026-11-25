@@ -105,7 +105,7 @@ final class SimulaCarga
             ->where('m.ativo', 1)
             ->groupBy('e.cod_escola', 'p.nome', 'e.latitude', 'e.longitude')
             ->orderBy('e.cod_escola')
-            ->limit(3)
+            ->limit(12)
             ->get(['e.cod_escola', 'p.nome', 'e.latitude', 'e.longitude'])
             ->all();
     }
@@ -849,7 +849,7 @@ final class SimulaCarga
                 ->where('sentido', 'I')
                 ->whereNotNull('km_final')
                 ->orderBy('data')
-                ->limit(3)
+                ->limit(12)
                 ->get(['id', 'data']);
             $alunos = DB::table('transporte_escolar.aluno_rota')->where('rota_id', $rota)->orderBy('id')->limit(6)->get(['ref_cod_aluno', 'id']);
 

@@ -2,9 +2,9 @@
 <html lang="pt-BR">
 <head>
     <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <title>@yield('titulo', 'Transporte escolar')</title>
+    <title>@yield('titulo', 'Transporte')</title>
     <link rel="stylesheet" href="{{ url('/intranet/styles/font-awesome.css') }}">
     <style>
         :root {
@@ -31,9 +31,10 @@
         body { margin: 0; font-family: "Segoe UI", sans-serif; font-size: 14px; background: var(--fundo); color: var(--tinta); line-height: 1.45; }
         .app { display: flex; min-height: 100vh; }
         .lateral { width: 248px; flex: none; background: var(--nav); color: var(--nav-texto); position: sticky; top: 0; height: 100vh; overflow: auto; }
-        .marca { display: flex; gap: 10px; align-items: center; color: #fff; text-decoration: none; padding: 14px 14px 12px; border-bottom: 1px solid rgba(255,255,255,.08); }
-        .marca strong { display: block; font-size: .95rem; }
-        .marca small { display: block; font-weight: 400; color: #8aa0ad; }
+        .marca { display: flex; align-items: center; justify-content: center; color: #fff; text-decoration: none; padding: 14px; border-bottom: 1px solid rgba(255,255,255,.08); }
+        .marca .marca-texto { display: none; }
+        .marca .marca-titulo { display: block; font-size: .82rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; line-height: 1.15; }
+        .marca .marca-desc { display: block; color: #8aa0ad; font-weight: 400; font-size: .72rem; line-height: 1.25; }
         .brasao { width: 36px; height: 36px; object-fit: contain; background: #fff; border-radius: 4px; padding: 2px; }
         .icone { width: 36px; height: 36px; background: var(--destaque); color: #fff; border-radius: 4px; display: inline-flex; align-items: center; justify-content: center; flex: 0 0 auto; }
         .icone svg { width: 22px; height: 22px; }
@@ -316,12 +317,13 @@
             .modal .linha, .modal .opcoes, .ficha { grid-template-columns: 1fr; }
         }
     </style>
+    @include('buriti-ui::estilos')
 </head>
 <body>
     @php
         $grupos = \iEducar\Packages\BuritiTransporteEscolar\Support\MenuFluxo::grupos($menuTransporte);
-        $paginaAtual = 'Transporte escolar';
-        $moduloAtual = 'Transporte escolar';
+        $paginaAtual = 'Transporte';
+        $moduloAtual = 'Transporte';
         $iconeAtual = 'fa-th-large';
         $corAtual = '#1f4e66';
         $temasBusca = [
@@ -372,7 +374,7 @@
     @endphp
     <div class="app">
         <aside class="lateral" id="menu-transporte" aria-label="Módulos do transporte">
-            <a class="marca" href="{{ url('/transporte-escolar') }}">
+            <a class="marca" href="{{ url('/transporte-escolar') }}" title="Transporte escolar">
                 @if(!empty($logoMunicipio))
                     <img class="brasao" src="{{ $logoMunicipio }}" alt="Logomarca de {{ $municipio }}">
                 @else
@@ -380,10 +382,6 @@
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="6" width="14" height="9" rx="1"/><path d="M17 9h3l1 3v3h-4"/><circle cx="7.5" cy="17.5" r="1.5"/><circle cx="16.5" cy="17.5" r="1.5"/></svg>
                     </span>
                 @endif
-                <span>
-                    <strong>Transporte</strong>
-                    <small>{{ $municipio }}</small>
-                </span>
             </a>
             @foreach($grupos as $grupoMenu)
                 @php
@@ -408,43 +406,16 @@
             @endforeach
         </aside>
         <div class="miolo">
-            <header class="topo">
-                <button type="button" class="hamburguer" aria-expanded="false" aria-controls="menu-transporte" aria-label="Abrir módulos">
-                    <i class="fa fa-bars" aria-hidden="true"></i>
-                </button>
-                <nav class="migalha" aria-label="Trilha">
-                    <a href="{{ url('/transporte-escolar') }}">Transporte</a>
-                    <span aria-hidden="true">/</span>
-                    <span>{{ $moduloAtual }}</span>
-                    <span aria-hidden="true">/</span>
-                    <strong>{{ $paginaAtual }}</strong>
-                </nav>
-                <div class="barra-acoes">
-                    <button type="button" class="acao-topo" data-abre-modal="busca-comandos" title="Buscar" aria-label="Buscar"><i class="fa fa-search" aria-hidden="true"></i></button>
-                    <a class="acao-topo" href="{{ url('/transporte-escolar') }}" title="Início" aria-label="Início"><i class="fa fa-home" aria-hidden="true"></i></a>
-                    <a class="acao-topo" href="{{ route('home') }}" title="Voltar ao i-Educar" aria-label="Voltar ao i-Educar">
-                        <svg viewBox="0 0 16 16" width="22" height="22" aria-hidden="true">
-                            <path fill="#0072ff" d="M13.12,10,8.06,1.22,2.88,10l.65.39.32-.53a1.93,1.93,0,0,1,1.57-.77A1.78,1.78,0,0,1,7.29,10.7H8.71a1.77,1.77,0,0,1,1.86-1.62,2,2,0,0,1,1.78,1.1h0l.11.2ZM10.57,8.32A2.58,2.58,0,0,0,8,10.22,2.6,2.6,0,0,0,5.42,8.31a2.84,2.84,0,0,0-.72.1L8.05,2.74l3.28,5.68A2.68,2.68,0,0,0,10.57,8.32Z"/>
-                            <polygon fill="#8314f7" points="7.04 5.32 8.98 5.32 8.01 3.73 7.04 5.32"/>
-                            <rect fill="#8314f7" x="2.87" y="11.57" width="0.77" height="3.21"/>
-                            <rect fill="#8314f7" x="12.36" y="11.57" width="0.77" height="3.21"/>
-                            <rect fill="#8314f7" x="7.63" y="11.57" width="0.77" height="1.89"/>
-                        </svg>
-                    </a>
-                    @if(!empty($menuTransporte['painel']))
-                        <div class="pos-sino">
-                            <button type="button" class="acao-topo sino" id="sino" aria-expanded="false" aria-controls="gaveta-avisos" title="Notificações" aria-label="Notificações">
-                                <i class="fa fa-bell" aria-hidden="true"></i>
-                                <span class="sino-contagem" id="sino-contagem" hidden>0</span>
-                            </button>
-                            <div class="gaveta" id="gaveta-avisos" hidden>
-                                <header>Notificações <a href="{{ url('/transporte-escolar/notificacoes') }}">Ver todas</a></header>
-                                <ul id="gaveta-lista"><li><small>Consultando…</small></li></ul>
-                            </div>
-                        </div>
-                    @endif
-                </div>
-            </header>
+            @php
+                $homeModulo = url('/transporte-escolar');
+                $nomeModulo = 'Transporte escolar';
+                $descricaoModulo = 'Rotas, viagens e atendimento às famílias';
+                $menuGrupos = $grupos ?? [];
+                $topoExtraEsq = '';
+                $topoExtraDir = '';
+            @endphp
+            @include('buriti-ui::topo')
+
             <main style="--cor-tela: {{ $corAtual }}">
                 @if(session('ok')) <p class="flash ok">{{ session('ok') }}</p> @endif
                 @if(session('erro')) <p class="flash erro">{{ session('erro') }}</p> @endif
@@ -462,17 +433,7 @@
                     @yield('transporte')
                 </div>
             </main>
-            <footer class="rodape">
-                <div class="rodape-miolo">
-                    <div class="rodape-dev">
-                        <a href="https://buriti.dev.br/public/" target="_blank" rel="noopener">
-                            <img src="{{ url('/transporte-escolar/logo-buriti') }}" alt="" width="34" height="34">
-                            BURI-TI <span class="by">by</span> Jader Gabriel
-                        </a>
-                    </div>
-                    <span class="rodape-sistema">{{ $municipio }} · Transporte escolar · {{ date('Y') }}</span>
-                </div>
-            </footer>
+            @include('buriti-ui::rodape', ['moduloRodape' => 'Transporte · '.$municipio])
         </div>
     </div>
     <dialog class="modal" id="busca-comandos">

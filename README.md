@@ -4,6 +4,16 @@ Pacote Buriti para o i-Educar 2.12. Funciona quando o pacote `portabilis/i-educa
 
 Esta versão é a 1.8.0-beta. Cobre as fases 0 a 5, as ondas 1 a 8, o portal da família, o processo de vagas, o PDF de duas vias, o aviso no navegador, a frequência da viagem, o painel com mapa e a caixa de notificações. SMS, envio ao SiGPC e folha de pagamento continuam de fora. O rótulo beta marca a revisão visual e de fluxos ainda em conferência.
 
+## Compatibilidade
+
+| Produto | Versão |
+| --- | --- |
+| **i-Educar** | **2.12.x** (min. 2.12.0) |
+| **i-Diário** | Portabilis i-Diário (espelho Laguna) via API/SSO do core |
+| Pacote | `1.8.0` |
+
+Declarado em `composer.json` → `extra.ieducar` e `extra.idiario`.
+
 ## O que o núcleo já guarda
 
 O pacote não cria de novo nome, CPF, matrícula, turma, série, zona, coordenada da escola nem os campos de transporte do aluno. A lista está em `docs/NUCLEO.md`. Se uma coluna do 2.12 faltar, a migration para e pede para migrar o núcleo antes.

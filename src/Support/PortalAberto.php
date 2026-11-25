@@ -15,12 +15,18 @@ final class PortalAberto
 {
     public static function url(): ?string
     {
-        if (!self::mostrar(
+        if (! self::mostrar(
             \App\Support\Tenancy\PackageTenant::allows(TransporteEscolarServiceProvider::PACKAGE),
             Schema::hasTable('transporte_escolar.processo_vaga'),
             (bool) config('app.multi_tenant'),
         )) {
             return null;
+        }
+
+        $portal = url('/transporte-escolar/familia');
+
+        if (! (bool) config('transporte-escolar.public.exigir_processo_aberto', true)) {
+            return $portal;
         }
 
         $hoje = now()->toDateString();
@@ -50,9 +56,7 @@ final class PortalAberto
             }
         }
 
-        $aberto = $consulta->exists();
-
-        return $aberto ? url('/transporte-escolar/familia') : null;
+        return $consulta->exists() ? $portal : null;
     }
 
     public static function mostrar(bool $pacotePermitido, bool $tabelaExiste, bool $multiTenant = true): bool

@@ -5,8 +5,10 @@ namespace iEducar\Packages\BuritiTransporteEscolar\Providers;
 use iEducar\Packages\BuritiTransporteEscolar\Console\PassagemEmpenhoDemoCommand;
 use iEducar\Packages\BuritiTransporteEscolar\Console\SimulaTransporte;
 use iEducar\Packages\BuritiTransporteEscolar\Http\Middleware\ExigeProcesso;
+use App\Support\PublicModuleRegistry;
 use iEducar\Packages\BuritiTransporteEscolar\Support\Acesso;
 use iEducar\Packages\BuritiTransporteEscolar\Support\IdentidadeMunicipio;
+use iEducar\Packages\BuritiTransporteEscolar\Support\PortalAberto;
 use iEducar\Packages\BuritiTransporteEscolar\Support\Processos;
 use iEducar\Packages\BuritiTransporteEscolar\Support\VisaoRede;
 use Illuminate\Support\Facades\Route;
@@ -17,9 +19,28 @@ class TransporteEscolarServiceProvider extends ServiceProvider
 {
     public const string PACKAGE = 'buriti/i-educar-transporte-escolar-v2';
 
+    public function register(): void
+    {
+        $this->mergeConfigFrom(__DIR__.'/../../config/transporte-escolar.php', 'transporte-escolar');
+    }
+
     public function boot(): void
     {
+        if (class_exists(\iEducar\Packages\BuritiLagunaAmbiente\Support\BuritiUi::class)) {
+            \iEducar\Packages\BuritiLagunaAmbiente\Support\BuritiUi::registrar();
+        }
         $this->loadViewsFrom(__DIR__ . '/../../resources/views', 'transporte-escolar');
+
+        PublicModuleRegistry::register('transporte-familia', [
+            'package' => self::PACKAGE,
+            'titulo' => (string) config('transporte-escolar.public.titulo', 'Transporte escolar'),
+            'descricao' => 'Portal da família — pedidos e acompanhamento de vaga',
+            'url' => static fn (): ?string => PortalAberto::url(),
+            'icone' => 'fa-bus',
+            'css_class' => 'school-transport',
+            'aparecer_na_home' => (bool) config('transporte-escolar.public.aparecer_na_home', true),
+            'ordem' => (int) config('transporte-escolar.public.ordem', 20),
+        ]);
 
         if ($this->app->runningInConsole()) {
             $this->commands([SimulaTransporte::class, PassagemEmpenhoDemoCommand::class]);

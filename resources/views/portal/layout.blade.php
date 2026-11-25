@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>@yield('titulo', 'Transporte escolar')</title>
+    <title>@yield('titulo', 'Transporte')</title>
     <style>
         :root {
             --verde: #47728f;
@@ -21,11 +21,11 @@
             --ok-fundo: #e5f6ec;
         }
         * { box-sizing: border-box; }
-        body { margin: 0; font-family: "Segoe UI", sans-serif; background: var(--fundo); color: var(--tinta); line-height: 1.5; }
+        body { margin: 0; min-height: 100vh; display: flex; flex-direction: column; font-family: "Segoe UI", sans-serif; background: var(--fundo); color: var(--tinta); line-height: 1.5; }
         header { background: var(--verde); color: #fff; }
         .brasao { width: 48px; height: 48px; object-fit: contain; background: #fff; border-radius: 8px; padding: 3px; }
         .faixa { height: 8px; background: var(--ambar); }
-        .topo { display: flex; justify-content: space-between; gap: 16px; align-items: center; max-width: 1100px; margin: 0 auto; padding: 16px 20px; }
+        .topo { display: flex; justify-content: space-between; gap: 16px; align-items: center; }
         .marca { display: flex; gap: 12px; align-items: center; color: #fff; text-decoration: none; }
         .marca strong { display: block; font-size: 1.05rem; }
         .marca small { display: block; font-weight: 400; opacity: .85; }
@@ -36,7 +36,7 @@
         nav { display: flex; gap: 8px; }
         nav a { color: #fff; text-decoration: none; border: 1px solid rgba(255,255,255,.35); border-radius: 999px; padding: 8px 14px; display: inline-flex; gap: 8px; align-items: center; }
         nav a .icone, nav a .icone svg { width: 18px; height: 18px; }
-        main { max-width: 1100px; margin: 0 auto; padding: 28px 20px 48px; }
+        main { width: 100%; }
         h1 { margin: 0 0 8px; font-size: 1.9rem; line-height: 1.2; }
         .lead { margin: 0 0 20px; font-size: 1.08rem; color: var(--suave); }
         .cartao { background: #fff; border: 1px solid var(--linha); border-radius: 16px; padding: 20px; }
@@ -65,19 +65,19 @@
         .selo.deferida, .selo.conferida { background: var(--ok-fundo); color: var(--ok); }
         .selo.indeferida, .selo.cancelada { background: var(--erro-fundo); color: var(--erro); }
         .selo.em_analise { background: var(--ambar-claro); color: var(--ambar); }
-        footer { background: #fff; border-top: 1px solid var(--linha); }
-        .rodape { max-width: 1100px; margin: 0 auto; padding: 18px 20px 28px; color: var(--suave); display: grid; gap: 6px; }
+        footer.aviso-portal { background: #fff; border-top: 1px solid var(--linha); }
+        .rodape-aviso { color: var(--suave); display: grid; gap: 6px; padding-top: 18px; padding-bottom: 12px; }
         .mapa { width: 100%; height: 280px; border: 0; border-radius: 12px; margin-top: 12px; }
-        @media (max-width: 720px) {
-            .passos { grid-template-columns: 1fr; }
-            .topo { flex-direction: column; align-items: flex-start; }
-        }
+        .passos { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+        nav { display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; }
     </style>
+    @include('buriti-ui::portal-estilos')
+    @include('buriti-ui::estilos')
 </head>
-<body>
+<body class="portal-shell">
     <header>
         <div class="faixa"></div>
-        <div class="topo">
+        <div class="portal-topo-inner topo">
             <a class="marca" href="{{ url('/transporte-escolar/familia') }}">
                 @if(!empty($logoMunicipio))
                     <img class="brasao" src="{{ $logoMunicipio }}" alt="Logomarca de {{ $municipio }}">
@@ -85,9 +85,9 @@
                 <span class="icone" aria-hidden="true">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="6" width="14" height="9" rx="2"/><path d="M17 9h3l1 3v3h-4"/><circle cx="7.5" cy="17.5" r="1.5"/><circle cx="16.5" cy="17.5" r="1.5"/></svg>
                 </span>
-                <span><strong>{{ $municipio ?? 'Transporte escolar' }}</strong><small>Pedido da família</small></span>
+                <span><strong>{{ $municipio ?? 'Transporte' }}</strong><small>Pedido da família</small></span>
             </a>
-            <nav>
+            <nav class="portal-nav">
                 <a href="{{ url('/transporte-escolar/familia/pedir') }}">
                     <span class="icone" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 5v14M5 12h14"/></svg></span>
                     Pedir
@@ -99,15 +99,16 @@
             </nav>
         </div>
     </header>
-    <main>
+    <main class="portal-main">
         @yield('portal')
     </main>
-    <footer>
-        <div class="rodape">
+    <footer class="aviso-portal">
+        <div class="portal-rodape-inner rodape-aviso">
             <strong>O que esta página faz</strong>
             <span>O andamento do pedido fica na página Acompanhar. A prefeitura não pede senha e não pede dados do aluno por rede social.</span>
             <span>Se alguém pedir senha, foto de documento ou pagamento por WhatsApp, Instagram ou outra rede, não envie.</span>
         </div>
     </footer>
+    @include('buriti-ui::rodape', ['moduloRodape' => 'Transporte · Pedido da família · '.($municipio ?? '')])
 </body>
 </html>

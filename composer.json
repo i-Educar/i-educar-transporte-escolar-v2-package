@@ -1,13 +1,16 @@
 {
     "name": "buriti/i-educar-transporte-escolar-v2",
     "description": "Transporte Escolar v2 para o i-Educar 2.12, sem depender do pacote de transporte da Portábilis.",
-    "version": "1.8.0-beta",
+    "version": "1.8.0",
     "type": "library",
     "license": "GPL-2.0-or-later",
     "keywords": [
         "ieducar",
         "transporte-escolar",
-        "buriti"
+        "buriti",
+        "idiario",
+        "laguna",
+        "2.12"
     ],
     "authors": [
         {
@@ -32,7 +35,14 @@
         "ieducar": {
             "compatible": [
                 "2.12"
-            ]
+            ],
+            "min": "2.12.0",
+            "notes": "Alvo exclusivo i-Educar 2.12 (PHP ≥ 8.3, Illuminate ^11|^12|^13)."
+        },
+        "idiario": {
+            "compatible": true,
+            "via": "API i-Educar 2.12 + SSO (IdiarioPortal)",
+            "notes": "Compatível com Portabilis i-Diário no espelho Laguna; frequência/notas via sync do core."
         }
     },
     "config": {

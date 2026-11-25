@@ -69,7 +69,14 @@
                 <p><label>Veículo <select name="veiculo_id" required>@foreach($veiculos as $veiculo)<option value="{{ $veiculo->id }}">{{ $veiculo->placa ?: $veiculo->descricao }}</option>@endforeach</select></label></p>
                 <p><label>Órgão <select name="orgao"><option value="detran">DETRAN</option><option value="ciretran">CIRETRAN</option></select></label></p>
                 <div class="linha"><label>Número <input name="numero" required></label><label>Validade <input type="date" name="validade" required></label></div>
-                <p><label>Anexo <input type="file" name="anexo"></label></p>
+                @include('buriti-ui::campo-anexo', [
+                    'campo' => 'anexo',
+                    'rotulo' => 'Foto ou PDF do documento',
+                    'tituloAcao' => 'Soltar o arquivo aqui',
+                    'ajuda' => 'Como anexar no WhatsApp — toque ou arraste.',
+                    'accept' => 'image/*,.pdf,application/pdf',
+                    'icone' => 'fa-camera',
+                ])
                 <button type="submit">Gravar</button>
             </form>
         </dialog>
@@ -81,7 +88,14 @@
                 <p><label>Item <select name="item">@foreach($itens as $codigo => $rotulo)<option value="{{ $codigo }}">{{ $rotulo }}</option>@endforeach</select></label></p>
                 <p><label class="opcao"><input type="checkbox" name="conforme" value="1"> Conforme</label></p>
                 <p><label>Observação <input name="observacao"></label></p>
-                <p><label>Anexo <input type="file" name="anexo"></label></p>
+                @include('buriti-ui::campo-anexo', [
+                    'campo' => 'anexo',
+                    'rotulo' => 'Foto do item (opcional)',
+                    'tituloAcao' => 'Soltar a foto aqui',
+                    'ajuda' => 'Tire a foto no celular e envie aqui.',
+                    'accept' => 'image/*,.pdf,application/pdf',
+                    'icone' => 'fa-camera',
+                ])
                 <button type="submit">Gravar</button>
             </form>
         </dialog>
@@ -92,7 +106,14 @@
                     @csrf
                     <p><label>Órgão <select name="orgao"><option value="detran" @selected($linha->orgao === 'detran')>DETRAN</option><option value="ciretran" @selected($linha->orgao === 'ciretran')>CIRETRAN</option></select></label></p>
                     <div class="linha"><label>Número <input name="numero" value="{{ $linha->numero }}" required></label><label>Validade <input type="date" name="validade" value="{{ $linha->validade }}" required></label></div>
-                    <p><label>Trocar anexo <input type="file" name="anexo"></label></p>
+                    @include('buriti-ui::campo-anexo', [
+                        'campo' => 'anexo',
+                        'rotulo' => 'Trocar o arquivo anexado',
+                        'tituloAcao' => 'Soltar o novo arquivo aqui',
+                        'ajuda' => 'Só se precisar substituir o documento atual.',
+                        'accept' => 'image/*,.pdf,application/pdf',
+                        'icone' => 'fa-exchange',
+                    ])
                     <button type="submit">Gravar</button>
                 </form>
             </dialog>

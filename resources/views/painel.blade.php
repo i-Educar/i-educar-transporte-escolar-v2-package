@@ -80,8 +80,15 @@
             .painel-fila { max-height: 420px; }
         }
     </style>
-    <h1><i class="fa fa-th-large" aria-hidden="true"></i> Painel</h1>
-    <p class="lead">{{ $visaoRotulo }} · {{ $meses[$mes] }} de {{ $ano }}. Cada cor no mapa é uma rota. A fila fica ao lado até a tarefa ser baixada.</p>
+    <header class="cabeca-tela" style="margin:0 0 14px;border-radius:14px;border:1px solid color-mix(in srgb, var(--azul) 22%, var(--linha));background:linear-gradient(120deg, color-mix(in srgb, var(--azul-claro, #e8f2f7) 80%, #fff), #fff 58%)">
+        <div class="identidade-tela">
+            <span class="marca-tela" style="background:linear-gradient(145deg,#47728f,#1f4e66);border-radius:14px;box-shadow:0 10px 20px rgba(31,78,102,.28)"><i class="fa fa-bus" aria-hidden="true"></i></span>
+            <div>
+                <h1 id="titulo-tela" style="margin:0">Sala de controle da frota</h1>
+                <p class="lead" style="margin:2px 0 0">{{ $visaoRotulo }} · {{ $meses[$mes] }} de {{ $ano }}. Cada cor no mapa é uma rota; a fila ao lado é o “rádio” da operação.</p>
+            </div>
+        </div>
+    </header>
     <div class="painel-tela">
         <div class="painel-kpis">
             @foreach($cartoes as $cartao)
