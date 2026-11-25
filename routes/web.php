@@ -79,6 +79,8 @@ Route::prefix('transporte-escolar')->group(function () {
     Route::post('/offline/pendente', [OfflineController::class, 'pendente'])->middleware('transporte.processo:' . Processos::OFFLINE . ',gravar');
 
     Route::get('/gastos', [GastoController::class, 'index'])->middleware('transporte.processo:' . Processos::GASTOS . ',ver');
+    Route::get('/gastos/passagens-empenhos', [\iEducar\Packages\BuritiTransporteEscolar\Http\Controllers\PassagemEmpenhoController::class, 'index'])
+        ->middleware('transporte.processo:' . Processos::GASTOS . ',ver');
     Route::post('/gastos', [GastoController::class, 'gasto'])->middleware('transporte.processo:' . Processos::GASTOS . ',gravar');
     Route::post('/gastos/abastecimento', [GastoController::class, 'abastecimento'])->middleware('transporte.processo:' . Processos::GASTOS . ',gravar');
     Route::post('/gastos/plano', [GastoController::class, 'plano'])->middleware('transporte.processo:' . Processos::GASTOS . ',gravar');
