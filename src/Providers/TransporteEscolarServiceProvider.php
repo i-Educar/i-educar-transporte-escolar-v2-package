@@ -22,6 +22,9 @@ class TransporteEscolarServiceProvider extends ServiceProvider
     public function register(): void
     {
         $this->mergeConfigFrom(__DIR__.'/../../config/transporte-escolar.php', 'transporte-escolar');
+
+        // Fora de runningInConsole(): o check do Ambiente Laguna (HTTP) usa Artisan::all().
+        $this->commands([SimulaTransporte::class, PassagemEmpenhoDemoCommand::class]);
     }
 
     public function boot(): void
@@ -34,17 +37,24 @@ class TransporteEscolarServiceProvider extends ServiceProvider
         PublicModuleRegistry::register('transporte-familia', [
             'package' => self::PACKAGE,
             'titulo' => (string) config('transporte-escolar.public.titulo', 'Transporte escolar'),
-            'descricao' => 'Portal da família — pedidos e acompanhamento de vaga',
+            'descricao' => 'Portal da família — pedidos e acompanhamento de vaga no transporte escolar.',
             'url' => static fn (): ?string => PortalAberto::url(),
             'icone' => 'fa-bus',
             'css_class' => 'school-transport',
-            'aparecer_na_home' => (bool) config('transporte-escolar.public.aparecer_na_home', true),
+            'aparecer_na_home' => static function (): bool {
+                if (! class_exists(\iEducar\Packages\BuritiLagunaAmbiente\Support\ModuloConfiguracao::class)) {
+                    return (bool) config('transporte-escolar.public.aparecer_na_home', true);
+                }
+
+                return \iEducar\Packages\BuritiLagunaAmbiente\Support\ModuloConfiguracao::aparecerNaHome('transporte');
+            },
             'ordem' => (int) config('transporte-escolar.public.ordem', 20),
+            'cor' => '#1f4e66',
+            'periodo' => 'Sob processo aberto',
+            'regra' => 'Famílias · sem login interno',
         ]);
 
         if ($this->app->runningInConsole()) {
-            $this->commands([SimulaTransporte::class, PassagemEmpenhoDemoCommand::class]);
-
             if (\App\Support\Tenancy\PackageTenant::allows(self::PACKAGE)) {
                 $this->loadMigrationsFrom(__DIR__ . '/../../database/migrations');
             }
@@ -70,6 +80,7 @@ class TransporteEscolarServiceProvider extends ServiceProvider
             Route::post('/transporte-escolar/familia/pedir', [\iEducar\Packages\BuritiTransporteEscolar\Http\Controllers\FamiliaPortalController::class, 'gravar']);
             Route::get('/transporte-escolar/familia/protocolo', [\iEducar\Packages\BuritiTransporteEscolar\Http\Controllers\FamiliaPortalController::class, 'protocolo']);
             Route::post('/transporte-escolar/familia/protocolo', [\iEducar\Packages\BuritiTransporteEscolar\Http\Controllers\FamiliaPortalController::class, 'consultar']);
+            Route::get('/transporte-escolar/familia/resultados', [\iEducar\Packages\BuritiTransporteEscolar\Http\Controllers\FamiliaPortalController::class, 'resultados']);
             Route::post('/transporte-escolar/familia/cancelar', [\iEducar\Packages\BuritiTransporteEscolar\Http\Controllers\FamiliaPortalController::class, 'cancelar']);
             Route::get('/te/setor', [\iEducar\Packages\BuritiTransporteEscolar\Http\Controllers\FamiliaPortalController::class, 'mapaSetor']);
             Route::get('/te/{token}', [\iEducar\Packages\BuritiTransporteEscolar\Http\Controllers\FamiliaPortalController::class, 'acompanhar']);
