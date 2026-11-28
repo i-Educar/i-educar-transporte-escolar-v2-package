@@ -23,7 +23,8 @@ jobs:
     uses: i-Educar/i-educar-laguna-ambiente-package/.github/workflows/reusable-deploy-laguna.yml@main
     with:
       package_repo: ${{ github.event.repository.name }}
-      run_migrate: ${{ github.event_name == 'workflow_dispatch' && inputs.run_migrate || false }}
+      # github.event.inputs.* é seguro em push (vazio → false)
+      run_migrate: ${{ github.event.inputs.run_migrate == 'true' }}
     secrets:
       LAGUNA_SSH_HOST: ${{ secrets.LAGUNA_SSH_HOST }}
       LAGUNA_SSH_USER: ${{ secrets.LAGUNA_SSH_USER }}
