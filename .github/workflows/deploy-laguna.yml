@@ -1,0 +1,32 @@
+# Template copiado para cada pacote Buriti (não editar nos pacotes — regenere pelo bootstrap).
+name: Deploy Laguna
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+  workflow_dispatch:
+    inputs:
+      run_migrate:
+        description: Rodar migrate --force no servidor
+        type: boolean
+        default: false
+
+concurrency:
+  group: deploy-laguna-${{ github.repository }}
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    uses: i-Educar/i-educar-laguna-ambiente-package/.github/workflows/reusable-deploy-laguna.yml@main
+    with:
+      package_repo: ${{ github.event.repository.name }}
+      run_migrate: ${{ github.event_name == 'workflow_dispatch' && inputs.run_migrate || false }}
+    secrets:
+      LAGUNA_SSH_HOST: ${{ secrets.LAGUNA_SSH_HOST }}
+      LAGUNA_SSH_USER: ${{ secrets.LAGUNA_SSH_USER }}
+      LAGUNA_SSH_KEY: ${{ secrets.LAGUNA_SSH_KEY }}
+      LAGUNA_APP_PATH: ${{ secrets.LAGUNA_APP_PATH }}
+      IEDUCAR_DEPLOY_TOKEN: ${{ secrets.IEDUCAR_DEPLOY_TOKEN }}
