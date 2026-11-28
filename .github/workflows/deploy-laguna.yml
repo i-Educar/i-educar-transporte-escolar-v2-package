@@ -8,10 +8,14 @@ on:
       - 'docs/**'
   workflow_dispatch:
     inputs:
-      run_migrate:
-        description: Rodar migrate --force no servidor
+      run_tests:
+        description: Rodar testes específicos do módulo (tests/run.php + Feature)
         type: boolean
-        default: false
+        default: true
+      run_migrate:
+        description: Rodar migrate --path das migrations deste pacote
+        type: boolean
+        default: true
 
 concurrency:
   group: deploy-laguna-${{ github.repository }}
@@ -25,7 +29,9 @@ jobs:
     uses: i-Educar/i-educar-laguna-ambiente-package/.github/workflows/reusable-deploy-laguna.yml@main
     with:
       package_repo: ${{ github.event.repository.name }}
-      run_migrate: ${{ github.event.inputs.run_migrate == 'true' }}
+      # Em push: sempre testes + migrate do pacote. Em dispatch: segue os inputs (default true).
+      run_tests: ${{ github.event_name == 'push' || github.event.inputs.run_tests == 'true' }}
+      run_migrate: ${{ github.event_name == 'push' || github.event.inputs.run_migrate == 'true' }}
     secrets:
       LAGUNA_SSH_HOST: ${{ secrets.LAGUNA_SSH_HOST }}
       LAGUNA_SSH_USER: ${{ secrets.LAGUNA_SSH_USER }}
