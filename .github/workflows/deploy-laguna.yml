@@ -1,4 +1,3 @@
-# Template copiado para cada pacote Buriti (não editar nos pacotes — regenere pelo bootstrap).
 name: Deploy Laguna
 
 on:
@@ -18,16 +17,17 @@ concurrency:
   group: deploy-laguna-${{ github.repository }}
   cancel-in-progress: false
 
+permissions:
+  contents: write
+
 jobs:
   deploy:
     uses: i-Educar/i-educar-laguna-ambiente-package/.github/workflows/reusable-deploy-laguna.yml@main
     with:
       package_repo: ${{ github.event.repository.name }}
-      # github.event.inputs.* é seguro em push (vazio → false)
       run_migrate: ${{ github.event.inputs.run_migrate == 'true' }}
     secrets:
       LAGUNA_SSH_HOST: ${{ secrets.LAGUNA_SSH_HOST }}
       LAGUNA_SSH_USER: ${{ secrets.LAGUNA_SSH_USER }}
       LAGUNA_SSH_KEY: ${{ secrets.LAGUNA_SSH_KEY }}
       LAGUNA_APP_PATH: ${{ secrets.LAGUNA_APP_PATH }}
-      IEDUCAR_DEPLOY_TOKEN: ${{ secrets.IEDUCAR_DEPLOY_TOKEN }}
